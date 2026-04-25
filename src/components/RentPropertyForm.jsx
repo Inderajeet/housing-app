@@ -73,8 +73,7 @@ const RentPropertyForm = ({ data, onChange, onSubmit, onNext, mode = 'details' }
             alert("All files uploaded successfully!");
             setStagedImages([]);
             setStagedDocs([]);
-        } catch (err) {
-            console.error(err);
+        } catch {
             alert("Upload failed. Check if your backend is running.");
         } finally {
             setIsUploading(false);

@@ -43,8 +43,7 @@ export async function deleteFromCloudflare(fileUrl) {
     const filename = new URL(fileUrl).pathname.split('/').pop();
     const deleteUrl = process.env.CF_WORKER_UPLOAD_URL.replace('/upload', `/files/${filename}`);
     await fetch(deleteUrl, { method: 'DELETE', headers: { 'Content-Type': 'application/json' } });
-  } catch (err) {
-    console.error('Failed to delete from Cloudflare:', err.message);
+  } catch {
   }
 }
 

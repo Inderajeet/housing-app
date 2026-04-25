@@ -1,7 +1,8 @@
 import axios from 'axios';
 import { matchesPropertyIdentifier, normalizeCategory, normalizeMode } from '../utils/propertyRouting';
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/frontend';
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL ||
+  (typeof window !== 'undefined' ? `${window.location.origin}/api/frontend` : 'http://localhost:3000/api/frontend');
 
 export const apiClient = axios.create({ baseURL: BASE_URL });
 
@@ -45,8 +46,7 @@ export const endpoints = {
             matchesPropertyIdentifier(property, identifier)
           );
           if (matchedProperty) return matchedProperty;
-        } catch (error) {
-          console.error('Property lookup request failed:', error);
+        } catch {
         }
       }
     }
@@ -68,4 +68,9 @@ export const endpoints = {
 
   getPlotLayout: (propertyId) => apiClient.get(`/plot-units/${propertyId}`),
   getFlatLayout: (propertyId) => apiClient.get(`/flat-units/${propertyId}`),
+
+  getPremium: (params = {}) => {
+    const cleanParams = Object.fromEntries(Object.entries(params).filter(([, v]) => v != null && v !== ''));
+    return apiClient.get('/premium', { params: cleanParams });
+  },
 };

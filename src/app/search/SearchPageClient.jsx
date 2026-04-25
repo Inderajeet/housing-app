@@ -23,14 +23,6 @@ const hasPremiumImage = (property) => {
   return false;
 };
 
-const LOCATION_DATA = {
-  'Chennai': [13.0827, 80.2707],
-  'Coimbatore': [11.0168, 76.9558],
-  'Madurai': [9.9252, 78.1198],
-  'Trichy': [10.7905, 78.7047],
-  'Kallakurichi': [11.77, 79.11],
-  'Tamil Nadu': [10.7905, 78.7047],
-};
 
 export default function HomePage() {
   const router = useRouter();
@@ -44,6 +36,7 @@ export default function HomePage() {
   const [districtsList, setDistrictsList] = useState([]);
   const [taluksList, setTaluksList] = useState([]);
   const [villagesList, setVillagesList] = useState([]);
+  const [dbPremiumProperties, setDbPremiumProperties] = useState([]);
 
   const [filters, setFilters] = useState({
     state: 'TN',
@@ -83,8 +76,7 @@ export default function HomePage() {
         ]);
         setDistrictsList(distRes.data || []);
         setAllProperties(propRes.data?.data || []);
-      } catch (error) {
-        console.error('Fetch Error:', error);
+      } catch {
       } finally {
         setLoading(false);
       }
@@ -107,6 +99,12 @@ export default function HomePage() {
       router.replace(`${pathname}?${nextQuery}`, { scroll: false });
     }
   }, [filters.lookingTo, filters.type, searchParams, router, pathname]);
+
+  useEffect(() => {
+    endpoints.getPremium({ property_type: filters.lookingTo })
+      .then(res => setDbPremiumProperties(res.data?.data || []))
+      .catch(() => {});
+  }, [filters.lookingTo]);
 
   useEffect(() => {
     if (!filters.district_id) { setTaluksList([]); setVillagesList([]); return; }
@@ -135,29 +133,27 @@ export default function HomePage() {
   }, [filters, allProperties]);
 
   const premiumProperties = useMemo(() => {
+    if (dbPremiumProperties.length > 0) return dbPremiumProperties;
     const filteredPremium = filteredProperties.filter(hasPremiumImage);
     return filteredPremium.length > 0 ? filteredPremium : allProperties.filter(hasPremiumImage);
-  }, [filteredProperties, allProperties]);
+  }, [dbPremiumProperties, filteredProperties, allProperties]);
 
-  // Map center logic
+  // Map center logic — uses lat/lng from DB location lists
   useEffect(() => {
-    if (filters.village_id || filters.taluk_id) {
-      if (filteredProperties.length > 0) {
-        const firstProp = filteredProperties[0];
-        setFilters(prev => ({
-          ...prev,
-          mapCenter: [Number(firstProp.latitude), Number(firstProp.longitude)],
-          mapZoom: filters.village_id ? 15 : 13,
-        }));
-      }
-      return;
+    const selectedVillage = villagesList.find(v => String(v.village_id) === String(filters.village_id));
+    const selectedTaluk = taluksList.find(t => String(t.taluk_id) === String(filters.taluk_id));
+    const selectedDistrict = districtsList.find(d => String(d.district_id) === String(filters.district_id));
+
+    if (filters.village_id && selectedVillage?.latitude && selectedVillage?.longitude) {
+      setFilters(prev => ({ ...prev, mapCenter: [Number(selectedVillage.latitude), Number(selectedVillage.longitude)], mapZoom: 14 }));
+    } else if (filters.taluk_id && selectedTaluk?.latitude && selectedTaluk?.longitude) {
+      setFilters(prev => ({ ...prev, mapCenter: [Number(selectedTaluk.latitude), Number(selectedTaluk.longitude)], mapZoom: 12 }));
+    } else if (filters.district_id && selectedDistrict?.latitude && selectedDistrict?.longitude) {
+      setFilters(prev => ({ ...prev, mapCenter: [Number(selectedDistrict.latitude), Number(selectedDistrict.longitude)], mapZoom: 11 }));
+    } else {
+      setFilters(prev => ({ ...prev, mapCenter: [10.7905, 78.7047], mapZoom: 7 }));
     }
-    if (filters.district && LOCATION_DATA[filters.district]) {
-      setFilters(prev => ({ ...prev, mapCenter: LOCATION_DATA[filters.district], mapZoom: 11 }));
-      return;
-    }
-    setFilters(prev => ({ ...prev, mapCenter: [10.7905, 78.7047], mapZoom: 7 }));
-  }, [filters.district_id, filters.taluk_id, filters.village_id]);
+  }, [filters.district_id, filters.taluk_id, filters.village_id, districtsList, taluksList, villagesList]);
 
   const handleFilterChange = (newValues) => setFilters(prev => ({ ...prev, ...newValues }));
 

@@ -128,8 +128,7 @@ const SalePropertyForm = ({ data, onChange, onSubmit, onNext, mode = 'details' }
             setStagedImages([]);
             setStagedDrawing(null);
             setStagedDocs([]);
-        } catch (err) {
-            console.error(err);
+        } catch {
             alert("Upload failed.");
         } finally {
             setIsUploading(false);

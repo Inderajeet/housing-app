@@ -19,8 +19,7 @@ const LiveLocationModal = ({ data, onChange, onNext }) => {
             );
             const result = await response.json();
             return result?.results?.[0]?.formatted_address || '';
-        } catch (error) {
-            console.error('Address lookup failed:', error);
+        } catch {
             return '';
         }
     };
@@ -39,8 +38,7 @@ const LiveLocationModal = ({ data, onChange, onNext }) => {
                 videoRef.current.srcObject = videoStream;
                 await videoRef.current.play();
             }
-        } catch (err) {
-            console.error("Camera error:", err);
+        } catch {
             alert("Could not access camera. Please check permissions.");
         }
     };
@@ -91,8 +89,7 @@ const LiveLocationModal = ({ data, onChange, onNext }) => {
             stream.getTracks().forEach(track => track.stop());
             setStream(null);
             setIsCameraActive(false);
-        } catch (err) {
-            console.error("Capture failed", err);
+        } catch {
             setIsResolvingAddress(false);
         } finally {
             setIsProcessing(false);

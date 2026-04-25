@@ -13,8 +13,6 @@ const UnifiedMap = ({ properties = [], mapCenter, mapZoom }) => {
   const [hoveredProperty, setHoveredProperty] = useState(null);
   const [mapLoaded, setMapLoaded] = useState(false);
   const mapRef = useRef(null);
-  const prevCenterRef = useRef(null);
-  const prevZoomRef = useRef(null);
   const hidePopupTimeoutRef = useRef(null);
 
   const { isLoaded } = useJsApiLoader({
@@ -44,9 +42,6 @@ const UnifiedMap = ({ properties = [], mapCenter, mapZoom }) => {
       mapRef.current.panTo(center);
       setTimeout(() => { if (mapRef.current) mapRef.current.setZoom(zoom); }, 500);
     }
-
-    prevCenterRef.current = center;
-    prevZoomRef.current = zoom;
   }, [center, zoom, mapLoaded]);
 
   const formatPrice = (price) => {
@@ -90,12 +85,91 @@ const UnifiedMap = ({ properties = [], mapCenter, mapZoom }) => {
 
   const scheduleHidePopup = () => {
     clearHidePopupTimer();
-    hidePopupTimeoutRef.current = setTimeout(() => setHoveredProperty(null), 120);
+    hidePopupTimeoutRef.current = setTimeout(() => setHoveredProperty(null), 180);
   };
 
   useEffect(() => () => clearHidePopupTimer(), []);
 
-  const infoWindowOptions = { pixelOffset: { width: 0, height: -30 }, maxWidth: 280, disableAutoPan: true };
+  const infoWindowOptions = { pixelOffset: { width: 0, height: -30 }, maxWidth: 300, disableAutoPan: true };
+
+  const renderPopupContent = (property) => {
+    const isRent = !!property.rent_amount;
+    const saleType = (property.sale_type || '').toLowerCase();
+    const isPlotOrFlat = ['plot', 'flat'].includes(saleType);
+    const landmark = property.street_name_or_road_name || '';
+    const locationStr = landmark || [property.village_name, property.taluk_name].filter(Boolean).join(', ') || 'Location available';
+
+    return (
+      <div
+        className="popup-content popup-clickable"
+        onClick={() => router.push(getPropertyHref(property))}
+      >
+        <div className="popup-id-badge">{property.formatted_id || 'Property'}</div>
+
+        <div className="popup-price">
+          {isRent ? formatPrice(property.rent_amount) : formatPrice(property.sale_price)}
+          {isRent && <span className="price-period">/mo</span>}
+        </div>
+
+        <div className="popup-details-grid">
+          {isRent ? (
+            <>
+              {property.advance_amount && (
+                <div className="detail-item">
+                  <span className="detail-label">Advance</span>
+                  <span className="detail-value">{formatPrice(property.advance_amount)}</span>
+                </div>
+              )}
+              <div className="detail-item">
+                <span className="detail-label">Type</span>
+                <span className="detail-value">
+                  {(property.property_use || '').toLowerCase() === 'commercial'
+                    ? 'Commercial'
+                    : `${property.bhk || ''} BHK`.trim() || 'Residential'}
+                </span>
+              </div>
+            </>
+          ) : isPlotOrFlat ? (
+            <>
+              {property.title && (
+                <div className="detail-item">
+                  <span className="detail-label">Layout</span>
+                  <span className="detail-value">{property.title}</span>
+                </div>
+              )}
+              <div className="detail-item">
+                <span className="detail-label">Type</span>
+                <span className="detail-value">{capitalizeFirst(saleType)}</span>
+              </div>
+            </>
+          ) : (
+            <>
+              {property.extent_area && (
+                <div className="detail-item">
+                  <span className="detail-label">Area</span>
+                  <span className="detail-value">{[property.extent_area, property.extent_unit].filter(Boolean).join(' ')}</span>
+                </div>
+              )}
+              <div className="detail-item">
+                <span className="detail-label">Type</span>
+                <span className="detail-value">{capitalizeFirst(saleType) || 'Property'}</span>
+              </div>
+            </>
+          )}
+        </div>
+
+        <div className="popup-location">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+            <circle cx="12" cy="10" r="3" />
+          </svg>
+          <span>{locationStr}</span>
+        </div>
+
+        <div className="popup-view-link">View Details →</div>
+      </div>
+    );
+  };
 
   if (!isLoaded) return <div className="unified-map-loading">Loading Map...</div>;
 
@@ -130,7 +204,7 @@ const UnifiedMap = ({ properties = [], mapCenter, mapZoom }) => {
               icon={createMarkerIcon(color)}
               onMouseOver={() => { clearHidePopupTimer(); setHoveredProperty(property); }}
               onMouseOut={scheduleHidePopup}
-              onClick={() => router.push(getPropertyHref(property))}
+              onClick={() => { clearHidePopupTimer(); setHoveredProperty(property); }}
             />
           );
         })}
@@ -141,45 +215,8 @@ const UnifiedMap = ({ properties = [], mapCenter, mapZoom }) => {
             onCloseClick={() => setHoveredProperty(null)}
             options={infoWindowOptions}
           >
-            <div className="property-popup" onMouseEnter={clearHidePopupTimer} onMouseLeave={scheduleHidePopup}>
-              <div className="popup-content">
-                <div className="popup-header">
-                  {hoveredProperty.formatted_id || hoveredProperty.title || 'Property'}
-                </div>
-                <div className="popup-price">
-                  {hoveredProperty.rent_amount ? formatPrice(hoveredProperty.rent_amount) : formatPrice(hoveredProperty.sale_price)}
-                  {hoveredProperty.rent_amount && <span className="price-period">/mo</span>}
-                </div>
-                <div className="popup-details-grid">
-                  <div className="detail-item">
-                    <span className="detail-label">Type</span>
-                    <span className="detail-value">
-                      {hoveredProperty.rent_amount
-                        ? ((hoveredProperty.property_use || '').toLowerCase() === 'commercial' ? 'Commercial' : `${hoveredProperty.bhk || ''} BHK`.trim())
-                        : capitalizeFirst(hoveredProperty.sale_type) || 'Property'}
-                    </span>
-                  </div>
-                  {hoveredProperty.extent_area && hoveredProperty.extent_unit && (
-                    <div className="detail-item">
-                      <span className="detail-label">Area</span>
-                      <span className="detail-value">{[hoveredProperty.extent_area, hoveredProperty.extent_unit].filter(Boolean).join(' ').trim()}</span>
-                    </div>
-                  )}
-                  {hoveredProperty.rent_amount && hoveredProperty.advance_amount && (
-                    <div className="detail-item">
-                      <span className="detail-label">Advance</span>
-                      <span className="detail-value">{formatPrice(hoveredProperty.advance_amount)}</span>
-                    </div>
-                  )}
-                </div>
-                <div className="popup-location">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
-                    <circle cx="12" cy="10" r="3" />
-                  </svg>
-                  <span>{[hoveredProperty.taluk_name, hoveredProperty.village_name].filter(Boolean).join(', ') || 'Location available'}</span>
-                </div>
-              </div>
+            <div onMouseEnter={clearHidePopupTimer} onMouseLeave={scheduleHidePopup}>
+              {renderPopupContent(hoveredProperty)}
             </div>
           </InfoWindow>
         )}

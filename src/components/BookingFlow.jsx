@@ -100,7 +100,7 @@ const BookingFlow = ({
     fetch(flowFile)
       .then(res => res.json())
       .then(data => setSteps(data.stages))
-      .catch(err => console.error("Failed to load booking stages", err));
+      .catch(() => {});
   }, [transactionType]);
 
   useEffect(() => {
@@ -117,8 +117,7 @@ const BookingFlow = ({
           : propertyId;
         const res = await endpoints.getGeneralBookingFlow({ propertyId, unitType: resolvedUnitType, unitId });
         updateGeneralFlowState(res.data);
-      } catch (err) {
-        console.error(err);
+      } catch {
       }
     };
     loadGeneralFlow();
@@ -153,8 +152,7 @@ const BookingFlow = ({
       setCurrentStepIndex(nextIndex);
       setIsSubmitted(true);
       if (res.data.status === 'closed') setIsFinalized(true);
-    } catch (err) {
-      console.error("Booking check failed", err);
+    } catch {
       setIsSubmitted(true);
     } finally {
       setLoadingStage(false);
@@ -204,8 +202,6 @@ const BookingFlow = ({
       if (err.response?.status === 409) {
         alert("This unit is already booked by another buyer.");
         setSelectedUnit(null);
-      } else {
-        console.error(err);
       }
     }
   };

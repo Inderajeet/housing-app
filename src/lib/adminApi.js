@@ -23,7 +23,6 @@ adminApi.interceptors.response.use(
     const url = err.config?.url;
     const status = err.response?.status;
     const apiError = err.response?.data?.error || err.response?.data?.message;
-    console.error(`Admin API error: ${method} ${url}${status ? ` (${status})` : ''}`, apiError || err.message);
     return Promise.reject(err);
   }
 );
@@ -106,6 +105,18 @@ export const uploadVillages = (file) => {
   fd.append('file', file);
   return adminApi.post('/locations/villages/upload', fd);
 };
+
+// Premium
+export const getPremiumProperties = ({ type, filter } = {}) => {
+  const params = {};
+  if (type) params.type = type;
+  if (filter) params.filter = filter;
+  return adminApi.get('/premium', { params });
+};
+export const addPremiumProperty = (data) => adminApi.post('/premium', data);
+export const requestPremiumProperty = (property_id) => adminApi.post('/premium', { property_id, request_only: true });
+export const updatePremiumProperty = (id, data) => adminApi.put(`/premium/${id}`, data);
+export const removePremiumProperty = (id) => adminApi.delete(`/premium/${id}`);
 
 // Plot / Flat projects
 export const getPlotProperties = () => adminApi.get('/plot-projects');

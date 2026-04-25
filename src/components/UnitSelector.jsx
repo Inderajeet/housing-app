@@ -175,7 +175,6 @@ const UnitSelector = ({ propertyId, onSelectUnit, saleType, onNoPlots, refreshKe
                     setHasPlots(anyPlots);
                 }
             } catch (err) {
-                console.error("Layout fetch failed", err);
                 if (err?.response?.status === 429) {
                     setLoadError('Layout is temporarily rate-limited. Please wait a moment and try again.');
                 } else {

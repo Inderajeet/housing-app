@@ -157,7 +157,7 @@ export default function PlotLayoutEditorPage() {
         });
         setDims({ rows: maxR, cols: maxC });
         setGridData(refreshPlotNumbers(mapped));
-      } catch (err) { console.error(err); }
+      } catch { }
     };
     load();
   }, [id, refreshPlotNumbers]);

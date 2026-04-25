@@ -2,10 +2,11 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 
 const Sidebar = ({ isOpen = true, onToggle }) => {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [openMenus, setOpenMenus] = useState({ rent: true, sale: true });
   const isSaleSub = ['/admin/sale', '/admin/sellers', '/admin/buyers', '/admin/enquiries', '/admin/bookings', '/admin/plots', '/admin/flats'].some(p => pathname === p || pathname?.startsWith(p + '/'));
   const toggleMenu = (menu) => setOpenMenus(prev => ({ ...prev, [menu]: !prev[menu] }));
@@ -15,10 +16,14 @@ const Sidebar = ({ isOpen = true, onToggle }) => {
       pathname === href ? 'bg-blue-600 text-white shadow-md' : 'text-slate-400 hover:bg-slate-800 hover:text-white'
     }`;
 
-  const subNavClass = (href) =>
-    `w-full flex items-center space-x-3 px-4 py-2 rounded-lg transition-all text-sm group ${
-      pathname === href ? 'text-blue-400 font-bold bg-slate-800/50' : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/30'
+  const subNavClass = (href) => {
+    const [hrefPath, hrefSearch] = href.split('?');
+    const hrefParams = new URLSearchParams(hrefSearch || '');
+    const isActive = pathname === hrefPath && (!hrefSearch || [...hrefParams.entries()].every(([k, v]) => searchParams.get(k) === v));
+    return `w-full flex items-center space-x-3 px-4 py-2 rounded-lg transition-all text-sm group ${
+      isActive ? 'text-blue-400 font-bold bg-slate-800/50' : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/30'
     }`;
+  };
 
   return (
     <>
@@ -54,6 +59,7 @@ const Sidebar = ({ isOpen = true, onToggle }) => {
                 <Link href="/admin/rent/owners" className={subNavClass('/admin/rent/owners')}><span className="w-1.5 h-1.5 rounded-full bg-slate-600"></span><span>Owners</span></Link>
                 <Link href="/admin/rent/enquiries" className={subNavClass('/admin/rent/enquiries')}><span className="w-1.5 h-1.5 rounded-full bg-slate-600"></span><span>Enquiries</span></Link>
                 <Link href="/admin/rent/bookings" className={subNavClass('/admin/rent/bookings')}><span className="w-1.5 h-1.5 rounded-full bg-slate-600"></span><span>Bookings</span></Link>
+                <Link href="/admin/premium?type=rent" className={subNavClass('/admin/premium?type=rent')}><span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span><span>Premium</span></Link>
               </div>
             )}
           </div>
@@ -76,6 +82,7 @@ const Sidebar = ({ isOpen = true, onToggle }) => {
                 <Link href="/admin/buyers" className={subNavClass('/admin/buyers')}><span className="w-1.5 h-1.5 rounded-full bg-slate-600"></span><span>Buyers</span></Link>
                 <Link href="/admin/enquiries" className={subNavClass('/admin/enquiries')}><span className="w-1.5 h-1.5 rounded-full bg-slate-600"></span><span>Enquiries</span></Link>
                 <Link href="/admin/bookings" className={subNavClass('/admin/bookings')}><span className="w-1.5 h-1.5 rounded-full bg-slate-600"></span><span>Bookings</span></Link>
+                <Link href="/admin/premium?type=sale" className={subNavClass('/admin/premium?type=sale')}><span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span><span>Premium</span></Link>
               </div>
             )}
           </div>

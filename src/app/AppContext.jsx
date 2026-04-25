@@ -18,11 +18,10 @@ export function AppProvider({ children }) {
     let isMounted = true;
     const fetchInitialPremiumProperties = async () => {
       try {
-        const response = await endpoints.getProperties('rent', '1');
+        const response = await endpoints.getPremium();
         const properties = response?.data?.data || [];
         if (isMounted) setMenuPremiumProperties(properties);
-      } catch (error) {
-        console.error('Initial premium fetch failed:', error);
+      } catch {
       }
     };
     fetchInitialPremiumProperties();

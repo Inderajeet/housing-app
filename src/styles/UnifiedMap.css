@@ -34,7 +34,28 @@
 
 .popup-content {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  padding: 8px 16px 16px;
+  padding: 12px 14px 14px;
+  min-width: 220px;
+}
+
+.popup-clickable {
+  cursor: pointer;
+}
+
+.popup-clickable:hover .popup-view-link {
+  color: #0ea5e9;
+}
+
+.popup-id-badge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  color: #0ea5e9;
+  background: #e0f2fe;
+  border-radius: 6px;
+  padding: 2px 8px;
+  margin-bottom: 8px;
+  letter-spacing: 0.02em;
 }
 
 .popup-header {
@@ -45,6 +66,15 @@
   padding-bottom: 8px;
   border-bottom: 1px solid #e2e8f0;
   letter-spacing: -0.01em;
+}
+
+.popup-view-link {
+  margin-top: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+  text-align: right;
+  transition: color 0.15s;
 }
 
 .popup-price {

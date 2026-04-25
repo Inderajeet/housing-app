@@ -7,7 +7,6 @@ import dynamic from 'next/dynamic';
 const GalleryMap = dynamic(() => import('./GalleryMap'), { ssr: false, loading: () => <div style={{ height: 300 }} /> });
 import BookingFlow from './BookingFlow';
 import SeoHelmet from './SeoHelmet';
-import { normalizeCategory, normalizeMode } from '../utils/propertyRouting';
 import { getKeywordString, getLocationLabel, getPriceLabel, getPropertyDisplayName, getPropertyTypeLabel, getTransactionLabel } from '../utils/seo';
 import '../styles/ProjectDetailsPage.css';
 
@@ -34,7 +33,6 @@ export default function ProjectDetailsView({ routeIdentifier = '', routeMode = n
         setError(null);
       } catch (err) {
         setError('Failed to load property details');
-        console.error(err);
       } finally {
         setLoading(false);
       }
@@ -74,7 +72,7 @@ export default function ProjectDetailsView({ routeIdentifier = '', routeMode = n
 
   const drawingSources = [
     ...(Array.isArray(project?.drawings) ? project.drawings : []),
-    project?.drawing,
+    project?.drawing_image,
   ].map(toMediaObject).filter(Boolean);
 
   const dedupeBySrc = (items) => {
@@ -89,10 +87,10 @@ export default function ProjectDetailsView({ routeIdentifier = '', routeMode = n
   const drawingImages = isPlotOrFlat ? dedupeBySrc([...drawingByType, ...drawingSources]) : [];
   const normalImages = dedupeBySrc(nonDrawingImages);
 
+  // Drawing gets its own dedicated panel block for plots/flats
+  const hasDrawing = drawingImages.length > 0;
+
   const mediaTabs = [];
-  if (drawingImages.length > 0) {
-    mediaTabs.push({ id: 'drawing', label: 'Drawings', src: drawingImages[0].src });
-  }
   normalImages.forEach((img, idx) => {
     mediaTabs.push({
       id: `image-${idx + 1}`,
@@ -133,7 +131,14 @@ export default function ProjectDetailsView({ routeIdentifier = '', routeMode = n
     if (status.isFinalized) setIsBlocked(true);
   }, [routeIdentifier]);
 
-  if (loading) return <div className="details-container loading">Loading property details...</div>;
+  if (loading) return (
+    <div className="details-loading-screen">
+      <div className="home-loader-card">
+        <div className="home-loader-spinner" aria-hidden="true" />
+        <p className="home-loader-text">Loading property details</p>
+      </div>
+    </div>
+  );
   if (error || !project) return <div className="details-container error">Property not found or failed to load.</div>;
 
   const displayTitle = project.formatted_id || project.title;
@@ -194,7 +199,7 @@ export default function ProjectDetailsView({ routeIdentifier = '', routeMode = n
                     bookedPeopleCount={project.booked_people_count}
                     generalStatus={generalStatus}
                     isBlocked={isBlocked || project.rent_status === 'RENTED' || project.sale_status === 'SOLD'}
-                    onStageUpdate={(stage) => console.log('New Stage:', stage)}
+                    onStageUpdate={() => {}}
                     onStatusChange={handleStatusChange}
                   />
                 </div>
@@ -243,6 +248,15 @@ export default function ProjectDetailsView({ routeIdentifier = '', routeMode = n
                   </div>
                 </div>
               )}
+
+              {activePanel === 'drawing' && hasDrawing && (
+                <div className="panel-content single-image-panel-content">
+                  <h2 className="section-title">Layout Drawing</h2>
+                  <div className="single-image-frame">
+                    <img src={drawingImages[0].src} alt="Layout Drawing" />
+                  </div>
+                </div>
+              )}
             </div>
 
             {project.description && (
@@ -282,6 +296,15 @@ export default function ProjectDetailsView({ routeIdentifier = '', routeMode = n
                   <div className="boundary-thumb-label boundary-thumb-label-south">S</div>
                 </div>
                 <span>Boundaries</span>
+              </button>
+            )}
+
+            {hasDrawing && (
+              <button type="button" className={`panel-thumb ${activePanel === 'drawing' ? 'active' : ''}`} onClick={() => setActivePanel('drawing')}>
+                <div className="panel-thumb-media">
+                  <img src={drawingImages[0].src} alt="Layout Drawing preview" />
+                </div>
+                <span>Drawing</span>
               </button>
             )}
 

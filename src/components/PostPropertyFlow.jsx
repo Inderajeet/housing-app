@@ -141,8 +141,7 @@ const PostPropertyFlow = ({ onClose, initialTransactionType = 'rent', onSuccessf
             );
             const result = await response.json();
             return result?.results?.[0]?.formatted_address || '';
-        } catch (error) {
-            console.error('Reverse geocoding failed:', error);
+        } catch {
             return '';
         }
     }, []);
@@ -185,7 +184,6 @@ const PostPropertyFlow = ({ onClose, initialTransactionType = 'rent', onSuccessf
                 setCurrentStep(3);
             } catch (err) {
                 alert('Failed to initialize property. Please try again');
-                console.error(err);
             } finally {
                 setLoading(false);
                 setLoadingMessage('');
@@ -255,8 +253,7 @@ const PostPropertyFlow = ({ onClose, initialTransactionType = 'rent', onSuccessf
             } else {
                 onSuccessfulPost(formData.number);
             }
-        } catch (err) {
-            console.error('Submission error:', err);
+        } catch {
             alert('Failed to post property details. Please check your connection.');
         } finally {
             setLoading(false);

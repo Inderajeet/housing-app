@@ -157,7 +157,7 @@ export default function FlatLayoutEditorPage() {
         });
         setDims({ rows: maxR, cols: maxC });
         setGridData(refreshFlatNumbers(mapped));
-      } catch (err) { console.error(err); }
+      } catch { }
     };
     load();
   }, [id, refreshFlatNumbers]);

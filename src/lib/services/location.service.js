@@ -5,8 +5,7 @@ export async function getAllDistricts() {
     `SELECT d.district_id, d.district_name, d.district_code, d.latitude, d.longitude
      FROM districts d
      WHERE EXISTS (
-       SELECT 1 FROM properties p
-       WHERE p.district_id = d.district_id AND p.status = 'approved'
+       SELECT 1 FROM properties p WHERE p.district_id = d.district_id AND p.status = 'approved'
      )
      ORDER BY d.district_name ASC`
   );
@@ -19,8 +18,7 @@ export async function getTaluksByDistrict(districtId) {
      FROM taluks t
      WHERE t.district_id = $1
        AND EXISTS (
-         SELECT 1 FROM properties p
-         WHERE p.taluk_id = t.taluk_id AND p.status = 'approved'
+         SELECT 1 FROM properties p WHERE p.taluk_id = t.taluk_id AND p.status = 'approved'
        )
      ORDER BY t.taluk_name ASC`,
     districtId
@@ -34,8 +32,7 @@ export async function getVillagesByTaluk(talukId) {
      FROM villages v
      WHERE v.taluk_id = $1
        AND EXISTS (
-         SELECT 1 FROM properties p
-         WHERE p.village_id = v.village_id AND p.status = 'approved'
+         SELECT 1 FROM properties p WHERE p.village_id = v.village_id AND p.status = 'approved'
        )
      ORDER BY v.village_name ASC`,
     talukId
