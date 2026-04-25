@@ -1,0 +1,151 @@
+/* UnitSelector.css */
+.unit-selector-container {
+    padding: 16px;
+    background: #ffffff;
+    border-radius: 14px;
+    border: 1px solid #e2e8f0;
+}
+
+.unit-selector-title {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #0f172a;
+    margin: 0 0 6px;
+    letter-spacing: 0.04em;
+}
+
+.unit-selector-subtitle {
+    font-size: 0.85rem;
+    color: #64748b;
+    margin: 0 0 14px;
+}
+
+.unit-grid-scroll {
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 16px;
+    overflow: auto;
+    max-height: 520px;
+}
+
+.unit-grid-wrapper {
+    --unit-cell: 57px;
+    display: grid;
+    gap: 1px;
+    background: #e2e8f0;
+    border: 1px solid #cbd5f5;
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+    width: max-content;
+}
+
+.unit-cell {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #ffffff;
+    color: #0f172a;
+    font-size: 0.65rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    user-select: none;
+    min-width: var(--unit-cell);
+    min-height: var(--unit-cell);
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.12s ease;
+}
+
+.unit-cell.unit-empty {
+    background: #f8fafc;
+}
+
+.unit-cell.unit-road {
+    background: #1f2937;
+}
+
+.unit-cell.unit-text {
+    background: transparent;
+    box-shadow: none;
+    text-transform: none;
+}
+
+.unit-cell.unit-plot.available {
+    background: #22c55e;
+    color: #ffffff;
+    cursor: pointer;
+}
+
+.unit-cell.unit-plot.available:hover {
+    background: #22c55e;
+    color: #ffffff;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 12px rgba(34, 197, 94, 0.35);
+}
+
+.unit-cell.unit-plot.on-booking {
+    background: #f59e0b;
+    color: #111827;
+    cursor: pointer;
+}
+
+.unit-cell.unit-plot.on-booking:hover {
+    background: #f59e0b;
+    color: #111827;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 12px rgba(245, 158, 11, 0.35);
+}
+
+.unit-cell.unit-plot.booked {
+    background: #ef4444;
+    color: #ffffff;
+    cursor: not-allowed;
+    opacity: 0.85;
+}
+
+.unit-cell.unit-plot.token-paid {
+    background: #ef4444;
+    color: #ffffff;
+    cursor: not-allowed;
+    opacity: 0.92;
+}
+
+.unit-label {
+    pointer-events: none;
+    white-space: nowrap;
+    font-size: 12px !important;
+    font-weight: 700 !important
+}
+
+.unit-legend {
+    display: flex;
+    gap: 16px;
+    margin-top: 12px;
+    font-size: 0.75rem;
+    color: #475569;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.legend-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 3px;
+    border: 1px solid rgba(15, 23, 42, 0.1);
+}
+
+.legend-available {
+    background: #22c55e;
+}
+
+.legend-on-booking {
+    background: #f59e0b;
+}
+
+.legend-booked {
+    background: #ef4444;
+}

@@ -1,0 +1,63 @@
+{
+  "topPicks": [
+    {
+      "id": "tp1",
+      "developer": "Guru Ji Homes And Developer",
+      "viewProjects": "View Projects",
+      "projects": [
+        {
+          "id": "p1", 
+          "name": "Guru Ji Innovative Homes",
+          "location": "Dwarka Mor, South West Delhi, Delhi",
+          "price": "₹60.0 Lac - 1.0 Cr",
+          "bhk": "3 BHK Builder Floor",
+          "image": "https://via.placeholder.com/600x400/4A90E2/FFFFFF?text=Guru+Ji+Innovative+Homes",
+          "contact": "Contact"
+        },
+        {
+          "id": "p2",
+          "name": "Guru Ji Lavish Floors", 
+          "location": "Sohna Road, Gurgaon",
+          "price": "₹80 Lac - 1.2 Cr",
+          "bhk": "3, 4 BHK Builder Floor",
+          "image": "https://via.placeholder.com/600x400/50C878/FFFFFF?text=Guru+Ji+Lavish+Floors",
+          "contact": "Contact"
+        },
+        {
+          "id": "p3",
+          "name": "Guru Ji Home Luxury",
+          "location": "Greater Noida, Delhi NCR",
+          "price": "₹1.5 Cr - 2.0 Cr",
+          "bhk": "4 BHK Builder Floor",
+          "image": "https://via.placeholder.com/600x400/9B59B6/FFFFFF?text=Guru+Ji+Home+Luxury",
+          "contact": "Contact"
+        }
+      ]
+    },
+    {
+      "id": "tp2", 
+      "developer": "Pristine Properties",
+      "viewProjects": "View Projects",
+      "projects": [
+        {
+          "id": "p4",
+          "name": "YOO Pristine",
+          "location": "Akurdi, Pimpri Chinchwad, Pune",
+          "price": "₹1.14 Cr - 2.26 Cr", 
+          "bhk": "2, 3, 3.5, 4 BHK Apartments",
+          "image": "https://via.placeholder.com/600x400/FF6B6B/FFFFFF?text=YOO+Pristine",
+          "contact": "Contact"
+        },
+        {
+          "id": "p5",
+          "name": "Pristine Kyra",
+          "location": "Wakad, Pune", 
+          "price": "₹95 Lac - 1.8 Cr",
+          "bhk": "2, 3 BHK Apartments",
+          "image": "https://via.placeholder.com/600x400/FFA500/FFFFFF?text=Pristine+Kyra",
+          "contact": "Contact"
+        }
+      ]
+    }
+  ]
+}

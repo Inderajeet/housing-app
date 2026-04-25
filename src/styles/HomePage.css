@@ -1,0 +1,441 @@
+/* src/styles/HomePage.css */
+
+/* Base Container */
+.home-container {
+    font-family: Arial, sans-serif;
+    height: calc(100vh - var(--menu-bar-height, 72px));
+    min-height: calc(100vh - var(--menu-bar-height, 72px));
+    display: flex;
+    flex-direction: column;
+    background-color: #f7f7f7;
+    overflow: hidden;
+}
+
+.home-loading-screen {
+    align-items: center;
+    justify-content: center;
+    background:
+        radial-gradient(circle at top, rgba(229, 10, 70, 0.10), transparent 38%),
+        linear-gradient(180deg, #fff9fb 0%, #f5f7fb 100%);
+}
+
+.home-loader-card {
+    min-width: 220px;
+    padding: 28px 32px;
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.88);
+    border: 1px solid rgba(229, 10, 70, 0.12);
+    box-shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+}
+
+.home-loader-spinner {
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    border: 4px solid rgba(229, 10, 70, 0.16);
+    border-top-color: #e50a46;
+    animation: homeLoaderSpin 0.8s linear infinite;
+}
+
+.home-loader-text {
+    margin: 0;
+    color: #334155;
+    font-size: 0.98rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    text-transform: capitalize;
+}
+
+@keyframes homeLoaderSpin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* --- Main Map Area (Fills available viewport area) --- */
+.main-map-area {
+    position: relative;
+    flex-grow: 1;
+    height: 100%;
+    overflow: hidden;
+    background-color: #f8f9fa;
+}
+
+/* The Map Component */
+.map-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+}
+
+/* --- Floating Panel Base Styles --- */
+.floating-filter-panel,
+.floating-listings-panel {
+    position: absolute;
+    top: 8px;
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    z-index: 100;
+    transition: width 0.3s, height 0.3s, padding 0.3s, top 0.3s, bottom 0.3s;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* 1. Floating Filter Panel (LEFT) */
+.floating-filter-panel {
+    left: 20px;
+    padding: 0;
+}
+
+.location-filter-group select:focus-visible {
+    outline: none;
+    box-shadow: none;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+/* 2. Floating Listings Panel (RIGHT) */
+.floating-listings-panel {
+    right: 69px;
+    top: auto;
+    bottom: 20px;
+    width: 330px;
+    height: 42%;
+    max-height: 420px;
+    z-index: 130;
+}
+
+.floating-listings-panel.expanded {
+    padding: 8px;
+    overflow-y: hidden;
+}
+
+/* Panel Header (for listing count and close button) */
+.panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 0 4px 0;
+    margin-bottom: 0;
+    border-bottom: 1px solid #eee;
+}
+
+/* Listing Count Header Style */
+.listing-count-header {
+    font-weight: 600;
+    font-size: 14px;
+    color: #333;
+}
+
+.close-btn {
+    background: none;
+    border: none;
+    font-size: 16px;
+    font-weight: bold;
+    color: #555;
+    cursor: pointer;
+    line-height: 1;
+    padding: 5px;
+    position: static;
+}
+
+/* --- Property Listings Content (Scrolling Fix) --- */
+.property-listings-container {
+    flex-grow: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 0;
+    margin: 0;
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+.property-listings-container::-webkit-scrollbar {
+    display: none;
+}
+
+/* --- Minimized State (Both Panels) --- */
+.floating-filter-panel.minimized,
+.floating-listings-panel.minimized {
+    top: auto;
+    bottom: 20px;
+    width: 50px;
+    height: 50px;
+    padding: 0;
+    justify-content: center;
+    align-items: center;
+}
+
+/* Minimized Toggle Button */
+.minimize-toggle-btn {
+    background-color: #e50a46;
+    color: white;
+    border: none;
+    width: 100%;
+    height: 100%;
+    font-size: 20px;
+    border-radius: 8px;
+    cursor: pointer;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* --- Basic Filter Section (Location Dropdowns) --- */
+.basic-filter-section {
+    padding: 10px;
+    position: relative;
+    transition: opacity 0.3s;
+}
+
+.basic-filter-section.hidden {
+    opacity: 0;
+    height: 0;
+    padding: 0;
+    overflow: hidden;
+}
+
+.basic-filter-section .close-btn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 10;
+}
+
+/* --- Location Filter Group Styles --- */
+.location-filter-group {
+    display: flex;
+    gap: 10px;
+    /* margin-bottom: 10px; */
+}
+
+.location-filter-group select {
+    flex: 1;
+    padding: 6px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background-color: white;
+    color: #333;
+    font-size: 13px;
+}
+
+/* ===========================
+   MOBILE RESPONSIVE STYLES
+   =========================== */
+
+/* Tablets and smaller laptops */
+@media (max-width: 1024px) {
+    .floating-listings-panel {
+        width: 300px;
+        height: 44%;
+    }
+}
+
+/* Tablets */
+@media (max-width: 768px) {
+    .home-container {
+        height: calc(100dvh - var(--menu-bar-height, 72px));
+        min-height: calc(100dvh - var(--menu-bar-height, 72px));
+        overflow: hidden;
+    }
+
+    .main-map-area {
+        height: 100%;
+        min-height: 0;
+        overflow: hidden;
+    }
+
+    /* Filter Panel - Full width on mobile */
+    .floating-filter-panel {
+        left: 10px;
+        right: 10px;
+        width: calc(100% - 20px);
+        top: 10px;
+    }
+
+    /* Basic filter section - Keep 2x2 grid but smaller */
+    .basic-filter-section {
+        padding: 10px;
+    }
+
+    .location-filter-group {
+        gap: 8px;
+    }
+
+    .location-filter-group select {
+        padding: 9px;
+        font-size: 13px;
+    }
+
+    /* Listings panel sits to the right of the two left ads */
+    .floating-listings-panel {
+        left: auto;
+        right: 10px;
+        width: calc(100% - 245px);
+        top: auto;
+        bottom: 111px;
+        height: 198px;
+        max-height: 198px;
+    }
+
+    .floating-listings-panel.expanded {
+        padding: 6px;
+    }
+
+    /* Minimized panels */
+    .floating-filter-panel.minimized {
+        left: 10px;
+        width: 50px;
+        height: 50px;
+        bottom: 10px;
+    }
+
+    .floating-listings-panel.minimized {
+        right: 10px;
+        width: 60px;
+        height: 50px;
+        bottom: 10px;
+    }
+
+    .minimize-toggle-btn {
+        font-size: 18px;
+    }
+
+}
+
+/* Mobile devices */
+@media (max-width: 600px) {
+    .home-container {
+        height: calc(100dvh - var(--menu-bar-height, 72px));
+        min-height: calc(100dvh - var(--menu-bar-height, 72px));
+    }
+
+    .main-map-area {
+        height: 100%;
+        min-height: 0;
+    }
+
+    /* Basic filter section - Maintain 2x2 grid with smaller sizing */
+    .basic-filter-section {
+        padding: 8px;
+    }
+
+    .location-filter-group {
+        gap: 6px;
+    }
+
+    .location-filter-group select {
+        padding: 8px;
+        font-size: 12px;
+    }
+
+    /* Panel header */
+    .panel-header {
+        padding: 0 0 4px 0;
+        margin-bottom: 4px;
+    }
+
+    .listing-count-header {
+        font-size: 14px;
+    }
+
+    .close-btn {
+        font-size: 18px;
+    }
+
+    /* Listings panel adjustments */
+    .floating-listings-panel {
+        bottom: 103px;
+        height: 149px;
+        max-height: 175px;
+    }
+
+    .floating-listings-panel.expanded {
+        padding: 6px;
+        margin-bottom: 4px;
+    }
+
+    .property-listings-container {
+        gap: 6px;
+        padding: 0;
+    }
+
+}
+
+/* Extra small devices */
+@media (max-width: 400px) {
+    .home-container {
+        height: calc(100dvh - var(--menu-bar-height, 72px));
+        min-height: calc(100dvh - var(--menu-bar-height, 72px));
+    }
+
+    .main-map-area {
+        height: 100%;
+        min-height: 0;
+    }
+
+    .floating-filter-panel {
+        left: 8px;
+        right: 8px;
+        width: calc(100% - 16px);
+        top: 8px;
+    }
+
+    .floating-listings-panel {
+        left: auto;
+        right: 8px;
+        width: calc(100% - 196px);
+        bottom: 100px;
+        height: 145px;
+        max-height: 178px;
+    }
+
+    /* Basic filter section - Extra compact 2x2 grid */
+    .basic-filter-section {
+        padding: 6px;
+    }
+
+    .location-filter-group {
+        gap: 5px;
+    }
+
+    .location-filter-group select {
+        padding: 7px;
+        font-size: 12px;
+    }
+
+    .listing-count-header {
+        font-size: 13px;
+    }
+
+    .minimize-toggle-btn {
+        font-size: 16px;
+    }
+
+    .floating-filter-panel.minimized,
+    .floating-listings-panel.minimized {
+        width: 45px;
+        height: 45px;
+        bottom: 8px;
+    }
+}
+
+/* Landscape mobile orientation */
+@media (max-width: 900px) and (orientation: landscape) {
+    .main-map-area {
+        height: 100%;
+    }
+
+    .floating-listings-panel {
+        max-height: 198px;
+    }
+}

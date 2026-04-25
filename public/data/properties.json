@@ -1,0 +1,455 @@
+{
+    "properties": [
+        {
+            "id": 101,
+            "title": "Amoga Apartments (3BHK)",
+            "bhk": "3 BHK",
+            "area": 2121,
+            "district": "Chennai",
+            "taluk": "Taluk A (North)",
+            "village": "Anna Nagar",
+            "type": "Apartment",
+            "price": 3180000,
+            "location": { "lat": 13.0674, "lng": 80.2376 },
+            "status": "Ready to Move",
+            "furnish": "Unfurnished",
+            "image": "https://picsum.photos/seed/apartment_modern/600/400",
+            
+            "developer": "Prime Developers Ltd",
+            "reraCertified": true,
+            "possession": "Ready to Move",
+            "priceDetails": {
+                "3 BHK": "₹1.50 Cr - ₹1.80 Cr"
+            },
+            "overview": "Amoga Apartments offers luxury and spacious living in the heart of Anna Nagar. Designed for modern families, it combines convenience with high-end finishes and excellent connectivity.",
+            "amenities": ["Gymnasium", "Reserved Parking", "Power Backup", "Lift", "Security"],
+            "specifications": {
+                "floor": "Premium Vitrified Tiles in Living/Dining; Wooden Flooring in Master Bedroom",
+                "fitting": "CP fittings of Grohe/Jaquar",
+                "wall": "Emulsion Paint with Putty Finish"
+            },
+            "images_detail": [
+                "https://picsum.photos/seed/apartment_main/800/500",
+                "https://picsum.photos/seed/apartment_kitchen/400/250",
+                "https://picsum.photos/seed/apartment_balcony/400/250"
+            ],
+            "around": [
+                { "type": "School", "name": "SBOA School", "distance": "1.2 km" },
+                { "type": "Hospital", "name": "Apollo Hospitals", "distance": "3 km" },
+                { "type": "Mall", "name": "VR Chennai", "distance": "4 km" }
+            ]
+        },
+        {
+            "id": 102,
+            "title": "Mahalakshmi Towers (1BHK)",
+            "bhk": "1 BHK",
+            "area": 515,
+            "district": "Chennai",
+            "taluk": "Taluk A (North)",
+            "village": "Mylapore",
+            "type": "Apartment",
+            "price": 3300000,
+            "location": { "lat": 13.0560, "lng": 80.2588 },
+            "status": "Under Construction",
+            "furnish": "Semi-Furnished",
+            "image": "https://picsum.photos/seed/building_under_con/600/400",
+
+            "developer": "Maha Builders",
+            "reraCertified": false,
+            "possession": "Dec, 2026",
+            "priceDetails": {
+                "1 BHK": "₹33 L - ₹40 L"
+            },
+            "overview": "Affordable and compact living in the historical Mylapore area. Ideal for single professionals or small families looking for convenience and connectivity.",
+            "amenities": ["Lift", "Security", "Maintenance Staff"],
+            "specifications": {
+                "floor": "Standard Ceramic Tiles",
+                "fitting": "Standard Chrome Fittings",
+                "wall": "Distemper Paint"
+            },
+            "images_detail": [
+                "https://picsum.photos/seed/tower_view/800/500",
+                "https://picsum.photos/seed/tower_unit/400/250",
+                "https://picsum.photos/seed/tower_lobby/400/250"
+            ],
+            "around": [
+                { "type": "Temple", "name": "Kapaleeshwarar Temple", "distance": "0.5 km" },
+                { "type": "Metro Station", "name": "Mylapore Metro", "distance": "1 km" }
+            ]
+        },
+        {
+            "id": 103,
+            "title": "Shashi Homes (2BHK)",
+            "bhk": "2 BHK",
+            "area": 1200,
+            "district": "Chennai",
+            "taluk": "Taluk A (North)",
+            "village": "T. Nagar",
+            "type": "Apartment",
+            "price": 6500000,
+            "location": { "lat": 13.0335, "lng": 80.2015 },
+            "status": "Ready to Move",
+            "furnish": "Furnished",
+            "image": "https://picsum.photos/seed/furnished_home/600/400",
+
+            "developer": "Shashi Constructions",
+            "reraCertified": true,
+            "possession": "Ready to Move",
+            "priceDetails": {
+                "2 BHK": "₹65 L - ₹75 L"
+            },
+            "overview": "A well-maintained 2BHK apartment in the commercial hub of T. Nagar. Perfect for those who want to be close to shopping and transport links.",
+            "amenities": ["Intercom", "Maintenance Staff", "Covered Parking"],
+            "specifications": {
+                "floor": "Marble Flooring",
+                "fitting": "Standard Fittings",
+                "wall": "Emulsion Paint"
+            },
+            "images_detail": [
+                "https://picsum.photos/seed/tnagar_ext/800/500",
+                "https://picsum.photos/seed/tnagar_living/400/250",
+                "https://picsum.photos/seed/tnagar_bed/400/250"
+            ],
+            "around": [
+                { "type": "Shopping", "name": "Saravana Stores", "distance": "0.2 km" },
+                { "type": "Park", "name": "Panagal Park", "distance": "1 km" }
+            ]
+        },
+        {
+            "id": 104,
+            "title": "Apartment Maduravoyal",
+            "bhk": "1 BHK",
+            "area": 600,
+            "district": "Chennai",
+            "taluk": "Taluk B (South)",
+            "village": "Velachery",
+            "type": "Apartment",
+            "price": 3000000,
+            "location": { "lat": 13.0487, "lng": 80.1424 },
+            "status": "Ready to Move",
+            "furnish": "Unfurnished",
+            "image": "https://picsum.photos/seed/small_apartment/600/400",
+
+            "developer": "Westside Builders",
+            "reraCertified": false,
+            "possession": "Ready to Move",
+            "priceDetails": {
+                "1 BHK": "₹30 L"
+            },
+            "overview": "A modest and budget-friendly 1BHK in the emerging locality of Maduravoyal, offering easy access to the Chennai-Bangalore highway.",
+            "amenities": ["Water Storage", "Parking"],
+            "specifications": {
+                "floor": "Vitrified Tiles",
+                "fitting": "Local Brand Fittings",
+                "wall": "Distemper Paint"
+            },
+            "images_detail": [
+                "https://picsum.photos/seed/budget_ext/800/500",
+                "https://picsum.photos/seed/budget_room/400/250",
+                "https://picsum.photos/seed/budget_bath/400/250"
+            ],
+            "around": [
+                { "type": "Highway", "name": "Chennai-Bangalore NH", "distance": "0.8 km" },
+                { "type": "Market", "name": "Local Market", "distance": "0.5 km" }
+            ]
+        },
+        {
+            "id": 105,
+            "title": "Spacious 4BHK Porur",
+            "bhk": "4 BHK",
+            "area": 2500,
+            "district": "Chennai",
+            "taluk": "Taluk B (South)",
+            "village": "Velachery",
+            "type": "Apartment",
+            "price": 21000000,
+            "location": { "lat": 13.0359, "lng": 80.1563 },
+            "status": "Under Construction",
+            "furnish": "Semi-Furnished",
+            "image": "https://picsum.photos/seed/luxury_exterior/600/400",
+
+            "developer": "Prestige Group",
+            "reraCertified": true,
+            "possession": "Dec, 2025",
+            "priceDetails": {
+                "4 BHK": "₹2.1 Cr - ₹2.5 Cr"
+            },
+            "overview": "An upcoming ultra-luxury project focusing on large living spaces and top-tier amenities. Located strategically near IT parks and major schools.",
+            "amenities": ["Clubhouse", "Swimming Pool", "Gymnasium", "Kids Play Area", "Mini-Theatre", "Covered Parking"],
+            "specifications": {
+                "floor": "Imported Marble",
+                "fitting": "Villeroy & Boch/Kohler Sanitaryware",
+                "wall": "Premium Texture Paint"
+            },
+            "images_detail": [
+                "https://picsum.photos/seed/luxury_living/800/500",
+                "https://picsum.photos/seed/luxury_pool/400/250",
+                "https://picsum.photos/seed/luxury_gym/400/250"
+            ],
+            "around": [
+                { "type": "IT Park", "name": "DLF Cybercity", "distance": "5 km" },
+                { "type": "Hospital", "name": "MIOT International", "distance": "2 km" }
+            ]
+        },
+        {
+            "id": 106,
+            "title": "Coimbatore Plot A",
+            "bhk": "Land",
+            "area": 1500,
+            "district": "Coimbatore",
+            "taluk": "Taluk C (East)",
+            "village": "Gopalapuram",
+            "type": "Land",
+            "price": 15000000,
+            "location": { "lat": 11.0419, "lng": 77.0593 },
+            "status": "Ready to Move",
+            "furnish": "N/A",
+            "image": "https://picsum.photos/seed/land_plot/600/400",
+
+            "developer": "Coimbatore Lands",
+            "reraCertified": false,
+            "possession": "Immediate",
+            "priceDetails": {
+                "Land": "₹1 Cr"
+            },
+            "overview": "Prime residential plot ready for construction in the established area of Gopalapuram, Coimbatore. Clear title and immediate registration available.",
+            "amenities": ["Tar Road", "Water Connection", "Electricity"],
+            "specifications": {
+                "floor": "N/A",
+                "fitting": "N/A",
+                "wall": "N/A"
+            },
+            "images_detail": [
+                "https://picsum.photos/seed/land_road/800/500",
+                "https://picsum.photos/seed/land_sign/400/250",
+                "https://picsum.photos/seed/land_area/400/250"
+            ],
+            "around": [
+                { "type": "Airport", "name": "Coimbatore International Airport", "distance": "10 km" }
+            ]
+        },
+        {
+            "id": 201,
+            "title": "Luxury Villa Adyar",
+            "bhk": "4 BHK",
+            "area": 2500,
+            "district": "Chennai",
+            "taluk": "Taluk B (South)",
+            "village": "Tambaram",
+            "type": "House",
+            "price": 25000000,
+            "location": { "lat": 13.0060, "lng": 80.2510 },
+            "status": "Ready to Move",
+            "furnish": "Furnished",
+            "image": "https://picsum.photos/seed/villa_front/600/400",
+
+            "developer": "Adyar Homes",
+            "reraCertified": true,
+            "possession": "Ready to Move",
+            "priceDetails": {
+                "4 BHK": "₹2.5 Cr - ₹3 Cr"
+            },
+            "overview": "A beautiful independent villa in the prestigious Adyar area. Features a private garden, modular kitchen, and luxury fittings.",
+            "amenities": ["Private Garden", "Covered Parking", "Servant Room", "Vastu Compliant"],
+            "specifications": {
+                "floor": "Italian Marble",
+                "fitting": "Premium CP fittings and Sanitaryware",
+                "wall": "Weatherproof Exterior Paint"
+            },
+            "images_detail": [
+                "https://picsum.photos/seed/villa_garden/800/500",
+                "https://picsum.photos/seed/villa_kitchen/400/250",
+                "https://picsum.photos/seed/villa_room/400/250"
+            ],
+            "around": [
+                { "type": "Beach", "name": "Adyar Beach", "distance": "1 km" },
+                { "type": "College", "name": "IIT Madras", "distance": "3 km" }
+            ]
+        },
+        {
+            "id": 202,
+            "title": "T Nagar Commercial Plot",
+            "bhk": "Land",
+            "area": 1200,
+            "district": "Chennai",
+            "taluk": "Taluk A (North)",
+            "village": "T. Nagar",
+            "type": "Plot",
+            "price": 5000000,
+            "location": { "lat": 13.0455, "lng": 80.2450 },
+            "status": "Ready to Move",
+            "furnish": "N/A",
+            "image": "https://picsum.photos/seed/commercial_plot/600/400",
+
+            "developer": "City Plots",
+            "reraCertified": false,
+            "possession": "Immediate",
+            "priceDetails": {
+                "Plot": "₹50 L"
+            },
+            "overview": "Excellent commercial plot opportunity in a high-traffic area of T. Nagar. Ideal for building shops, offices, or a small apartment complex.",
+            "amenities": ["High Visibility", "Road Access"],
+            "specifications": {
+                "floor": "N/A",
+                "fitting": "N/A",
+                "wall": "N/A"
+            },
+            "images_detail": [
+                "https://picsum.photos/seed/commercial_road/800/500",
+                "https://picsum.photos/seed/commercial_area/400/250",
+                "https://picsum.photos/seed/commercial_sign/400/250"
+            ],
+            "around": [
+                { "type": "Bus Stop", "name": "T Nagar Bus Stand", "distance": "0.1 km" }
+            ]
+        },
+        {
+            "id": 203,
+            "title": "Flat Perambur Complex",
+            "bhk": "2 BHK",
+            "area": 1050,
+            "district": "Chennai",
+            "taluk": "Taluk A (North)",
+            "village": "Anna Nagar",
+            "type": "Apartment",
+            "price": 9500000,
+            "location": { "lat": 13.1110, "lng": 80.2390 },
+            "status": "Ready to Move",
+            "furnish": "Semi-Furnished",
+            "image": "https://picsum.photos/seed/complex_exterior/600/400",
+
+            "developer": "Northside Realty",
+            "reraCertified": true,
+            "possession": "Ready to Move",
+            "priceDetails": {
+                "2 BHK": "₹95 L"
+            },
+            "overview": "A contemporary flat in a secure gated community in the Perambur region, offering community living and excellent facilities.",
+            "amenities": ["Community Hall", "Children Play Area", "Gymnasium", "24/7 Security"],
+            "specifications": {
+                "floor": "Vitrified Tiles",
+                "fitting": "Standard CP Fittings",
+                "wall": "Emulsion Paint"
+            },
+            "images_detail": [
+                "https://picsum.photos/seed/complex_gym/800/500",
+                "https://picsum.photos/seed/complex_play/400/250",
+                "https://picsum.photos/seed/complex_unit/400/250"
+            ],
+            "around": [
+                { "type": "Railway Station", "name": "Perambur Loco Works", "distance": "1 km" }
+            ]
+        },
+        {
+            "id": 204,
+            "title": "Independent House Tambaram",
+            "bhk": "3 BHK",
+            "area": 1600,
+            "district": "Chennai",
+            "taluk": "Taluk B (South)",
+            "village": "Tambaram",
+            "type": "House",
+            "price": 18000000,
+            "location": { "lat": 12.9230, "lng": 80.1180 },
+            "status": "Under Construction",
+            "furnish": "Unfurnished",
+            "image": "https://picsum.photos/seed/house_under_con/600/400",
+
+            "developer": "Southstar Builders",
+            "reraCertified": false,
+            "possession": "Jun, 2026",
+            "priceDetails": {
+                "3 BHK": "₹1.8 Cr"
+            },
+            "overview": "A new independent house being constructed in a peaceful residential pocket of Tambaram. Full customization options available for buyers.",
+            "amenities": ["Gated Entry", "Separate Water Sump", "Terrace Access"],
+            "specifications": {
+                "floor": "Vitrified Tiles",
+                "fitting": "Standard Fittings",
+                "wall": "Emulsion Paint"
+            },
+            "images_detail": [
+                "https://picsum.photos/seed/house_gated/800/500",
+                "https://picsum.photos/seed/house_terrace/400/250",
+                "https://picsum.photos/seed/house_front/400/250"
+            ],
+            "around": [
+                { "type": "Bus Terminus", "name": "Tambaram Bus Stand", "distance": "2 km" }
+            ]
+        },
+        {
+            "id": 205,
+            "title": "Adyar Apartment (2BHK)",
+            "bhk": "2 BHK",
+            "area": 1100,
+            "district": "Chennai",
+            "taluk": "Taluk B (South)",
+            "village": "Perungudi",
+            "type": "Apartment",
+            "price": 12000000,
+            "location": { "lat": 13.0075, "lng": 80.2495 },
+            "status": "Ready to Move",
+            "furnish": "Furnished",
+            "image": "https://picsum.photos/seed/furnished_apartment/600/400",
+
+            "developer": "East Coast Projects",
+            "reraCertified": true,
+            "possession": "Ready to Move",
+            "priceDetails": {
+                "2 BHK": "₹1.2 Cr"
+            },
+            "overview": "Fully furnished apartment with a great view, located near the Perungudi IT corridor, perfect for working professionals.",
+            "amenities": ["Modular Kitchen", "ACs in all bedrooms", "24/7 Security", "Gym"],
+            "specifications": {
+                "floor": "Vitrified Tiles",
+                "fitting": "Premium CP Fittings",
+                "wall": "Emulsion Paint"
+            },
+            "images_detail": [
+                "https://picsum.photos/seed/it_corridor_ext/800/500",
+                "https://picsum.photos/seed/it_corridor_view/400/250",
+                "https://picsum.photos/seed/it_corridor_gym/400/250"
+            ],
+            "around": [
+                { "type": "IT Park", "name": "Ramanujan IT City", "distance": "4 km" }
+            ]
+        },
+        {
+            "id": 206,
+            "title": "Coimbatore Land B",
+            "bhk": "Land",
+            "area": 1500,
+            "district": "Coimbatore",
+            "taluk": "Taluk D (West)",
+            "village": "Kuniamuthur",
+            "type": "Plot",
+            "price": 3000000,
+            "location": { "lat": 11.0192, "lng": 76.9389 },
+            "status": "Ready to Move",
+            "furnish": "N/A",
+            "image": "https://picsum.photos/seed/vacant_land/600/400",
+
+            "developer": "Southwest Plots",
+            "reraCertified": false,
+            "possession": "Immediate",
+            "priceDetails": {
+                "Plot": "₹30 L"
+            },
+            "overview": "Affordable investment plot located in the rapidly developing area of Kuniamuthur. Excellent for future residential construction.",
+            "amenities": ["Well Connectivity", "Clear Title"],
+            "specifications": {
+                "floor": "N/A",
+                "fitting": "N/A",
+                "wall": "N/A"
+            },
+            "images_detail": [
+                "https://picsum.photos/seed/vacant_plot_sign/800/500",
+                "https://picsum.photos/seed/vacant_plot_road/400/250",
+                "https://picsum.photos/seed/vacant_plot_view/400/250"
+            ],
+            "around": [
+                { "type": "College", "name": "Coimbatore Institute of Tech", "distance": "5 km" }
+            ]
+        }
+    ]
+}

@@ -1,0 +1,23 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Chennai District (DEMO BOUNDARY)",
+        "district": "Chennai"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [80.1, 13.1],
+            [80.3, 13.15],
+            [80.25, 12.9],
+            [80.1, 13.1]
+          ]
+        ]
+      }
+    }
+  ]
+}

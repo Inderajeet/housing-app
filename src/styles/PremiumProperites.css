@@ -1,0 +1,236 @@
+.premium-ads-floating {
+    position: absolute;
+    left: 20px;
+    width: 232px;
+    height: 152px;
+    border-radius: 12px;
+    overflow: hidden;
+    background: #ffffff;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+    z-index: 120;
+    cursor: pointer;
+    border: 1px solid #ececec;
+}
+
+.premium-ads-link {
+    display: block;
+    width: 100%;
+    height: 100%;
+    color: inherit;
+    text-decoration: none;
+}
+
+.premium-ads-top {
+    bottom: 188px;
+}
+
+.premium-ads-bottom {
+    bottom: 20px;
+}
+
+.premium-ads-right-top,
+.premium-ads-right-bottom {
+    left: auto;
+    bottom: calc(49% + 22px);
+}
+
+.premium-ads-right-bottom {
+    right: 30px;
+}
+
+.premium-ads-right-top {
+    right: calc(35px + 232px + 12px);
+}
+
+.premium-ads-label {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background: rgba(0, 0, 0, 0.75);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 999px;
+    z-index: 2;
+}
+
+.premium-ads-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    background: #f2f2f2;
+}
+
+.premium-ads-nav {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 30px;
+    height: 30px;
+    border: 1px solid rgba(255, 255, 255, 0.65);
+    border-radius: 999px;
+    background: rgba(17, 24, 39, 0.42);
+    backdrop-filter: blur(2px);
+    color: #fff;
+    cursor: pointer;
+    z-index: 3;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s ease, transform 0.2s ease;
+    padding: 0;
+}
+
+.premium-ads-nav svg {
+    width: 16px;
+    height: 16px;
+    stroke: #ffffff;
+    stroke-width: 2.4;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    fill: none;
+}
+
+.premium-ads-nav:hover {
+    background: rgba(17, 24, 39, 0.68);
+}
+
+.premium-ads-nav:active {
+    transform: translateY(-50%) scale(0.95);
+}
+
+.premium-ads-nav:disabled {
+    opacity: 0.92;
+    cursor: default;
+}
+
+.premium-ads-nav.prev {
+    left: 8px;
+}
+
+.premium-ads-nav.next {
+    right: 8px;
+}
+
+.premium-ads-menu {
+    position: relative;
+    left: auto;
+    right: auto;
+    top: auto;
+    bottom: auto;
+    width: 232px;
+    max-width: 100%;
+    height: 76px;
+    border-radius: 10px;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.18);
+}
+
+.premium-ads-menu .premium-ads-label {
+    top: 6px;
+    left: 6px;
+    font-size: 10px;
+    padding: 2px 6px;
+}
+
+.premium-ads-menu .premium-ads-nav {
+    width: 24px;
+    height: 24px;
+}
+
+.premium-ads-menu .premium-ads-nav.prev {
+    left: 5px;
+}
+
+.premium-ads-menu .premium-ads-nav.next {
+    right: 5px;
+}
+
+.premium-ads-landing {
+    position: relative;
+    left: auto;
+    right: auto;
+    top: auto;
+    bottom: auto;
+    width: 100%;
+    max-width: 100%;
+    height: 110px;
+    border-radius: 10px;
+    z-index: 8;
+}
+
+@media (max-width: 768px) {
+    .premium-ads-menu {
+        width: 100%;
+        height: 70px;
+    }
+
+    .premium-ads-landing {
+        height: 92px;
+    }
+}
+
+@media (max-width: 480px) {
+    .premium-ads-menu {
+        width: 100%;
+        height: 62px;
+    }
+
+    .premium-ads-landing {
+        height: 80px;
+    }
+}
+
+@media (max-width: 768px) {
+    .premium-ads-floating {
+        width: 165px;
+        height: 95px;
+    }
+
+    .premium-ads-top {
+        left: 10px;
+        top: 78px;
+        bottom: auto;
+    }
+
+    .premium-ads-bottom {
+        left: 10px;
+        top: 181px;
+        bottom: auto;
+    }
+
+    .premium-ads-right-top {
+        left: 10px;
+        right: auto;
+        width: calc((100% - 28px) / 2);
+        bottom: 10px;
+    }
+
+    .premium-ads-right-bottom {
+        left: auto;
+        right: 10px;
+        width: calc((100% - 28px) / 2);
+        bottom: 10px;
+    }
+}
+
+@media (max-width: 480px) {
+    .premium-ads-floating {
+        width: 150px;
+        height: 86px;
+    }
+
+    .premium-ads-top {
+        top: 59px;
+    }
+
+    .premium-ads-bottom {
+        top: 148px;
+    }
+
+    .premium-ads-right-top,
+    .premium-ads-right-bottom {
+        width: calc((100% - 24px) / 2);
+    }
+}
