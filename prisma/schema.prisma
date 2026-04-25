@@ -1,0 +1,343 @@
+generator client {
+  provider        = "prisma-client"
+  output          = "../src/generated/prisma"
+  previewFeatures = ["partialIndexes"]
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model areas {
+  area_id    Int          @id @default(autoincrement())
+  area_name  String       @db.VarChar(100)
+  village_id Int?
+  villages   villages?    @relation(fields: [village_id], references: [village_id], onDelete: Cascade, onUpdate: NoAction)
+  properties properties[]
+}
+
+model bookings {
+  booking_id   Int        @id @default(autoincrement())
+  property_id  Int
+  buyer_id     Int
+  enquiry_id   Int?
+  status       String     @default("active") @db.VarChar(20)
+  token_amount Decimal?   @db.Decimal(12, 2)
+  locked_at    DateTime?  @default(now()) @db.Timestamp(6)
+  expires_at   DateTime?  @db.Timestamp(6)
+  unit_type    String?    @db.VarChar(10)
+  unit_id      Int?
+  buyers       buyers     @relation(fields: [buyer_id], references: [buyer_id], onDelete: NoAction, onUpdate: NoAction)
+  enquiries    enquiries? @relation(fields: [enquiry_id], references: [enquiry_id], onDelete: NoAction, onUpdate: NoAction)
+  properties   properties @relation(fields: [property_id], references: [property_id], onDelete: Cascade, onUpdate: NoAction)
+  payments     payments[]
+
+  @@unique([property_id, unit_type, unit_id], map: "unique_active_booking", where: raw("((status)::text = 'confirmed'::text)"))
+  @@unique([property_id, unit_type, unit_id], map: "unique_active_booking_per_unit", where: raw("((status)::text = 'confirmed'::text)"))
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model buyer_property_status {
+  id          Int         @id @default(autoincrement())
+  buyer_id    Int?
+  property_id Int?
+  status      String?     @db.VarChar(15)
+  created_at  DateTime?   @default(now()) @db.Timestamp(6)
+  buyers      buyers?     @relation(fields: [buyer_id], references: [buyer_id], onDelete: Cascade, onUpdate: NoAction)
+  properties  properties? @relation(fields: [property_id], references: [property_id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model buyers {
+  buyer_id              Int                     @id @default(autoincrement())
+  name                  String?                 @db.VarChar(150)
+  phone_number          String                  @unique @db.VarChar(20)
+  email                 String?                 @db.VarChar(150)
+  created_at            DateTime?               @default(now()) @db.Timestamp(6)
+  bookings              bookings[]
+  buyer_property_status buyer_property_status[]
+  enquiries             enquiries[]
+  flat_units            flat_units[]
+  payments              payments[]
+  plot_units            plot_units[]
+}
+
+model districts {
+  district_id          Int          @id @default(autoincrement())
+  district_name        String       @unique @db.VarChar(100)
+  district_code        String       @unique @db.VarChar(5)
+  last_property_number Int?         @default(0)
+  longitude            Decimal?     @db.Decimal(10, 7)
+  latitude             Decimal?     @db.Decimal(10, 7)
+  properties           properties[]
+  taluks               taluks[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model enquiries {
+  enquiry_id     Int         @id @default(autoincrement())
+  property_id    Int?
+  buyer_id       Int?
+  message        String?
+  enquiry_date   DateTime?   @default(now()) @db.Timestamp(6)
+  contacted      Boolean?    @default(false)
+  seller_id      Int?
+  enquiry_type   String      @default("buyer") @db.VarChar(20)
+  booking_status String?     @default("enquired") @db.VarChar(20)
+  booking_date   DateTime?   @db.Timestamp(6)
+  confirmed_date DateTime?   @db.Timestamp(6)
+  unit_type      String?     @db.VarChar(10)
+  unit_id        Int?
+  bookings       bookings[]
+  buyers         buyers?     @relation(fields: [buyer_id], references: [buyer_id], onDelete: NoAction, onUpdate: NoAction)
+  properties     properties? @relation(fields: [property_id], references: [property_id], onDelete: Cascade, onUpdate: NoAction)
+  sellers        sellers?    @relation(fields: [seller_id], references: [seller_id], onUpdate: NoAction)
+}
+
+model flat_layout_elements {
+  element_id   Int         @id @default(autoincrement())
+  property_id  Int
+  flat_unit_id Int?
+  type         String
+  name         String?
+  x            Int
+  y            Int
+  width        Int         @default(1)
+  height       Int         @default(1)
+  rotation     Int?        @default(0)
+  color        String?
+  font_size    Int?
+  font_weight  String?
+  visible      Boolean?    @default(true)
+  created_at   DateTime    @default(now()) @db.Timestamptz(6)
+  flat_units   flat_units? @relation(fields: [flat_unit_id], references: [flat_unit_id], onUpdate: NoAction)
+  properties   properties  @relation(fields: [property_id], references: [property_id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([property_id], map: "idx_flat_elements_property")
+}
+
+model flat_projects {
+  flat_project_id Int        @id @default(autoincrement())
+  property_id     Int        @unique
+  layout_name     String     @default("Layout")
+  total_flats     Int        @default(0)
+  base_map_url    String?
+  created_at      DateTime   @default(now()) @db.Timestamptz(6)
+  properties      properties @relation(fields: [property_id], references: [property_id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model flat_units {
+  flat_unit_id         Int                    @id @default(autoincrement())
+  property_id          Int
+  flat_number          String?
+  status               String                 @default("NIL_BOOKING")
+  assigned_buyer_id    Int?
+  created_at           DateTime               @default(now()) @db.Timestamptz(6)
+  flat_layout_elements flat_layout_elements[]
+  buyers               buyers?                @relation(fields: [assigned_buyer_id], references: [buyer_id], onUpdate: NoAction)
+  properties           properties             @relation(fields: [property_id], references: [property_id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([property_id], map: "idx_flat_units_property")
+}
+
+model payments {
+  payment_id   Int         @id @default(autoincrement())
+  booking_id   Int?
+  property_id  Int?
+  buyer_id     Int?
+  seller_id    Int?
+  amount       Decimal?    @db.Decimal(12, 2)
+  status       String?     @default("pending") @db.VarChar(20)
+  payment_type String?     @db.VarChar(50)
+  payment_date DateTime?   @default(now()) @db.Timestamp(6)
+  bookings     bookings?   @relation(fields: [booking_id], references: [booking_id], onDelete: Cascade, onUpdate: NoAction)
+  buyers       buyers?     @relation(fields: [buyer_id], references: [buyer_id], onDelete: NoAction, onUpdate: NoAction)
+  properties   properties? @relation(fields: [property_id], references: [property_id], onDelete: Cascade, onUpdate: NoAction)
+  sellers      sellers?    @relation(fields: [seller_id], references: [seller_id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([property_id, buyer_id], map: "unique_payment")
+}
+
+model plot_layout_elements {
+  element_id   Int         @id @default(autoincrement())
+  property_id  Int
+  type         String      @db.VarChar(20)
+  name         String?
+  x            Int
+  y            Int
+  width        Int
+  height       Int
+  rotation     Int?        @default(0)
+  color        String?     @db.VarChar(20)
+  font_size    Int?
+  font_weight  String?     @db.VarChar(20)
+  visible      Boolean?    @default(true)
+  created_at   DateTime?   @default(now()) @db.Timestamp(6)
+  plot_unit_id Int?
+  plot_units   plot_units? @relation(fields: [plot_unit_id], references: [plot_unit_id], onUpdate: NoAction, map: "fk_plot_unit")
+  properties   properties  @relation(fields: [property_id], references: [property_id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model plot_units {
+  plot_unit_id         Int                    @id @default(autoincrement())
+  property_id          Int
+  plot_number          String?                @db.VarChar(50)
+  status               String?                @default("Nil Booking") @db.VarChar(15)
+  assigned_buyer_id    Int?
+  created_at           DateTime?              @default(now()) @db.Timestamp(6)
+  plot_layout_elements plot_layout_elements[]
+  buyers               buyers?                @relation(fields: [assigned_buyer_id], references: [buyer_id], onUpdate: NoAction, map: "plot_units_buyer_fkey")
+  properties           properties             @relation(fields: [property_id], references: [property_id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model premium_properties {
+  id             Int         @id @default(autoincrement())
+  property_id    Int?        @unique(map: "unique_property_id")
+  start_date     DateTime?   @db.Date
+  end_date       DateTime?   @db.Date
+  priority_order Int?        @default(0)
+  properties     properties? @relation(fields: [property_id], references: [property_id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model properties {
+  property_id           Int                     @id @default(autoincrement())
+  property_type         String?                 @db.VarChar(10)
+  seller_id             Int?
+  title                 String?                 @db.VarChar(255)
+  description           String?
+  district_id           Int?
+  taluk_id              Int?
+  village_id            Int?
+  area_id               Int?
+  latitude              Float?
+  longitude             Float?
+  contact_phone         String?                 @db.VarChar(20)
+  status                String?                 @default("pending") @db.VarChar(10)
+  created_at            DateTime?               @default(now()) @db.Timestamp(6)
+  address               String?
+  premium_requested     Boolean?                @default(false)
+  is_paid               Boolean?                @default(false)
+  formatted_id          String?                 @unique @db.VarChar(20)
+  live_image            String?
+  bookings              bookings[]
+  buyer_property_status buyer_property_status[]
+  enquiries             enquiries[]
+  flat_layout_elements  flat_layout_elements[]
+  flat_projects         flat_projects?
+  flat_units            flat_units[]
+  payments              payments[]
+  plot_layout_elements  plot_layout_elements[]
+  plot_units            plot_units[]
+  premium_properties    premium_properties?
+  areas                 areas?                  @relation(fields: [area_id], references: [area_id], onDelete: NoAction, onUpdate: NoAction)
+  districts             districts?              @relation(fields: [district_id], references: [district_id], onDelete: NoAction, onUpdate: NoAction)
+  sellers               sellers?                @relation(fields: [seller_id], references: [seller_id], onDelete: NoAction, onUpdate: NoAction)
+  taluks                taluks?                 @relation(fields: [taluk_id], references: [taluk_id], onDelete: NoAction, onUpdate: NoAction)
+  villages              villages?               @relation(fields: [village_id], references: [village_id], onDelete: NoAction, onUpdate: NoAction)
+  property_assets       property_assets[]
+  rent_properties       rent_properties?
+  sale_properties       sale_properties?
+}
+
+model property_assets {
+  asset_id    BigInt     @id @default(autoincrement())
+  property_id Int
+  asset_type  String     @db.VarChar(20)
+  file_key    String
+  file_url    String
+  file_name   String?
+  file_size   BigInt?
+  created_at  DateTime?  @default(now()) @db.Timestamp(6)
+  mime_type   String?    @db.VarChar(255)
+  sort_order  Int?
+  properties  properties @relation(fields: [property_id], references: [property_id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model rent_properties {
+  property_id             Int        @id
+  bhk                     Int?
+  rent_amount             Decimal?   @db.Decimal(12, 2)
+  advance_amount          Decimal?   @db.Decimal(12, 2)
+  property_use            String?    @db.VarChar(20)
+  furnished_status        String?    @db.VarChar(50)
+  rent_status             String?    @default("Nil Booking") @db.VarChar(50)
+  landmark                String?    @db.VarChar(255)
+  street_name             String?    @db.VarChar(255)
+  images                  Json?
+  videos                  Json?
+  extent_area             Decimal?   @db.Decimal(10, 2)
+  extent_unit             String?    @db.VarChar(20)
+  alternate_contact_phone String?    @db.VarChar(15)
+  alternate_seller_name   String?    @db.VarChar(255)
+  description             String?
+  properties              properties @relation(fields: [property_id], references: [property_id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model sale_properties {
+  property_id              Int        @id
+  sale_type                String?    @db.VarChar(10)
+  price                    Decimal?   @db.Decimal(15, 2)
+  area_size                String?    @db.VarChar(100)
+  extension                String?    @db.VarChar(100)
+  street_name_or_road_name String?    @db.VarChar(255)
+  survey_number            String?    @db.VarChar(100)
+  boundary_east            String?    @db.VarChar(255)
+  boundary_west            String?    @db.VarChar(255)
+  boundary_north           String?    @db.VarChar(255)
+  boundary_south           String?    @db.VarChar(255)
+  sale_status              String?    @default("Nil Booking") @db.VarChar(50)
+  images                   Json?
+  videos                   Json?
+  documents                Json?
+  brochure                 String?    @db.VarChar(255)
+  drawings                 Json?
+  total_units_count        Int?       @default(0)
+  booked_units             String?    @default("")
+  open_units               String?    @default("")
+  drawing_image            String?
+  alternate_contact_phone  String?    @db.VarChar(15)
+  alternate_seller_name    String?    @db.VarChar(255)
+  layout_name              String?    @db.VarChar(255)
+  dtcp                     String?    @db.VarChar(255)
+  parent_document          String?
+  sub_registrar_office     String?    @db.VarChar(255)
+  gift_deed                String?
+  properties               properties @relation(fields: [property_id], references: [property_id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model sellers {
+  seller_id       Int          @id @default(autoincrement())
+  name            String       @db.VarChar(150)
+  phone_number    String       @unique @db.VarChar(20)
+  alternate_phone String?      @db.VarChar(20)
+  email           String?      @db.VarChar(150)
+  address         String?
+  created_at      DateTime?    @default(now()) @db.Timestamp(6)
+  enquiries       enquiries[]
+  payments        payments[]
+  properties      properties[]
+}
+
+model taluks {
+  taluk_id    Int          @id @default(autoincrement())
+  taluk_name  String       @unique(map: "unique_taluk_name") @db.VarChar(100)
+  district_id Int?
+  longitude   Decimal?     @db.Decimal(10, 7)
+  latitude    Decimal?     @db.Decimal(10, 7)
+  properties  properties[]
+  districts   districts?   @relation(fields: [district_id], references: [district_id], onDelete: Cascade, onUpdate: NoAction)
+  villages    villages[]
+}
+
+model villages {
+  village_id   Int          @id @default(autoincrement())
+  village_name String       @unique(map: "unique_village_name") @db.VarChar(100)
+  taluk_id     Int?
+  longitude    Decimal?     @db.Decimal(10, 7)
+  latitude     Decimal?     @db.Decimal(10, 7)
+  areas        areas[]
+  properties   properties[]
+  taluks       taluks?      @relation(fields: [taluk_id], references: [taluk_id], onDelete: Cascade, onUpdate: NoAction)
+}

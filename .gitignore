@@ -39,3 +39,18 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+# Added by code-review-graph
+.code-review-graph/
+
+/src/generated/prisma
+
+# AI / assistant tooling (local-only)
+.claude/
+.kiro/
+.cursor/
+.github/copilot-instructions.md
+.cursorrules
+.windsurfrules
+.mcp.json
+.opencode.json
+GEMINI.md
