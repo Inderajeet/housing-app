@@ -6,8 +6,22 @@ import { getFlatLayout, saveFlatLayout } from '@/lib/adminApi';
 const getBookingStatusStyles = (status) => {
   const s = String(status || '').trim().toUpperCase().replace(/[\s-]+/g, '_');
   if (s === 'NIL_BOOKING') return { tile: 'bg-emerald-500 text-white shadow-inner', buttonActive: 'bg-emerald-500 text-white border-emerald-600', buttonInactive: 'bg-white text-emerald-600 border-emerald-100' };
-  if (s === 'ON_BOOKING' || s === 'BOOKED') return { tile: 'bg-yellow-400 text-slate-900 shadow-inner', buttonActive: 'bg-yellow-400 text-slate-900 border-yellow-500', buttonInactive: 'bg-white text-yellow-600 border-yellow-100' };
+  if (s === 'ON_BOOKING') return { tile: 'bg-yellow-400 text-slate-900 shadow-inner', buttonActive: 'bg-yellow-400 text-slate-900 border-yellow-500', buttonInactive: 'bg-white text-yellow-600 border-yellow-100' };
   return { tile: 'bg-red-500 text-white shadow-inner', buttonActive: 'bg-red-500 text-white border-red-600', buttonInactive: 'bg-white text-red-600 border-red-100' };
+};
+
+const parseNumberList = (str) => {
+  const nums = new Set();
+  if (!str) return nums;
+  str.toString().split(',').map(p => p.trim()).forEach(part => {
+    if (part.includes('-')) {
+      const [a, b] = part.split('-').map(Number);
+      if (!isNaN(a) && !isNaN(b)) for (let i = Math.min(a, b); i <= Math.max(a, b); i++) nums.add(String(i));
+    } else if (part !== '') {
+      nums.add(part);
+    }
+  });
+  return nums;
 };
 
 function Toast({ message, type, onClose }) {
@@ -15,6 +29,17 @@ function Toast({ message, type, onClose }) {
   return (
     <div className={`fixed top-6 right-6 z-[100] px-6 py-3 rounded-2xl shadow-xl text-sm font-bold ${type === 'success' ? 'bg-emerald-500 text-white' : 'bg-red-500 text-white'}`}>
       {message}
+    </div>
+  );
+}
+
+function DrawingModal({ url, onClose }) {
+  return (
+    <div className="fixed inset-0 z-[200] bg-black/80 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="relative max-w-5xl max-h-[90vh] w-full" onClick={e => e.stopPropagation()}>
+        <button onClick={onClose} className="absolute -top-10 right-0 text-white text-3xl font-black hover:text-red-400">✕</button>
+        <img src={url} alt="Drawing" className="w-full h-full object-contain rounded-2xl shadow-2xl" />
+      </div>
     </div>
   );
 }
@@ -32,6 +57,10 @@ export default function FlatLayoutEditorPage() {
   const [selectedCellKey, setSelectedCellKey] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
   const [toast, setToast] = useState(null);
+  const [drawingImage, setDrawingImage] = useState(null);
+  const [showDrawing, setShowDrawing] = useState(false);
+  const [showDrawingRef, setShowDrawingRef] = useState(true);
+  const [bulkInputs, setBulkInputs] = useState({ nil: '', on: '', confirmed: '' });
 
   const showToast = (message, type = 'success') => setToast({ message, type });
   const recordHistory = (data) => setHistory((prev) => [...prev, JSON.stringify(data)].slice(-20));
@@ -73,6 +102,15 @@ export default function FlatLayoutEditorPage() {
       try {
         const res = await getFlatLayout(id);
         const rawItems = Array.isArray(res.data) ? res.data : (res.data?.items || []);
+        const propData = res.data;
+        if (propData?.drawing_image) setDrawingImage(propData.drawing_image);
+        if (propData?.booked_units || propData?.open_units) {
+          setBulkInputs(prev => ({
+            ...prev,
+            on: propData.booked_units || '',
+            nil: propData.open_units || '',
+          }));
+        }
         const unitStatusByKey = new Map();
         const mapped = {};
         let maxR = 40, maxC = 60;
@@ -123,6 +161,21 @@ export default function FlatLayoutEditorPage() {
     };
     load();
   }, [id, refreshFlatNumbers]);
+
+  const applyBulkStatus = (statusValue, numbersStr) => {
+    const nums = parseNumberList(numbersStr);
+    if (!nums.size) return;
+    recordHistory(gridData);
+    setGridData(prev => {
+      const next = { ...prev };
+      Object.keys(next).forEach(k => {
+        if (!next[k].merged && next[k].type === 'FLAT' && nums.has(String(next[k].display_name).trim())) {
+          next[k] = { ...next[k], status: statusValue };
+        }
+      });
+      return next;
+    });
+  };
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -184,10 +237,16 @@ export default function FlatLayoutEditorPage() {
   };
 
   const activeCell = selectedCellKey ? gridData[selectedCellKey] : null;
+  const statusButtons = [
+    { label: 'Nil Booking', value: 'Nil Booking', color: 'Green' },
+    { label: 'On Booking', value: 'ON_BOOKING', color: 'Yellow' },
+    { label: 'Confirmed', value: 'CONFIRMED', color: 'Red' },
+  ];
 
   return (
     <div className="flex h-screen bg-[#f8fafc] overflow-hidden font-sans">
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+      {showDrawing && drawingImage && <DrawingModal url={drawingImage} onClose={() => setShowDrawing(false)} />}
       <div className="flex-1 flex flex-col min-w-0 relative">
         <div className="h-20 bg-white border-b flex items-center justify-between px-10 z-50 shrink-0">
           <div className="flex items-center gap-8">
@@ -195,6 +254,11 @@ export default function FlatLayoutEditorPage() {
             <h1 className="font-black text-slate-800 uppercase text-lg tracking-tighter">Flat: <span className="text-blue-600">{id}</span></h1>
           </div>
           <div className="flex items-center gap-6">
+            {drawingImage && (
+              <button onClick={() => setShowDrawing(true)} className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-700 hover:bg-blue-50 hover:text-blue-600 rounded-xl text-[11px] font-black uppercase transition-all">
+                <span>🗺</span> View Drawing
+              </button>
+            )}
             <button onClick={handleUndo} disabled={history.length === 0} className="flex items-center gap-2 px-4 py-2 text-slate-600 hover:text-blue-600 disabled:opacity-30 transition-all">
               <span className="text-lg">↩</span>
               <span className="text-[11px] font-black uppercase">Undo</span>
@@ -209,6 +273,45 @@ export default function FlatLayoutEditorPage() {
             </button>
           </div>
         </div>
+
+        <div className="bg-white border-b px-10 py-3 shrink-0 flex items-center gap-6">
+          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Bulk Status</span>
+          {[
+            { key: 'nil', label: 'Nil Booking', value: 'Nil Booking', bg: 'bg-emerald-50 border-emerald-200 focus:border-emerald-500', pill: 'bg-emerald-500' },
+            { key: 'on', label: 'On Booking', value: 'ON_BOOKING', bg: 'bg-yellow-50 border-yellow-200 focus:border-yellow-500', pill: 'bg-yellow-400' },
+            { key: 'confirmed', label: 'Confirmed', value: 'CONFIRMED', bg: 'bg-red-50 border-red-200 focus:border-red-500', pill: 'bg-red-500' },
+          ].map(({ key, label, value, bg, pill }) => (
+            <div key={key} className="flex items-center gap-2">
+              <span className={`w-2.5 h-2.5 rounded-full ${pill}`} />
+              <span className="text-[10px] font-black text-slate-500 uppercase">{label}</span>
+              <input
+                value={bulkInputs[key]}
+                onChange={e => setBulkInputs(prev => ({ ...prev, [key]: e.target.value }))}
+                onBlur={e => { if (e.target.value.trim()) applyBulkStatus(value, e.target.value); }}
+                placeholder="e.g. 1,3,5-8"
+                className={`w-32 px-3 py-1.5 rounded-lg border text-[11px] font-semibold outline-none ${bg}`}
+              />
+              <button
+                onClick={() => { if (bulkInputs[key].trim()) applyBulkStatus(value, bulkInputs[key]); }}
+                className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 rounded-lg text-[10px] font-black uppercase text-slate-600 transition-all"
+              >Apply</button>
+            </div>
+          ))}
+        </div>
+
+        {drawingImage && (
+          <div className="bg-amber-50 border-b border-amber-100 shrink-0">
+            <button className="w-full px-10 py-2 flex items-center justify-between hover:bg-amber-100 transition-all" onClick={() => setShowDrawingRef(p => !p)}>
+              <span className="text-[10px] font-black text-amber-600 uppercase tracking-widest">Drawing Reference {!showDrawingRef && '(click to expand)'}</span>
+              <span className="text-amber-500 text-xs">{showDrawingRef ? '▲ Hide' : '▼ Show'}</span>
+            </button>
+            {showDrawingRef && (
+              <div className="px-10 pb-4 flex justify-center">
+                <img src={drawingImage} alt="Drawing" className="max-h-64 rounded-xl border border-amber-200 object-contain shadow-sm" />
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="flex-1 overflow-auto p-20 bg-[#f0f4f8]">
           <div
@@ -301,7 +404,7 @@ export default function FlatLayoutEditorPage() {
               <div>
                 <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-3">Status</p>
                 <div className="space-y-2">
-                  {[{ label: 'Nil Booking (Green)', value: 'Nil Booking' }, { label: 'On Booking (Yellow)', value: 'ON_BOOKING' }, { label: 'Booked (Yellow)', value: 'BOOKED' }].map(({ label, value }) => {
+                  {statusButtons.map(({ label, value, color }) => {
                     const styles = getBookingStatusStyles(value);
                     const currentNorm = String(activeCell.status || '').trim().toUpperCase().replace(/[\s-]+/g, '_');
                     const isActive = currentNorm === value.trim().toUpperCase().replace(/[\s-]+/g, '_');
@@ -309,7 +412,7 @@ export default function FlatLayoutEditorPage() {
                       <button key={value}
                         onClick={() => setGridData(prev => ({ ...prev, [selectedCellKey]: { ...prev[selectedCellKey], status: value } }))}
                         className={`w-full p-3 rounded-xl text-[11px] font-bold uppercase transition-all border ${isActive ? styles.buttonActive : styles.buttonInactive}`}
-                      >{label}</button>
+                      >{label} ({color})</button>
                     );
                   })}
                 </div>

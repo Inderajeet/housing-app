@@ -1,8 +1,10 @@
 import axios from 'axios';
 
-const API_BASE_URL = typeof window !== 'undefined'
-  ? `${window.location.origin}/api/admin`
-  : 'http://localhost:3000/api/admin';
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_ADMIN_API_URL ||
+  (typeof window !== 'undefined'
+    ? `${window.location.origin}/api/admin`
+    : 'http://localhost:3000/api/admin');
 
 export const adminApi = axios.create({
   baseURL: API_BASE_URL,
@@ -17,7 +19,11 @@ adminApi.interceptors.request.use((config) => {
 adminApi.interceptors.response.use(
   (res) => res,
   (err) => {
-    console.error(`Admin API error: ${err.config?.method?.toUpperCase()} ${err.config?.url}`, err.message);
+    const method = err.config?.method?.toUpperCase();
+    const url = err.config?.url;
+    const status = err.response?.status;
+    const apiError = err.response?.data?.error || err.response?.data?.message;
+    console.error(`Admin API error: ${method} ${url}${status ? ` (${status})` : ''}`, apiError || err.message);
     return Promise.reject(err);
   }
 );

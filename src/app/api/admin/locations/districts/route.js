@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { toApiError } from '@/lib/apiError';
 import { getAllDistricts, bulkUpdateDistrictCoords } from '../../../../../lib/services/admin/location.service.js';
 
 export async function GET() {
@@ -6,7 +7,8 @@ export async function GET() {
     const data = await getAllDistricts();
     return NextResponse.json(data);
   } catch (e) {
-    return NextResponse.json({ error: e.message }, { status: 500 });
+    const { status, body } = toApiError(e);
+    return NextResponse.json(body, { status });
   }
 }
 
@@ -16,6 +18,7 @@ export async function PUT(request) {
     const result = await bulkUpdateDistrictCoords(Array.isArray(body) ? body : [body]);
     return NextResponse.json(result);
   } catch (e) {
-    return NextResponse.json({ error: e.message }, { status: 500 });
+    const { status, body } = toApiError(e);
+    return NextResponse.json(body, { status });
   }
 }

@@ -167,7 +167,9 @@ export default function RentPropertiesPage() {
       setSelected(created);
       setMode('edit');
       setFormTab('seller');
-    } catch (err) { alert('Failed: ' + err.message); }
+    } catch (err) {
+      alert('Failed: ' + (err?.response?.data?.error || err.message));
+    }
     finally { setSubmitting(false); }
   };
 
@@ -177,7 +179,9 @@ export default function RentPropertiesPage() {
     try {
       await updateRentProperty(selected.property_id, form);
       await fetchRent();
-    } catch (err) { alert('Failed: ' + err.message); }
+    } catch (err) {
+      alert('Failed: ' + (err?.response?.data?.error || err.message));
+    }
     finally { setSubmitting(false); }
   };
 
@@ -326,13 +330,14 @@ export default function RentPropertiesPage() {
             { header: 'Registered', accessor: p => new Date(p.created_at).toLocaleDateString(), sortable: true, sortBy: p => new Date(p.created_at).getTime() },
             { header: 'Property Type', accessor: 'property_use' },
             {
-              header: 'Approval', accessor: p => {
+              header: 'Approval', sortable: true, sortBy: p => p.status || 'pending',
+              accessor: p => {
                 const s = p.status || 'pending';
                 const c = { approved: 'bg-green-100 text-green-800 border-green-200', pending: 'bg-yellow-100 text-yellow-800 border-yellow-200', rejected: 'bg-red-100 text-red-800 border-red-200' };
                 return <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase border ${c[s] || 'bg-gray-100 text-gray-800 border-gray-200'}`}>{s.charAt(0).toUpperCase() + s.slice(1)}</span>;
               }
             },
-            { header: 'Booking Status', accessor: p => <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase ${STATUS_COLORS[p.rent_status] || 'bg-gray-200'}`}>{p.rent_status || 'Nil Booking'}</span> },
+            { header: 'Booking Status', sortable: true, sortBy: p => p.rent_status || '', accessor: p => <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase ${STATUS_COLORS[p.rent_status] || 'bg-gray-200'}`}>{p.rent_status || 'Nil Booking'}</span> },
             { header: 'Primary Phone', accessor: 'contact_phone', filterable: true, filterKey: 'contact_phone', className: 'font-bold text-emerald-600' },
             { header: 'Additional Phone', accessor: 'alternate_contact_phone', filterable: true, filterKey: 'alternate_contact_phone' },
             { header: 'Primary Name', accessor: 'seller_name', filterable: true, filterKey: 'seller_name' },

@@ -67,12 +67,14 @@ const SalePropertyForm = ({ data, onChange, onSubmit, onNext, mode = 'details' }
 
     useEffect(() => {
         if (!(data.saleType === 'plot' || data.saleType === 'flat')) return;
-        const total = parseInt(data.total_units_count, 10) || 0;
-        const bookedSet = getBookedSet(data.booked_units);
-        const openNumbers = [];
-        for (let i = 1; i <= total; i++) { if (!bookedSet.has(i)) openNumbers.push(i); }
-        const computed = getRangeString(openNumbers);
-        if (computed !== (data.open_units || '')) onChange('open_units', computed);
+        const total = parseInt(data.total_units_count, 10);
+        if (!isNaN(total) && total > 0) {
+            const bookedSet = getBookedSet(data.booked_units);
+            const openNumbers = [];
+            for (let i = 1; i <= total; i++) { if (!bookedSet.has(i)) openNumbers.push(i); }
+            const computed = getRangeString(openNumbers);
+            if (computed !== (data.open_units || '')) onChange('open_units', computed);
+        }
     }, [data.saleType, data.total_units_count, data.booked_units, data.open_units, onChange]);
 
     const handleFileSelect = (e, category) => {
@@ -188,11 +190,11 @@ const SalePropertyForm = ({ data, onChange, onSubmit, onNext, mode = 'details' }
                         </div>
                         <div className="dual-input-item">
                             <label>Booked Units</label>
-                            <input disabled={!data.total_units_count} value={data.booked_units || ''} onChange={e => onChange('booked_units', e.target.value)} className="input-field" placeholder="e.g. 1-5, 8" />
+                            <input value={data.booked_units || ''} onChange={e => onChange('booked_units', e.target.value)} className="input-field" placeholder="e.g. 1-5, 8" />
                         </div>
                         <div className="dual-input-item">
-                            <label>Available Units (Auto)</label>
-                            <input disabled value={data.open_units || ''} className="input-field" />
+                            <label>Available Units{data.total_units_count ? ' (Auto)' : ''}</label>
+                            <input disabled={!!data.total_units_count} value={data.open_units || ''} onChange={e => onChange('open_units', e.target.value)} className="input-field" />
                         </div>
                     </div>
 

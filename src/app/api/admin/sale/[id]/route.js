@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { getById, updateSaleProperty, updateSaleStatus, removeSaleProperty, updateDrawingImage } from '../../../../../lib/services/admin/sale.service.js';
+import { toApiError } from '@/lib/apiError';
+import { getById, updateSaleProperty, updateSaleStatus, removeSaleProperty, updateDrawingImage, updateDrawingImageByUrl } from '../../../../../lib/services/admin/sale.service.js';
 
 export async function GET(request, { params }) {
   try {
@@ -8,7 +9,8 @@ export async function GET(request, { params }) {
     if (!data) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     return NextResponse.json(data);
   } catch (e) {
-    return NextResponse.json({ error: e.message }, { status: 500 });
+    const { status, body } = toApiError(e);
+    return NextResponse.json(body, { status });
   }
 }
 
@@ -23,6 +25,10 @@ export async function PUT(request, { params }) {
       return NextResponse.json(result);
     }
     const body = await request.json();
+    if ('drawing_image_url' in body && Object.keys(body).length === 1) {
+      const result = await updateDrawingImageByUrl(id, body.drawing_image_url);
+      return NextResponse.json(result);
+    }
     if (body.status && Object.keys(body).length === 1) {
       const result = await updateSaleStatus(id, body.status);
       return NextResponse.json(result);
@@ -30,7 +36,8 @@ export async function PUT(request, { params }) {
     const result = await updateSaleProperty(id, body);
     return NextResponse.json(result);
   } catch (e) {
-    return NextResponse.json({ error: e.message }, { status: 500 });
+    const { status, body } = toApiError(e);
+    return NextResponse.json(body, { status });
   }
 }
 
@@ -40,6 +47,7 @@ export async function DELETE(request, { params }) {
     const result = await removeSaleProperty(id);
     return NextResponse.json(result);
   } catch (e) {
-    return NextResponse.json({ error: e.message }, { status: 500 });
+    const { status, body } = toApiError(e);
+    return NextResponse.json(body, { status });
   }
 }

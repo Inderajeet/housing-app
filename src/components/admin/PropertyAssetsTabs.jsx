@@ -3,6 +3,13 @@
 import React, { useMemo, useState, useRef, useEffect } from 'react';
 import { adminApi } from '../../lib/adminApi.js';
 
+const Spinner = () => (
+  <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+  </svg>
+);
+
 export default function PropertyAssetsTabs({ propertyId, assets, setAssets, isReadOnly, propertyData, mode = 'edit', onDrawingImageUpload, onlyType = null }) {
   const propertyType = String(propertyData?.sale_type || propertyData?.property_type || '').trim().toUpperCase();
   const isPlotOrFlat = propertyType === 'FLAT' || propertyType === 'PLOT';
@@ -16,12 +23,19 @@ export default function PropertyAssetsTabs({ propertyId, assets, setAssets, isRe
   const documentAssets = useMemo(() => assets.filter(a => a.asset_type === 'document'), [assets]);
   const forcedTab = onlyType === 'image' ? 'images' : onlyType === 'document' ? 'documents' : null;
   const [activeTab, setActiveTab] = useState(forcedTab || (hasLiveImage ? 'live-image' : 'images'));
+  const [uploading, setUploading] = useState(false);
   const [uploadingDrawing, setUploadingDrawing] = useState(false);
   const drawingFileRef = useRef();
 
   const tabClass = (tab) => `py-3 text-[10px] font-bold uppercase tracking-widest transition-all ${activeTab === tab ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-400 hover:text-gray-600'}`;
 
+  const refreshAssets = async () => {
+    const res = await adminApi.get(`/property-assets/${propertyId}`);
+    setAssets(res.data || []);
+  };
+
   const uploadFiles = async (files, type) => {
+    setUploading(true);
     for (const file of files) {
       const fd = new FormData();
       fd.append('file', file);
@@ -33,18 +47,36 @@ export default function PropertyAssetsTabs({ propertyId, assets, setAssets, isRe
         break;
       }
     }
-    const res = await adminApi.get(`/property-assets/${propertyId}`);
-    setAssets(res.data || []);
+    await refreshAssets();
+    setUploading(false);
   };
 
   const handleDrawingUpload = async (file) => {
-    if (!file) return;
+    if (!file || !propertyId) return;
     setUploadingDrawing(true);
     try {
-      if (onDrawingImageUpload) {
-        const result = await onDrawingImageUpload(file);
-        setDrawingUrl(result?.drawing_image || result?.url || '');
+      const oldDrawingAsset = assets.find(a => a.asset_type === 'drawing');
+
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('asset_type', 'drawing');
+      const res = await adminApi.post(`/property-assets/${propertyId}`, fd);
+      const uploadedUrl = res.data?.file_url;
+
+      if (oldDrawingAsset) {
+        try { await adminApi.delete(`/property-assets/${oldDrawingAsset.asset_id}`); } catch {}
       }
+
+      await refreshAssets();
+
+      if (uploadedUrl) {
+        if (onDrawingImageUpload) {
+          await onDrawingImageUpload(uploadedUrl);
+        }
+        setDrawingUrl(uploadedUrl);
+      }
+    } catch (err) {
+      alert(`Failed to upload drawing: ${err?.message || 'Unknown error'}`);
     } finally {
       setUploadingDrawing(false);
     }
@@ -54,23 +86,42 @@ export default function PropertyAssetsTabs({ propertyId, assets, setAssets, isRe
     for (const id of ids) {
       try { await adminApi.delete(`/property-assets/${id}`); } catch {}
     }
-    const res = await adminApi.get(`/property-assets/${propertyId}`);
-    setAssets(res.data || []);
+    await refreshAssets();
   };
 
   if (!propertyId && mode === 'add') {
     return <div className="text-center py-12 text-sm text-gray-400 font-bold uppercase tracking-widest">Save property first to add media</div>;
   }
 
+  const DrawingUploadBtn = ({ small = false }) => {
+    const baseClass = small
+      ? 'flex items-center gap-2 px-3 py-2 font-bold text-xs uppercase rounded-xl cursor-pointer border'
+      : 'flex items-center gap-2 px-4 py-2 font-bold text-xs uppercase rounded-xl cursor-pointer border w-fit';
+    const activeClass = uploadingDrawing
+      ? 'bg-gray-100 text-gray-400 border-gray-200 opacity-60 cursor-not-allowed'
+      : 'bg-amber-100 hover:bg-amber-200 text-amber-700 border-amber-200';
+    return (
+      <label className={`${baseClass} ${activeClass}`}>
+        {uploadingDrawing ? <><Spinner /> Uploading…</> : (drawingUrl ? 'Replace Drawing' : <><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" /></svg> Upload Drawing</>)}
+        <input type="file" accept="image/*" className="hidden" disabled={uploadingDrawing} onChange={e => { if (e.target.files?.[0] && !uploadingDrawing) handleDrawingUpload(e.target.files[0]); }} />
+      </label>
+    );
+  };
+
   const renderGrid = (items, type) => (
     <div>
       {!isReadOnly && (
-        <div className="mb-4">
-          <label className="flex items-center gap-2 px-4 py-2 bg-blue-50 hover:bg-blue-100 text-blue-600 font-bold text-xs uppercase rounded-xl cursor-pointer border border-blue-100 w-fit">
+        <div className="mb-4 flex items-center gap-3">
+          <label className={`flex items-center gap-2 px-4 py-2 font-bold text-xs uppercase rounded-xl border w-fit ${uploading ? 'bg-gray-100 text-gray-400 border-gray-200 opacity-60 cursor-not-allowed' : 'bg-blue-50 hover:bg-blue-100 text-blue-600 border-blue-100 cursor-pointer'}`}>
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" /></svg>
-            Upload {type === 'image' ? 'Images' : 'Documents'}
-            <input type="file" multiple accept={type === 'image' ? 'image/*' : '.pdf,.doc,.docx'} className="hidden" onChange={e => { if (e.target.files?.length) uploadFiles(Array.from(e.target.files), type); }} />
+            {uploading ? 'Uploading…' : `Upload ${type === 'image' ? 'Images' : 'Documents'}`}
+            <input disabled={uploading} type="file" multiple accept={type === 'image' ? 'image/*' : '.pdf,.doc,.docx'} className="hidden" onChange={e => { if (e.target.files?.length && !uploading) uploadFiles(Array.from(e.target.files), type); }} />
           </label>
+          {uploading && (
+            <div className="flex items-center gap-2 text-xs text-blue-600 font-bold">
+              <Spinner /> Uploading…
+            </div>
+          )}
         </div>
       )}
       {items.length === 0 ? (
@@ -122,16 +173,30 @@ export default function PropertyAssetsTabs({ propertyId, assets, setAssets, isRe
       {activeTab === 'drawing' && (
         <div className="flex flex-col items-center gap-4">
           {drawingUrl && <img src={drawingUrl} alt="Drawing" className="w-full max-w-md rounded-xl border" />}
-          {!isReadOnly && (
-            <label className="flex items-center gap-2 px-4 py-2 bg-amber-50 hover:bg-amber-100 text-amber-600 font-bold text-xs uppercase rounded-xl cursor-pointer border border-amber-100">
-              {uploadingDrawing ? 'Uploading...' : 'Upload Drawing'}
-              <input ref={drawingFileRef} type="file" accept="image/*" className="hidden" onChange={e => { if (e.target.files?.[0]) handleDrawingUpload(e.target.files[0]); }} />
-            </label>
-          )}
+          {!isReadOnly && <DrawingUploadBtn />}
         </div>
       )}
 
-      {activeTab === 'images' && renderGrid(imageAssets, 'image')}
+      {activeTab === 'images' && (
+        <>
+          {isPlotOrFlat && (
+            <div className="mb-6 rounded-2xl border border-amber-100 bg-amber-50/60 p-4">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-amber-600 mb-3">Drawing Image (Plot/Flat Layout)</p>
+              {drawingUrl ? (
+                <div className="flex items-start gap-4">
+                  <img src={drawingUrl} alt="Drawing" className="h-32 rounded-xl border border-amber-200 object-contain bg-white" />
+                  {!isReadOnly && <DrawingUploadBtn small />}
+                </div>
+              ) : (
+                !isReadOnly
+                  ? <DrawingUploadBtn />
+                  : <p className="text-xs text-amber-400 font-bold uppercase">No drawing uploaded</p>
+              )}
+            </div>
+          )}
+          {renderGrid(imageAssets, 'image')}
+        </>
+      )}
       {activeTab === 'documents' && renderGrid(documentAssets, 'document')}
     </div>
   );

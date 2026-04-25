@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { toApiError } from '@/lib/apiError';
 import { uploadVillagesFromBuffer } from '../../../../../../lib/services/admin/location.service.js';
 
 export async function POST(request) {
@@ -10,6 +11,7 @@ export async function POST(request) {
     const result = await uploadVillagesFromBuffer(buffer);
     return NextResponse.json(result);
   } catch (e) {
-    return NextResponse.json({ error: e.message }, { status: 500 });
+    const { status, body } = toApiError(e);
+    return NextResponse.json(body, { status });
   }
 }

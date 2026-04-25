@@ -2,33 +2,53 @@
 
 import React, { useEffect, useState } from 'react';
 import { getDashboardStats, getRecentEnquiries } from '../../../lib/adminApi.js';
-import dynamic from 'next/dynamic';
-
-const PieChart = dynamic(() => import('recharts').then(m => m.PieChart), { ssr: false });
-const Pie = dynamic(() => import('recharts').then(m => m.Pie), { ssr: false });
-const Cell = dynamic(() => import('recharts').then(m => m.Cell), { ssr: false });
-const Tooltip = dynamic(() => import('recharts').then(m => m.Tooltip), { ssr: false });
-const Legend = dynamic(() => import('recharts').then(m => m.Legend), { ssr: false });
-const ResponsiveContainer = dynamic(() => import('recharts').then(m => m.ResponsiveContainer), { ssr: false });
-
-const PIE_COLORS_TYPE   = ['#3b82f6', '#10b981', '#f59e0b'];
-const PIE_COLORS_STATUS = ['#22c55e', '#3b82f6', '#f59e0b', '#ef4444'];
-const PIE_COLORS_ENQ    = ['#a78bfa', '#3b82f6', '#10b981', '#f43f5e'];
 
 const fmt = (n) => (n == null ? '—' : Number(n).toLocaleString());
 const formatDate = (d) => d ? new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
 
-const StatCard = ({ label, count, color }) => (
+const ICONS = {
+  properties: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>,
+  sellers: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg>,
+  buyers: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>,
+  enquiries: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" /></svg>,
+};
+
+const StatCard = ({ label, count, color, icon }) => (
   <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 hover:border-slate-300 transition-all">
     <div className={`w-10 h-10 ${color} rounded-xl flex items-center justify-center text-white mb-4`}>
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
+      {icon}
     </div>
     <p className="text-slate-400 text-xs font-bold uppercase tracking-widest">{label}</p>
     <h3 className="text-3xl font-bold mt-1 text-slate-800">{fmt(count)}</h3>
   </div>
 );
 
+const SubTile = ({ label, value, color }) => (
+  <div className={`p-4 rounded-2xl border flex flex-col items-center justify-center text-center ${color}`}>
+    <span className="text-2xl font-bold">{fmt(value)}</span>
+    <span className="text-[10px] font-bold uppercase tracking-widest mt-1 opacity-80">{label}</span>
+  </div>
+);
+
 const Skeleton = ({ className = '' }) => <div className={`animate-pulse bg-slate-100 rounded-xl ${className}`} />;
+
+const BreakdownSection = ({ title, loading, topStats, subTiles }) => (
+  <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+    <h3 className="text-sm font-bold text-slate-700 uppercase tracking-widest mb-6">{title}</h3>
+    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+      {loading
+        ? Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-36" />)
+        : topStats.map((s, i) => <StatCard key={i} {...s} />)
+      }
+    </div>
+    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      {loading
+        ? Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-20" />)
+        : subTiles.map((s, i) => <SubTile key={i} {...s} />)
+      }
+    </div>
+  </div>
+);
 
 export default function DashboardPage() {
   const [stats, setStats] = useState(null);
@@ -52,39 +72,32 @@ export default function DashboardPage() {
 
   useEffect(() => { fetchData(); }, []);
 
-  const typeChartData = stats ? [
-    { name: 'Rentals', value: Number(stats.total_rent) || 0 },
-    { name: 'Sales', value: Number(stats.total_sale) || 0 },
-    { name: 'Plots', value: Number(stats.total_plot) || 0 },
+  const saleTopStats = stats ? [
+    { label: 'Total Properties', count: stats.total_sale, color: 'bg-slate-500', icon: ICONS.properties },
+    { label: 'Sellers', count: stats.sale_sellers, color: 'bg-blue-500', icon: ICONS.sellers },
+    { label: 'Buyers', count: stats.sale_buyers, color: 'bg-emerald-500', icon: ICONS.buyers },
+    { label: 'Enquiries', count: stats.sale_enquiries, color: 'bg-purple-500', icon: ICONS.enquiries },
   ] : [];
 
-  const statusChartData = stats ? [
-    { name: 'Approved', value: Number(stats.status_approved) || 0 },
-    { name: 'Pending', value: Number(stats.status_pending) || 0 },
-    { name: 'Inactive', value: Number(stats.status_inactive) || 0 },
+  const saleSubTiles = stats ? [
+    { label: 'Plots', value: stats.sale_plot, color: 'bg-blue-50 text-blue-700 border-blue-100' },
+    { label: 'Flats', value: stats.sale_flat, color: 'bg-emerald-50 text-emerald-700 border-emerald-100' },
+    { label: 'Land', value: stats.sale_land, color: 'bg-amber-50 text-amber-700 border-amber-100' },
+    { label: 'House', value: stats.sale_house, color: 'bg-purple-50 text-purple-700 border-purple-100' },
   ] : [];
 
-  const enquiryChartData = stats ? [
-    { name: 'Open', value: Number(stats.enquiries_open) || 0 },
-    { name: 'Booked', value: Number(stats.enquiries_booked) || 0 },
-    { name: 'Confirmed', value: Number(stats.enquiries_confirmed) || 0 },
-    { name: 'Cancelled', value: Number(stats.enquiries_cancelled) || 0 },
+  const rentTopStats = stats ? [
+    { label: 'Total Properties', count: stats.total_rent, color: 'bg-slate-500', icon: ICONS.properties },
+    { label: 'Sellers', count: stats.rent_sellers, color: 'bg-blue-500', icon: ICONS.sellers },
+    { label: 'Buyers', count: stats.rent_buyers, color: 'bg-emerald-500', icon: ICONS.buyers },
+    { label: 'Enquiries', count: stats.rent_enquiries, color: 'bg-purple-500', icon: ICONS.enquiries },
   ] : [];
 
-  const topStats = stats ? [
-    { label: 'Total Properties', count: stats.total_properties, color: 'bg-slate-500' },
-    { label: 'Verified Sellers', count: stats.total_sellers, color: 'bg-blue-500' },
-    { label: 'Unique Buyers', count: stats.total_buyers, color: 'bg-emerald-500' },
-    { label: 'Total Enquiries', count: stats.total_enquiries, color: 'bg-purple-500' },
-  ] : [];
-
-  const subStats = stats ? [
-    { label: 'Rent Listings', count: stats.total_rent, color: 'bg-blue-50 text-blue-700 border-blue-100' },
-    { label: 'Sale Listings', count: stats.total_sale, color: 'bg-emerald-50 text-emerald-700 border-emerald-100' },
-    { label: 'Plot Listings', count: stats.total_plot, color: 'bg-amber-50 text-amber-700 border-amber-100' },
-    { label: 'Premium Active', count: stats.premium_active, color: 'bg-rose-50 text-rose-700 border-rose-100' },
-    { label: 'Premium Pending', count: stats.premium_pending, color: 'bg-orange-50 text-orange-700 border-orange-100' },
-    { label: 'Confirmed Deals', count: stats.enquiries_confirmed, color: 'bg-violet-50 text-violet-700 border-violet-100' },
+  const rentSubTiles = stats ? [
+    { label: '1 BHK', value: stats.rent_1bhk, color: 'bg-blue-50 text-blue-700 border-blue-100' },
+    { label: '2 BHK', value: stats.rent_2bhk, color: 'bg-emerald-50 text-emerald-700 border-emerald-100' },
+    { label: '3+ BHK', value: stats.rent_3plus_bhk, color: 'bg-amber-50 text-amber-700 border-amber-100' },
+    { label: 'Commercial', value: stats.rent_commercial, color: 'bg-purple-50 text-purple-700 border-purple-100' },
   ] : [];
 
   if (error) return (
@@ -99,58 +112,19 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-8">
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        {loading ? Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-36" />) : topStats.map((s, i) => <StatCard key={i} {...s} />)}
-      </div>
+      <BreakdownSection
+        title="Sales Breakdown"
+        loading={loading}
+        topStats={saleTopStats}
+        subTiles={saleSubTiles}
+      />
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-        {loading ? Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-20" />) : subStats.map((s, i) => (
-          <div key={i} className={`p-4 rounded-2xl border flex flex-col items-center justify-center text-center ${s.color}`}>
-            <span className="text-2xl font-bold">{fmt(s.count)}</span>
-            <span className="text-[10px] font-bold uppercase tracking-widest mt-1 opacity-80">{s.label}</span>
-          </div>
-        ))}
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {loading ? Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-72" />) : [
-          { title: 'Portfolio by Type', data: typeChartData, colors: PIE_COLORS_TYPE },
-          { title: 'Properties by Status', data: statusChartData, colors: PIE_COLORS_STATUS },
-          { title: 'Enquiries by Stage', data: enquiryChartData, colors: PIE_COLORS_ENQ },
-        ].map(({ title, data, colors }) => (
-          <div key={title} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-            <h4 className="text-sm font-bold text-slate-700 mb-4">{title}</h4>
-            <ResponsiveContainer width="100%" height={220}>
-              <PieChart>
-                <Pie data={data} cx="50%" cy="50%" innerRadius={55} outerRadius={80} paddingAngle={3} dataKey="value">
-                  {data.map((_, i) => <Cell key={i} fill={colors[i % colors.length]} />)}
-                </Pie>
-                <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 30px rgba(0,0,0,.08)' }} />
-                <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: '10px', fontWeight: 700 }} />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-        ))}
-      </div>
-
-      {!loading && stats && (
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-          <h3 className="text-sm font-bold text-slate-700 uppercase tracking-widest mb-4">Sale Breakdown</h3>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            {[
-              { label: 'Houses', value: stats.sale_house, color: 'bg-blue-50 text-blue-700' },
-              { label: 'Flats', value: stats.sale_flat, color: 'bg-emerald-50 text-emerald-700' },
-              { label: 'Land', value: stats.sale_land, color: 'bg-amber-50 text-amber-700' },
-              { label: 'Plots', value: stats.sale_plot, color: 'bg-purple-50 text-purple-700' },
-            ].map((item) => (
-              <div key={item.label} className={`rounded-xl p-4 flex flex-col items-center ${item.color}`}>
-                <span className="text-2xl font-bold">{fmt(item.value)}</span>
-                <span className="text-[10px] font-bold uppercase tracking-widest mt-1 opacity-80">{item.label}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+      <BreakdownSection
+        title="Rent Breakdown"
+        loading={loading}
+        topStats={rentTopStats}
+        subTiles={rentSubTiles}
+      />
 
       <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100">
         <div className="flex items-center justify-between mb-6">

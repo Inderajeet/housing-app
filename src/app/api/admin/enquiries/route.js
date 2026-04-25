@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { toApiError } from '@/lib/apiError';
 import { getAll, create } from '../../../../lib/services/admin/enquiries.service.js';
 
 export async function GET(request) {
@@ -9,7 +10,8 @@ export async function GET(request) {
     const data = await getAll(type, enquiryType);
     return NextResponse.json(data);
   } catch (e) {
-    return NextResponse.json({ error: e.message }, { status: 500 });
+    const { status, body } = toApiError(e);
+    return NextResponse.json(body, { status });
   }
 }
 
@@ -19,6 +21,7 @@ export async function POST(request) {
     const result = await create(body);
     return NextResponse.json(result, { status: 201 });
   } catch (e) {
-    return NextResponse.json({ error: e.message }, { status: 500 });
+    const { status, body } = toApiError(e);
+    return NextResponse.json(body, { status });
   }
 }

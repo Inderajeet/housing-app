@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { toApiError } from '@/lib/apiError';
 import { getStats, getRecentEnquiries, getRentStatusBreakdown, getSaleStatusBreakdown } from '../../../../lib/services/admin/dashboard.service.js';
 
 export async function GET(request) {
@@ -20,6 +21,7 @@ export async function GET(request) {
     const data = await getStats();
     return NextResponse.json(data);
   } catch (e) {
-    return NextResponse.json({ error: e.message }, { status: 500 });
+    const { status, body } = toApiError(e);
+    return NextResponse.json(body, { status });
   }
 }

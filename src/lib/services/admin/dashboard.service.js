@@ -3,31 +3,35 @@ import prisma from '../../prisma.js';
 export const getStats = async () => {
   const rows = await prisma.$queryRawUnsafe(`
     SELECT
-      COUNT(DISTINCT p.property_id) AS total_properties,
-      COUNT(DISTINCT p.property_id) FILTER (WHERE p.property_type = 'rent') AS total_rent,
+      -- Sale breakdown
       COUNT(DISTINCT p.property_id) FILTER (WHERE p.property_type = 'sale') AS total_sale,
-      COUNT(DISTINCT p.property_id) FILTER (WHERE p.property_type = 'plot') AS total_plot,
-      COUNT(DISTINCT sp.property_id) FILTER (WHERE sp.sale_type = 'house') AS sale_house,
+      COUNT(DISTINCT p.seller_id) FILTER (WHERE p.property_type = 'sale') AS sale_sellers,
+      (SELECT COUNT(DISTINCT e2.buyer_id) FROM enquiries e2
+        JOIN properties p2 ON p2.property_id = e2.property_id
+        WHERE p2.property_type = 'sale' AND e2.buyer_id IS NOT NULL) AS sale_buyers,
+      (SELECT COUNT(*) FROM enquiries e3
+        JOIN properties p3 ON p3.property_id = e3.property_id
+        WHERE p3.property_type = 'sale') AS sale_enquiries,
+      COUNT(DISTINCT sp.property_id) FILTER (WHERE sp.sale_type = 'plot') AS sale_plot,
       COUNT(DISTINCT sp.property_id) FILTER (WHERE sp.sale_type = 'flat') AS sale_flat,
       COUNT(DISTINCT sp.property_id) FILTER (WHERE sp.sale_type = 'land') AS sale_land,
-      COUNT(DISTINCT sp.property_id) FILTER (WHERE sp.sale_type = 'plot') AS sale_plot,
-      COUNT(DISTINCT p.property_id) FILTER (WHERE p.status = 'active') AS status_active,
-      COUNT(DISTINCT p.property_id) FILTER (WHERE p.status = 'approved') AS status_approved,
-      COUNT(DISTINCT p.property_id) FILTER (WHERE p.status = 'Pending') AS status_pending,
-      COUNT(DISTINCT p.property_id) FILTER (WHERE p.status = 'inactive') AS status_inactive,
-      (SELECT COUNT(*) FROM sellers) AS total_sellers,
-      (SELECT COUNT(*) FROM buyers) AS total_buyers,
-      (SELECT COUNT(*) FROM enquiries) AS total_enquiries,
-      COUNT(DISTINCT e.enquiry_id) FILTER (WHERE e.booking_status = 'enquired') AS enquiries_open,
-      COUNT(DISTINCT e.enquiry_id) FILTER (WHERE e.booking_status = 'booked') AS enquiries_booked,
-      COUNT(DISTINCT e.enquiry_id) FILTER (WHERE e.booking_status = 'confirmed') AS enquiries_confirmed,
-      COUNT(DISTINCT e.enquiry_id) FILTER (WHERE e.booking_status = 'cancelled') AS enquiries_cancelled,
-      (SELECT COUNT(*) FROM properties WHERE is_paid = TRUE) AS premium_active,
-      (SELECT COUNT(*) FROM properties WHERE premium_requested = TRUE AND is_paid = FALSE) AS premium_pending
+      COUNT(DISTINCT sp.property_id) FILTER (WHERE sp.sale_type = 'house') AS sale_house,
+      -- Rent breakdown
+      COUNT(DISTINCT p.property_id) FILTER (WHERE p.property_type = 'rent') AS total_rent,
+      COUNT(DISTINCT p.seller_id) FILTER (WHERE p.property_type = 'rent') AS rent_sellers,
+      (SELECT COUNT(DISTINCT e4.buyer_id) FROM enquiries e4
+        JOIN properties p4 ON p4.property_id = e4.property_id
+        WHERE p4.property_type = 'rent' AND e4.buyer_id IS NOT NULL) AS rent_buyers,
+      (SELECT COUNT(*) FROM enquiries e5
+        JOIN properties p5 ON p5.property_id = e5.property_id
+        WHERE p5.property_type = 'rent') AS rent_enquiries,
+      (SELECT COUNT(*) FROM rent_properties WHERE bhk = 1 AND property_use = 'residential') AS rent_1bhk,
+      (SELECT COUNT(*) FROM rent_properties WHERE bhk = 2 AND property_use = 'residential') AS rent_2bhk,
+      (SELECT COUNT(*) FROM rent_properties
+        WHERE bhk >= 3 AND property_use = 'residential') AS rent_3plus_bhk,
+      (SELECT COUNT(*) FROM rent_properties WHERE property_use = 'commercial') AS rent_commercial
     FROM properties p
     LEFT JOIN sale_properties sp ON sp.property_id = p.property_id
-    LEFT JOIN rent_properties rp ON rp.property_id = p.property_id
-    LEFT JOIN enquiries e ON e.property_id = p.property_id
   `);
   return rows[0];
 };

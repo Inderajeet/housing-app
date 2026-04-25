@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { toApiError } from '@/lib/apiError';
 import { getAll } from '../../../../lib/services/admin/bookings.service.js';
 
 export async function GET(request) {
@@ -9,6 +10,7 @@ export async function GET(request) {
     const data = await getAll(type, status);
     return NextResponse.json(data);
   } catch (e) {
-    return NextResponse.json({ error: e.message }, { status: 500 });
+    const { status, body } = toApiError(e);
+    return NextResponse.json(body, { status });
   }
 }

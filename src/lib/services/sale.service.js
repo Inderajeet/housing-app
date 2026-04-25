@@ -31,7 +31,7 @@ export async function getAll(type) {
   `;
   const values = [];
   if (type) { values.push(type.toLowerCase()); query += ` AND s.sale_type = $${values.length}`; }
-  query += ` ORDER BY p.created_at DESC`;
+  query += ` ORDER BY p.formatted_id ASC NULLS LAST`;
   const rows = await prisma.$queryRawUnsafe(query, ...values);
   return rows;
 }

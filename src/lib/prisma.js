@@ -9,7 +9,11 @@ if (typeof BigInt !== 'undefined' && !BigInt.prototype.toJSON) {
 const globalForPrisma = globalThis;
 
 if (!globalForPrisma.prisma) {
-  const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+  const connectionTimeoutMillis = Number(process.env.PG_CONNECT_TIMEOUT_MS || 5000);
+  const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    connectionTimeoutMillis: Number.isFinite(connectionTimeoutMillis) ? connectionTimeoutMillis : 5000,
+  });
   const adapter = new PrismaPg(pool);
   globalForPrisma.prisma = new PrismaClient({ adapter });
 }

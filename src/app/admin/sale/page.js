@@ -150,7 +150,9 @@ export default function SalePropertiesPage() {
 
   const openModal = (property = null, modalMode = 'add') => {
     setSelected(property || null);
-    setForm(property ? { ...EMPTY_FORM, ...property } : EMPTY_FORM);
+    setForm(property
+      ? { ...EMPTY_FORM, ...Object.fromEntries(Object.entries(property).map(([k, v]) => [k, v ?? ''])) }
+      : EMPTY_FORM);
     setMode(modalMode);
     setError('');
     setIsModalOpen(true);
@@ -167,18 +169,20 @@ export default function SalePropertiesPage() {
     setForm(prev => {
       const updated = { ...prev, [key]: value ?? '' };
       if (showExtraFields && (key === 'total_units_count' || key === 'booked_units')) {
-        const total = parseInt(key === 'total_units_count' ? value : prev.total_units_count) || 0;
-        const getBookedSet = (inp) => {
-          const s = new Set(); if (!inp) return s;
-          inp.toString().split(',').map(p => p.trim()).forEach(part => {
-            if (part.includes('-')) { const [a, b] = part.split('-').map(Number); if (!isNaN(a) && !isNaN(b)) for (let i = Math.min(a, b); i <= Math.max(a, b); i++) s.add(i); }
-            else { const n = Number(part); if (!isNaN(n)) s.add(n); }
-          }); return s;
-        };
-        const bookedSet = getBookedSet(key === 'booked_units' ? value : prev.booked_units);
-        const open = []; for (let i = 1; i <= total; i++) if (!bookedSet.has(i)) open.push(i);
-        const getRng = (nums) => { if (!nums.length) return 'None'; nums.sort((a, b) => a - b); const r = []; let s = nums[0], e = nums[0]; for (let i = 1; i <= nums.length; i++) { if (nums[i] === e + 1) { e = nums[i]; } else { r.push(s === e ? `${s}` : `${s}-${e}`); s = nums[i]; e = nums[i]; } } return r.join(', '); };
-        updated.open_units = getRng(open);
+        const total = parseInt(key === 'total_units_count' ? value : prev.total_units_count);
+        if (!isNaN(total) && total > 0) {
+          const getBookedSet = (inp) => {
+            const s = new Set(); if (!inp) return s;
+            inp.toString().split(',').map(p => p.trim()).forEach(part => {
+              if (part.includes('-')) { const [a, b] = part.split('-').map(Number); if (!isNaN(a) && !isNaN(b)) for (let i = Math.min(a, b); i <= Math.max(a, b); i++) s.add(i); }
+              else { const n = Number(part); if (!isNaN(n)) s.add(n); }
+            }); return s;
+          };
+          const bookedSet = getBookedSet(key === 'booked_units' ? value : prev.booked_units);
+          const open = []; for (let i = 1; i <= total; i++) if (!bookedSet.has(i)) open.push(i);
+          const getRng = (nums) => { if (!nums.length) return '0'; nums.sort((a, b) => a - b); const r = []; let s = nums[0], e = nums[0]; for (let i = 1; i <= nums.length; i++) { if (nums[i] === e + 1) { e = nums[i]; } else { r.push(s === e ? `${s}` : `${s}-${e}`); s = nums[i]; e = nums[i]; } } return r.join(', '); };
+          updated.open_units = getRng(open);
+        }
       }
       return updated;
     });
@@ -247,7 +251,9 @@ export default function SalePropertiesPage() {
       setSelected(created);
       setMode('edit');
       setFormTab('seller');
-    } catch (err) { alert('Failed: ' + err.message); }
+    } catch (err) {
+      alert('Failed: ' + (err?.response?.data?.error || err.message));
+    }
     finally { setSubmitting(false); }
   };
 
@@ -257,7 +263,9 @@ export default function SalePropertiesPage() {
     try {
       await updateSaleProperty(selected.property_id, form);
       await fetchSale();
-    } catch (err) { alert('Failed: ' + err.message); }
+    } catch (err) {
+      alert('Failed: ' + (err?.response?.data?.error || err.message));
+    }
     finally { setSubmitting(false); }
   };
 
@@ -502,13 +510,14 @@ export default function SalePropertiesPage() {
             { header: 'Registered', accessor: p => new Date(p.created_at).toLocaleDateString(), sortable: true, sortBy: p => new Date(p.created_at).getTime() },
             { header: 'Type', accessor: 'sale_type' },
             {
-              header: 'Approval', accessor: p => {
+              header: 'Approval', sortable: true, sortBy: p => p.status || 'pending',
+              accessor: p => {
                 const s = p.status || 'pending';
                 const c = { approved: 'bg-green-100 text-green-800 border-green-200', pending: 'bg-yellow-100 text-yellow-800 border-yellow-200', rejected: 'bg-red-100 text-red-800 border-red-200' };
                 return <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase border ${c[s] || 'bg-gray-100 text-gray-800 border-gray-200'}`}>{s.charAt(0).toUpperCase() + s.slice(1)}</span>;
               }
             },
-            { header: 'Booking Status', accessor: p => <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase ${STATUS_COLORS[p.sale_status] || 'bg-gray-200'}`}>{p.sale_status}</span> },
+            { header: 'Booking Status', sortable: true, sortBy: p => p.sale_status || '', accessor: p => <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase ${STATUS_COLORS[p.sale_status] || 'bg-gray-200'}`}>{p.sale_status}</span> },
             { header: 'Latitude', accessor: 'latitude', filterable: true, filterKey: 'latitude' },
             { header: 'Longitude', accessor: 'longitude', filterable: true, filterKey: 'longitude' },
             { header: 'Primary Phone', accessor: 'contact_phone', filterable: true, filterKey: 'contact_phone', className: 'font-bold text-emerald-600' },
@@ -629,7 +638,7 @@ export default function SalePropertiesPage() {
                     <div className="grid grid-cols-3 gap-6">
                       <div className={fw}><label className={lbl}>Total Units</label><input type="number" disabled={isReadOnly} value={form.total_units_count} onChange={e => handleChange('total_units_count', e.target.value)} className={inp()} /></div>
                       <div className={fw}><label className={lbl}>Booked Units</label><input disabled={isReadOnly} value={form.booked_units} onChange={e => handleChange('booked_units', e.target.value)} placeholder="e.g. 1-5, 8" className={inp()} /></div>
-                      <div className={fw}><label className={lbl}>Available (Auto)</label><input disabled value={form.open_units} className="w-full px-4 py-2.5 rounded-xl border border-gray-300 font-semibold text-sm bg-gray-100 text-emerald-700" /></div>
+                      <div className={fw}><label className={lbl}>Available{form.total_units_count ? ' (Auto)' : ''}</label><input disabled={isReadOnly || !!form.total_units_count} value={form.open_units} onChange={e => handleChange('open_units', e.target.value)} className={form.total_units_count ? 'w-full px-4 py-2.5 rounded-xl border border-gray-300 font-semibold text-sm bg-gray-100 text-emerald-700' : inp()} /></div>
                     </div>
                   )}
                   <div>
@@ -659,7 +668,10 @@ export default function SalePropertiesPage() {
                 assetLoading ? <Loader /> :
                   <PropertyAssetsTabs propertyId={selected?.property_id || null} assets={assets} setAssets={setAssets}
                     isReadOnly={isReadOnly} propertyData={selected || form} mode={mode} onlyType="image"
-                    onDrawingImageUpload={async (f) => { return await uploadDrawingImage(selected.property_id, f); }} />
+                    onDrawingImageUpload={async (url) => {
+                      await adminApi.put(`/sale/${selected.property_id}`, { drawing_image_url: url });
+                      setSelected(prev => ({ ...prev, drawing_image: url }));
+                    }} />
               )}
               {formTab === 'documents' && (
                 assetLoading ? <Loader /> :

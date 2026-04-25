@@ -10,10 +10,21 @@ export const getLayout = async (propertyId) => {
     SELECT element_id, type, name, x, y, width, height, rotation, color, font_size, font_weight, visible
     FROM plot_layout_elements WHERE property_id = $1
   `, propertyId);
-  return [
-    ...plots.map(p => ({ ...p, type: 'plot', visible: true })),
-    ...elements,
-  ];
+  const propRows = await prisma.$queryRawUnsafe(`
+    SELECT drawing_image, total_units_count, booked_units, open_units
+    FROM sale_properties WHERE property_id = $1
+  `, propertyId);
+  const prop = propRows[0] || {};
+  return {
+    items: [
+      ...plots.map(p => ({ ...p, type: 'PLOT', visible: true })),
+      ...elements,
+    ],
+    drawing_image: prop.drawing_image || null,
+    total_units_count: prop.total_units_count ?? null,
+    booked_units: prop.booked_units ?? null,
+    open_units: prop.open_units ?? null,
+  };
 };
 
 export const saveLayout = async (propertyId, elements) => {

@@ -5,6 +5,31 @@ const toInt = (v) => (v === '' || v === undefined || v === null ? null : parseIn
 const toFloat = (v) => (v === '' || v === undefined || v === null ? null : parseFloat(v));
 const toStr = (v) => (v === '' || v === undefined ? null : v);
 
+const allocateFormattedId = async (tx, districtId) => {
+  const did = toInt(districtId);
+  if (!did) return null;
+
+  const rows = await tx.$queryRawUnsafe(
+    `SELECT district_code, COALESCE(last_property_number, 0) AS last_property_number
+     FROM districts
+     WHERE district_id = $1
+     FOR UPDATE`,
+    did
+  );
+  if (!rows.length) return null;
+
+  const districtCode = rows[0].district_code;
+  const nextNumber = Number(rows[0].last_property_number || 0) + 1;
+
+  await tx.$executeRawUnsafe(
+    'UPDATE districts SET last_property_number = $1 WHERE district_id = $2',
+    nextNumber,
+    did
+  );
+
+  return `${districtCode}${String(nextNumber).padStart(4, '0')}`;
+};
+
 export const getAll = async () => {
   const rows = await prisma.$queryRawUnsafe(`
     SELECT p.property_id, p.formatted_id, p.created_at, p.title, p.description,
@@ -21,7 +46,7 @@ export const getAll = async () => {
     INNER JOIN sale_properties s ON s.property_id = p.property_id
     LEFT JOIN sellers seller ON seller.seller_id = p.seller_id
     WHERE p.property_type = 'sale'
-    ORDER BY p.created_at DESC
+    ORDER BY p.formatted_id ASC NULLS LAST
   `);
   return rows;
 };
@@ -69,7 +94,7 @@ export const createSaleProperty = async (data, files = {}) => {
        VALUES ('sale', $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING property_id`,
       toInt(sellerId), toStr(data.title), toStr(data.description), toStr(phone), toStr(data.address),
       toFloat(data.latitude), toFloat(data.longitude), toInt(data.district_id), toInt(data.taluk_id),
-      toInt(data.village_id), toInt(data.area_id), toStr(data.status || 'Nil Booking'), null
+      toInt(data.village_id), toInt(data.area_id), toStr(data.status || 'Pending'), null
     );
     const propertyId = propRes[0].property_id;
     const saleType = toStr(data.sale_type)?.toLowerCase();
@@ -107,11 +132,11 @@ export const updateSaleProperty = async (propertyId, data, files = {}) => {
   const filesToDelete = [];
 
   const currentProp = await prisma.$queryRawUnsafe(
-    `SELECT p.seller_id, p.live_image, s.drawing_image, s.sale_type FROM properties p LEFT JOIN sale_properties s ON s.property_id = p.property_id WHERE p.property_id = $1`,
+    `SELECT p.seller_id, p.live_image, p.district_id, s.drawing_image, s.sale_type FROM properties p LEFT JOIN sale_properties s ON s.property_id = p.property_id WHERE p.property_id = $1`,
     propertyId
   );
   if (!currentProp.length) throw new Error('Property not found');
-  const { seller_id: currentSellerId, live_image: currentLiveImage, drawing_image: currentDrawingImage } = currentProp[0];
+  const { seller_id: currentSellerId, live_image: currentLiveImage, drawing_image: currentDrawingImage, district_id: currentDistrictId } = currentProp[0];
 
   const phone = data.contact_phone;
   const sellerName = data.seller_name || '';
@@ -141,6 +166,10 @@ export const updateSaleProperty = async (propertyId, data, files = {}) => {
         const ns = await tx.$queryRawUnsafe('INSERT INTO sellers (name, phone_number) VALUES ($1, $2) RETURNING seller_id', sellerName, phone);
         await tx.$executeRawUnsafe('UPDATE properties SET seller_id = $1 WHERE property_id = $2', ns[0].seller_id, propertyId);
       }
+    }
+    if (toInt(data.district_id) !== toInt(currentDistrictId)) {
+      const newFormattedId = await allocateFormattedId(tx, data.district_id);
+      await tx.$executeRawUnsafe('UPDATE properties SET formatted_id = $1 WHERE property_id = $2', newFormattedId, propertyId);
     }
     await tx.$executeRawUnsafe(
       `UPDATE properties SET title=$1, description=$2, contact_phone=$3, address=$4, latitude=$5, longitude=$6, district_id=$7, taluk_id=$8, village_id=$9, area_id=$10, status=$11, live_image=$12 WHERE property_id=$13`,
@@ -189,4 +218,12 @@ export const updateDrawingImage = async (propertyId, file) => {
   await prisma.$executeRawUnsafe('UPDATE sale_properties SET drawing_image = $1 WHERE property_id = $2', upload.url, propertyId);
   if (oldUrl) await deleteFromCloudflare(oldUrl);
   return { drawing_image: upload.url };
+};
+
+export const updateDrawingImageByUrl = async (propertyId, url) => {
+  await prisma.$executeRawUnsafe(
+    'UPDATE sale_properties SET drawing_image = $1 WHERE property_id = $2',
+    url || null, propertyId
+  );
+  return { drawing_image: url };
 };

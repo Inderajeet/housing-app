@@ -5,6 +5,31 @@ const toInt = (v) => (v === '' || v === undefined || v === null ? null : parseIn
 const toFloat = (v) => (v === '' || v === undefined || v === null ? null : parseFloat(v));
 const toStr = (v) => (v === '' || v === undefined ? null : v);
 
+const allocateFormattedId = async (tx, districtId) => {
+  const did = toInt(districtId);
+  if (!did) return null;
+
+  const rows = await tx.$queryRawUnsafe(
+    `SELECT district_code, COALESCE(last_property_number, 0) AS last_property_number
+     FROM districts
+     WHERE district_id = $1
+     FOR UPDATE`,
+    did
+  );
+  if (!rows.length) return null;
+
+  const districtCode = rows[0].district_code;
+  const nextNumber = Number(rows[0].last_property_number || 0) + 1;
+
+  await tx.$executeRawUnsafe(
+    'UPDATE districts SET last_property_number = $1 WHERE district_id = $2',
+    nextNumber,
+    did
+  );
+
+  return `${districtCode}${String(nextNumber).padStart(4, '0')}`;
+};
+
 export const getAll = async () => {
   const rows = await prisma.$queryRawUnsafe(`
     SELECT p.property_id, p.formatted_id, p.created_at, p.title,
@@ -96,9 +121,10 @@ export const updateRentProperty = async (propertyId, data, files = {}) => {
   const extentArea = data.extent_area && data.extent_area !== '' ? parseFloat(data.extent_area) : null;
   const filesToDelete = [];
 
-  const currentProp = await prisma.$queryRawUnsafe('SELECT seller_id, live_image FROM properties WHERE property_id = $1', propertyId);
+  const currentProp = await prisma.$queryRawUnsafe('SELECT seller_id, live_image, district_id FROM properties WHERE property_id = $1', propertyId);
   if (!currentProp.length) throw new Error('Property not found');
   const currentSellerId = currentProp[0].seller_id;
+  const currentDistrictId = currentProp[0].district_id;
 
   let liveImageUrl = currentProp[0].live_image;
   if (files.live_image) {
@@ -119,6 +145,10 @@ export const updateRentProperty = async (propertyId, data, files = {}) => {
         const newSeller = await tx.$queryRawUnsafe('INSERT INTO sellers (name, phone_number) VALUES ($1, $2) RETURNING seller_id', sellerName, phone);
         await tx.$executeRawUnsafe('UPDATE properties SET seller_id = $1 WHERE property_id = $2', newSeller[0].seller_id, propertyId);
       }
+    }
+    if (toInt(data.district_id) !== toInt(currentDistrictId)) {
+      const newFormattedId = await allocateFormattedId(tx, data.district_id);
+      await tx.$executeRawUnsafe('UPDATE properties SET formatted_id = $1 WHERE property_id = $2', newFormattedId, propertyId);
     }
     await tx.$executeRawUnsafe(
       `UPDATE properties SET title=$1, description=$2, contact_phone=$3, address=$4, district_id=$5, taluk_id=$6, village_id=$7, area_id=$8, status=$9, latitude=$10, longitude=$11, live_image=$12 WHERE property_id=$13`,

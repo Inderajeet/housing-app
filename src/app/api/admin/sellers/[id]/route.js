@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { toApiError } from '@/lib/apiError';
 import { update, getSellerProperties } from '../../../../../lib/services/admin/sellers.service.js';
 
 export async function PUT(request, { params }) {
@@ -8,7 +9,8 @@ export async function PUT(request, { params }) {
     const result = await update(id, body);
     return NextResponse.json(result);
   } catch (e) {
-    return NextResponse.json({ error: e.message }, { status: 500 });
+    const { status, body } = toApiError(e);
+    return NextResponse.json(body, { status });
   }
 }
 
@@ -22,6 +24,7 @@ export async function GET(request, { params }) {
     }
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   } catch (e) {
-    return NextResponse.json({ error: e.message }, { status: 500 });
+    const { status, body } = toApiError(e);
+    return NextResponse.json(body, { status });
   }
 }

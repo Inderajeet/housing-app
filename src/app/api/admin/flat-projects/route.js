@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { toApiError } from '@/lib/apiError';
 import { getFlatProperties } from '../../../../lib/services/admin/flatProjects.service.js';
 
 export async function GET() {
@@ -6,6 +7,7 @@ export async function GET() {
     const data = await getFlatProperties();
     return NextResponse.json(data);
   } catch (e) {
-    return NextResponse.json({ error: e.message }, { status: 500 });
+    const { status, body } = toApiError(e);
+    return NextResponse.json(body, { status });
   }
 }
