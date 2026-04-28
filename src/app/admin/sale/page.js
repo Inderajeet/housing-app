@@ -14,11 +14,16 @@ import { reverseGeocodeDetailed } from '@/utils/geocode';
 const SaleStatus = { NIL_BOOKING: 'Nil Booking', ON_BOOKING: 'ON_BOOKING', BOOKED: 'BOOKED', SOLD: 'SOLD' };
 const SaleType = { HOUSE: 'house', LAND: 'land', PLOT: 'plot', FLAT: 'flat' };
 const STATUS_COLORS = {
-  'Nil Booking': 'bg-gray-100 text-gray-600',
-  'ON_BOOKING': 'bg-yellow-100 text-yellow-800',
-  'BOOKED': 'bg-blue-100 text-blue-800',
-  'SOLD': 'bg-red-100 text-red-800',
+  'Nil Booking': 'bg-emerald-100 text-emerald-700',
+  'ON_BOOKING':  'bg-yellow-100 text-yellow-800',
+  'CONFIRMED':   'bg-red-100 text-red-800',
+  'UNREGISTERED':'bg-red-100 text-red-800',
+  'REGISTERED':  'bg-red-100 text-red-800',
+  'SOLD':        'bg-red-100 text-red-800',
+  'BOOKED':      'bg-red-100 text-red-800',
 };
+
+const TOKEN_PAID_TO_OPTIONS = ['', 'Paid Us', 'Paid to Owner', 'Owner returned', 'Returned to buyer'];
 
 const EMPTY_FORM = {
   contact_phone: '', seller_name: '', alternate_contact_phone: '', alternate_seller_name: '',
@@ -29,6 +34,7 @@ const EMPTY_FORM = {
   boundary_north: '', boundary_south: '', boundary_east: '', boundary_west: '',
   sale_status: SaleStatus.NIL_BOOKING, total_units_count: '', booked_units: '', open_units: '',
   description: '', dtcp: '', parent_document: '', sub_registrar_office: '', gift_deed: '',
+  token_amount: '', token_paid_to: '', advance_amount: '', sold_rate: '', sold_date: '',
 };
 
 const FORM_TABS = [
@@ -634,6 +640,21 @@ export default function SalePropertiesPage() {
                     <div className={fw}><label className={lbl}>Landmark</label><input disabled={isReadOnly} value={form.street_name_or_road_name} onChange={e => handleChange('street_name_or_road_name', e.target.value)} className={inp()} /></div>
                   </div>
                   <div className={fw}><label className={lbl}>Layout Name</label><input disabled={isReadOnly} value={form.layout_name} onChange={e => handleChange('layout_name', e.target.value)} className={inp()} /></div>
+                  <div className="grid grid-cols-2 gap-6">
+                    <div className={fw}><label className={lbl}>Token Amount (₹)</label><input type="number" disabled={isReadOnly} value={form.token_amount || ''} onChange={e => handleChange('token_amount', e.target.value)} placeholder="Token amount paid" className={inp()} /></div>
+                    <div className={fw}><label className={lbl}>Token Paid To</label>
+                      <select disabled={isReadOnly} value={form.token_paid_to || ''} onChange={e => handleChange('token_paid_to', e.target.value)} className="w-full px-4 py-2.5 rounded-xl border border-gray-300 font-semibold text-sm">
+                        {TOKEN_PAID_TO_OPTIONS.map(o => <option key={o} value={o}>{o || '— Select —'}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-6">
+                    <div className={fw}><label className={lbl}>Advance Amount (₹)</label><input type="number" disabled={isReadOnly} value={form.advance_amount || ''} onChange={e => handleChange('advance_amount', e.target.value)} placeholder="Advance paid" className={inp()} /></div>
+                    <div className={fw}><label className={lbl}>Sold Rate (₹)</label><input type="number" disabled={isReadOnly} value={form.sold_rate || ''} onChange={e => handleChange('sold_rate', e.target.value)} placeholder="Final sold price" className={inp()} /></div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-6">
+                    <div className={fw}><label className={lbl}>Sold Date</label><input type="date" disabled={isReadOnly} value={form.sold_date || ''} onChange={e => handleChange('sold_date', e.target.value)} className={inp()} /></div>
+                  </div>
                   {showExtraFields && (
                     <div className="grid grid-cols-3 gap-6">
                       <div className={fw}><label className={lbl}>Total Units</label><input type="number" disabled={isReadOnly} value={form.total_units_count} onChange={e => handleChange('total_units_count', e.target.value)} className={inp()} /></div>

@@ -6,9 +6,12 @@ export const getPlotProperties = async () => {
       s.phone_number AS seller_phone, sp.sale_type, p.created_at,
       sp.sale_status AS booking_status,
       COUNT(pu.plot_unit_id)::INT AS total_plots,
-      COUNT(pu.plot_unit_id) FILTER (WHERE pu.status = 'Nil Booking')::INT AS nil_booking,
-      COUNT(pu.plot_unit_id) FILTER (WHERE pu.status = 'On Booking')::INT AS on_booking,
-      COUNT(pu.plot_unit_id) FILTER (WHERE pu.status = 'Confirmed')::INT AS confirmed
+      COUNT(pu.plot_unit_id) FILTER (WHERE UPPER(pu.status) = 'NIL_BOOKING' OR pu.status = 'Nil Booking' OR pu.status IS NULL)::INT AS nil_booking,
+      COUNT(pu.plot_unit_id) FILTER (WHERE UPPER(pu.status) = 'ON_BOOKING')::INT AS on_booking,
+      COUNT(pu.plot_unit_id) FILTER (WHERE UPPER(pu.status) = 'CONFIRMED')::INT AS confirmed,
+      COUNT(pu.plot_unit_id) FILTER (WHERE UPPER(pu.status) = 'UNREGISTERED')::INT AS unregistered,
+      COUNT(pu.plot_unit_id) FILTER (WHERE UPPER(pu.status) = 'REGISTERED')::INT AS registered,
+      COUNT(pu.plot_unit_id) FILTER (WHERE UPPER(pu.status) IN ('SOLD', 'RENTED'))::INT AS sold
     FROM properties p
     JOIN sale_properties sp ON sp.property_id = p.property_id AND sp.sale_type = 'plot'
     LEFT JOIN sellers s ON s.seller_id = p.seller_id

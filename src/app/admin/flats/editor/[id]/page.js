@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { getFlatLayout, saveFlatLayout } from '@/lib/adminApi';
+import SvgMapEditor from '@/components/admin/SvgMapEditor';
 
 const getBookingStatusStyles = (status) => {
   const s = String(status || '').trim().toUpperCase().replace(/[\s-]+/g, '_');
@@ -52,6 +53,8 @@ export default function FlatLayoutEditorPage() {
   const [gridData, setGridData] = useState({});
   const [history, setHistory] = useState([]);
   const [selection, setSelection] = useState({ start: null, end: null });
+  const [selectionMode, setSelectionMode] = useState('rect'); // 'rect' | 'freeform'
+  const [freeformKeys, setFreeformKeys] = useState({});
   const isSelectingRef = useRef(false);
   const [isSelecting, setIsSelecting] = useState(false);
   const [selectedCellKey, setSelectedCellKey] = useState(null);
@@ -59,8 +62,11 @@ export default function FlatLayoutEditorPage() {
   const [toast, setToast] = useState(null);
   const [drawingImage, setDrawingImage] = useState(null);
   const [showDrawing, setShowDrawing] = useState(false);
-  const [showDrawingRef, setShowDrawingRef] = useState(true);
+  const [showDrawingRef, setShowDrawingRef] = useState(false);
+  const [showBulkStatus, setShowBulkStatus] = useState(false);
   const [bulkInputs, setBulkInputs] = useState({ nil: '', on: '', confirmed: '' });
+  const [viewMode, setViewMode] = useState('grid');
+  const [svgShapes, setSvgShapes] = useState([]);
 
   const showToast = (message, type = 'success') => setToast({ message, type });
   const recordHistory = (data) => setHistory((prev) => [...prev, JSON.stringify(data)].slice(-20));
@@ -104,6 +110,21 @@ export default function FlatLayoutEditorPage() {
         const rawItems = Array.isArray(res.data) ? res.data : (res.data?.items || []);
         const propData = res.data;
         if (propData?.drawing_image) setDrawingImage(propData.drawing_image);
+
+        // Load SVG shapes
+        const svgItems = rawItems.filter(item => item.points && Array.isArray(item.points) && item.points.length > 0);
+        if (svgItems.length > 0) {
+          setSvgShapes(svgItems.map(item => ({
+            id: item.element_id ? String(item.element_id) : String(Math.random()),
+            type: (item.type || 'FLAT').toUpperCase() === 'FLAT' ? 'plot' : 'road',
+            points: item.points,
+            label: item.name || '',
+            status: item.status || 'Nil Booking',
+            color: item.color || '#22c55e',
+          })));
+          setViewMode('svg');
+        }
+
         if (propData?.booked_units || propData?.open_units) {
           setBulkInputs(prev => ({
             ...prev,
@@ -143,6 +164,7 @@ export default function FlatLayoutEditorPage() {
             display_name: item.name || item.label || '',
             isManual: isNaN(item.name) && item.type === 'FLAT',
             type: item.type || 'FLAT', status: resolvedStatus,
+            token_paid_to: item.token_paid_to || '',
             rotation: item.rotation || 0,
             color: item.color || (item.type === 'TEXT' ? '#2563eb' : '#ffffff'),
             font_size: item.font_size || 10, font_weight: item.font_weight || '900',
@@ -180,20 +202,35 @@ export default function FlatLayoutEditorPage() {
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      const elements = Object.keys(gridData)
-        .filter((k) => !gridData[k].merged && gridData[k].type)
-        .map((k) => {
-          const cell = gridData[k];
-          return {
-            property_id: id, type: cell.type,
-            x: cell.col, y: cell.row,
-            width: cell.colSpan || 1, height: cell.rowSpan || 1,
-            name: cell.display_name, status: cell.status,
-            rotation: parseInt(cell.rotation || 0), color: cell.color,
-            font_size: parseInt(cell.font_size || 10), font_weight: cell.font_weight || '900',
-            visible: true,
-          };
-        });
+      let elements;
+      if (viewMode === 'svg') {
+        elements = svgShapes.map(shape => ({
+          property_id: id,
+          type: shape.type === 'plot' ? 'FLAT' : 'ROAD',
+          name: shape.label,
+          status: shape.status,
+          color: shape.color,
+          points: shape.points,
+          x: 0, y: 0, width: 1, height: 1, rotation: 0,
+          font_size: 10, font_weight: '900', visible: true,
+        }));
+      } else {
+        elements = Object.keys(gridData)
+          .filter((k) => !gridData[k].merged && gridData[k].type)
+          .map((k) => {
+            const cell = gridData[k];
+            return {
+              property_id: id, type: cell.type,
+              x: cell.col, y: cell.row,
+              width: cell.colSpan || 1, height: cell.rowSpan || 1,
+              name: cell.display_name, status: cell.status,
+              token_paid_to: cell.token_paid_to || null,
+              rotation: parseInt(cell.rotation || 0), color: cell.color,
+              font_size: parseInt(cell.font_size || 10), font_weight: cell.font_weight || '900',
+              visible: true,
+            };
+          });
+      }
       await saveFlatLayout(id, elements);
       showToast('Layout saved successfully!');
     } catch { showToast('Save failed', 'error'); }
@@ -201,10 +238,35 @@ export default function FlatLayoutEditorPage() {
   };
 
   const applyAction = (type) => {
+    let newGrid = { ...gridData };
+
+    if (selectionMode === 'freeform') {
+      const keys = Object.keys(freeformKeys);
+      if (!keys.length) return;
+      recordHistory(gridData);
+      if (type === 'CLEAR') {
+        keys.forEach(k => { delete newGrid[k]; });
+      } else {
+        keys.forEach(k => {
+          const [r, c] = k.split('-').map(Number);
+          newGrid[k] = {
+            type, row: r, col: c, merged: false, anchorKey: null,
+            colSpan: 1, rowSpan: 1,
+            display_name: type === 'TEXT' ? 'LABEL' : '',
+            status: 'Nil Booking', rotation: 0,
+            color: type === 'TEXT' ? '#2563eb' : '#ffffff',
+            font_size: type === 'TEXT' ? 14 : 10, font_weight: '900',
+          };
+        });
+      }
+      setGridData(refreshFlatNumbers(newGrid));
+      setFreeformKeys({});
+      return;
+    }
+
     const { start, end } = selection;
     if (!start || !end) return;
     recordHistory(gridData);
-    let newGrid = { ...gridData };
     const rMin = Math.min(start.r, end.r), rMax = Math.max(start.r, end.r);
     const cMin = Math.min(start.c, end.c), cMax = Math.max(start.c, end.c);
 
@@ -242,6 +304,7 @@ export default function FlatLayoutEditorPage() {
     { label: 'On Booking', value: 'ON_BOOKING', color: 'Yellow' },
     { label: 'Confirmed', value: 'CONFIRMED', color: 'Red' },
   ];
+  const TOKEN_PAID_TO_OPTIONS = ['', 'Paid Us', 'Paid to Owner', 'Owner returned', 'Returned to buyer'];
 
   return (
     <div className="flex h-screen bg-[#f8fafc] overflow-hidden font-sans">
@@ -254,6 +317,10 @@ export default function FlatLayoutEditorPage() {
             <h1 className="font-black text-slate-800 uppercase text-lg tracking-tighter">Flat: <span className="text-blue-600">{id}</span></h1>
           </div>
           <div className="flex items-center gap-6">
+            <div className="flex items-center bg-slate-100 rounded-xl p-1 gap-1">
+              <button onClick={() => setViewMode('grid')} className={`px-4 py-2 rounded-lg text-[11px] font-black uppercase transition-all ${viewMode === 'grid' ? 'bg-white text-blue-600 shadow' : 'text-slate-400 hover:text-slate-600'}`}>Grid</button>
+              <button onClick={() => setViewMode('svg')} className={`px-4 py-2 rounded-lg text-[11px] font-black uppercase transition-all ${viewMode === 'svg' ? 'bg-white text-violet-600 shadow' : 'text-slate-400 hover:text-slate-600'}`}>SVG Map</button>
+            </div>
             {drawingImage && (
               <button onClick={() => setShowDrawing(true)} className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-700 hover:bg-blue-50 hover:text-blue-600 rounded-xl text-[11px] font-black uppercase transition-all">
                 <span>🗺</span> View Drawing
@@ -274,29 +341,36 @@ export default function FlatLayoutEditorPage() {
           </div>
         </div>
 
-        <div className="bg-white border-b px-10 py-3 shrink-0 flex items-center gap-6">
-          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Bulk Status</span>
-          {[
-            { key: 'nil', label: 'Nil Booking', value: 'Nil Booking', bg: 'bg-emerald-50 border-emerald-200 focus:border-emerald-500', pill: 'bg-emerald-500' },
-            { key: 'on', label: 'On Booking', value: 'ON_BOOKING', bg: 'bg-yellow-50 border-yellow-200 focus:border-yellow-500', pill: 'bg-yellow-400' },
-            { key: 'confirmed', label: 'Confirmed', value: 'CONFIRMED', bg: 'bg-red-50 border-red-200 focus:border-red-500', pill: 'bg-red-500' },
-          ].map(({ key, label, value, bg, pill }) => (
-            <div key={key} className="flex items-center gap-2">
-              <span className={`w-2.5 h-2.5 rounded-full ${pill}`} />
-              <span className="text-[10px] font-black text-slate-500 uppercase">{label}</span>
-              <input
-                value={bulkInputs[key]}
-                onChange={e => setBulkInputs(prev => ({ ...prev, [key]: e.target.value }))}
-                onBlur={e => { if (e.target.value.trim()) applyBulkStatus(value, e.target.value); }}
-                placeholder="e.g. 1,3,5-8"
-                className={`w-32 px-3 py-1.5 rounded-lg border text-[11px] font-semibold outline-none ${bg}`}
-              />
-              <button
-                onClick={() => { if (bulkInputs[key].trim()) applyBulkStatus(value, bulkInputs[key]); }}
-                className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 rounded-lg text-[10px] font-black uppercase text-slate-600 transition-all"
-              >Apply</button>
+        <div className="bg-white border-b shrink-0">
+          <button className="w-full px-10 py-2.5 flex items-center justify-between hover:bg-slate-50 transition-all" onClick={() => setShowBulkStatus(p => !p)}>
+            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Bulk Status</span>
+            <span className="text-slate-400 text-xs">{showBulkStatus ? '▲ Hide' : '▼ Show'}</span>
+          </button>
+          {showBulkStatus && (
+            <div className="px-10 pb-3 flex items-center gap-6 flex-wrap">
+              {[
+                { key: 'nil', label: 'Nil Booking', value: 'Nil Booking', bg: 'bg-emerald-50 border-emerald-200 focus:border-emerald-500', pill: 'bg-emerald-500' },
+                { key: 'on', label: 'On Booking', value: 'ON_BOOKING', bg: 'bg-yellow-50 border-yellow-200 focus:border-yellow-500', pill: 'bg-yellow-400' },
+                { key: 'confirmed', label: 'Confirmed', value: 'CONFIRMED', bg: 'bg-red-50 border-red-200 focus:border-red-500', pill: 'bg-red-500' },
+              ].map(({ key, label, value, bg, pill }) => (
+                <div key={key} className="flex items-center gap-2">
+                  <span className={`w-2.5 h-2.5 rounded-full ${pill}`} />
+                  <span className="text-[10px] font-black text-slate-500 uppercase">{label}</span>
+                  <input
+                    value={bulkInputs[key]}
+                    onChange={e => setBulkInputs(prev => ({ ...prev, [key]: e.target.value }))}
+                    onBlur={e => { if (e.target.value.trim()) applyBulkStatus(value, e.target.value); }}
+                    placeholder="e.g. 1,3,5-8"
+                    className={`w-32 px-3 py-1.5 rounded-lg border text-[11px] font-semibold outline-none ${bg}`}
+                  />
+                  <button
+                    onClick={() => { if (bulkInputs[key].trim()) applyBulkStatus(value, bulkInputs[key]); }}
+                    className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 rounded-lg text-[10px] font-black uppercase text-slate-600 transition-all"
+                  >Apply</button>
+                </div>
+              ))}
             </div>
-          ))}
+          )}
         </div>
 
         {drawingImage && (
@@ -313,7 +387,18 @@ export default function FlatLayoutEditorPage() {
           </div>
         )}
 
-        <div className="flex-1 overflow-auto p-20 bg-[#f0f4f8]">
+        {viewMode === 'svg' ? (
+          <div className="flex-1 overflow-hidden">
+            <SvgMapEditor
+              shapes={svgShapes}
+              backgroundImage={drawingImage}
+              unitType="FLAT"
+              onChange={setSvgShapes}
+            />
+          </div>
+        ) : null}
+
+        <div className={`flex-1 overflow-auto p-20 bg-[#f0f4f8] ${viewMode === 'svg' ? 'hidden' : ''}`}>
           <div
             className="inline-grid bg-white shadow-2xl origin-top-left border-[0.5px] border-slate-200"
             style={{ gridTemplateColumns: `repeat(${dims.cols}, 32px)`, gridAutoRows: '32px', transform: `scale(${zoom})`, userSelect: 'none' }}
@@ -324,9 +409,11 @@ export default function FlatLayoutEditorPage() {
                 const cell = gridData[key];
                 if (cell?.merged) return null;
 
-                const inSel = selection.start &&
-                  r >= Math.min(selection.start.r, selection.end.r) && r <= Math.max(selection.start.r, selection.end.r) &&
-                  c >= Math.min(selection.start.c, selection.end.c) && c <= Math.max(selection.start.c, selection.end.c);
+                const inSel = selectionMode === 'freeform'
+                  ? freeformKeys[key] === true
+                  : (selection.start &&
+                      r >= Math.min(selection.start.r, selection.end.r) && r <= Math.max(selection.start.r, selection.end.r) &&
+                      c >= Math.min(selection.start.c, selection.end.c) && c <= Math.max(selection.start.c, selection.end.c));
 
                 let cellClass = 'w-full h-full border-[0.1px] border-slate-100 flex items-center justify-center relative overflow-hidden ';
                 let cellStyle = {};
@@ -353,12 +440,23 @@ export default function FlatLayoutEditorPage() {
                     onMouseDown={(e) => {
                       e.preventDefault();
                       setSelectedCellKey(key);
-                      setSelection({ start: { r, c }, end: { r, c } });
+                      if (selectionMode === 'freeform') {
+                        setFreeformKeys({ [key]: true });
+                        setSelection({ start: null, end: null });
+                      } else {
+                        setSelection({ start: { r, c }, end: { r, c } });
+                        setFreeformKeys({});
+                      }
                       isSelectingRef.current = true;
                       setIsSelecting(true);
                     }}
                     onMouseEnter={() => {
-                      if (isSelectingRef.current) setSelection(prev => ({ ...prev, end: { r, c } }));
+                      if (!isSelectingRef.current) return;
+                      if (selectionMode === 'freeform') {
+                        setFreeformKeys(prev => ({ ...prev, [key]: true }));
+                      } else {
+                        setSelection(prev => ({ ...prev, end: { r, c } }));
+                      }
                     }}
                     className={cellClass}
                   >
@@ -370,13 +468,18 @@ export default function FlatLayoutEditorPage() {
           </div>
         </div>
 
-        <div className="fixed bottom-10 left-1/2 -translate-x-1/2 bg-white/80 backdrop-blur-xl border border-slate-200 shadow-2xl p-2 rounded-[28px] flex items-center gap-2 z-[60]">
+        {viewMode === 'grid' && <div className="fixed bottom-10 left-1/2 -translate-x-1/2 bg-white/80 backdrop-blur-xl border border-slate-200 shadow-2xl p-2 rounded-[28px] flex items-center gap-2 z-[60]">
           <button onClick={() => applyAction('FLAT')} className="px-7 py-3.5 bg-emerald-500 text-white text-[11px] font-black rounded-2xl uppercase hover:scale-105 active:scale-95 transition-all">Add Flats</button>
           <button onClick={() => applyAction('ROAD')} className="px-7 py-3.5 bg-slate-900 text-white text-[11px] font-black rounded-2xl uppercase hover:scale-105 active:scale-95 transition-all">Road</button>
           <button onClick={() => applyAction('TEXT')} className="px-7 py-3.5 bg-blue-600 text-white text-[11px] font-black rounded-2xl uppercase hover:scale-105 active:scale-95 transition-all">Text</button>
           <div className="w-px h-8 bg-slate-200 mx-2" />
           <button onClick={() => applyAction('CLEAR')} className="px-7 py-3.5 bg-slate-50 text-slate-400 text-[11px] font-black rounded-2xl uppercase hover:text-red-500 hover:bg-red-50 transition-all">Clear</button>
-        </div>
+          <div className="w-px h-8 bg-slate-200 mx-2" />
+          <button
+            onClick={() => { setSelectionMode(m => m === 'rect' ? 'freeform' : 'rect'); setSelection({ start: null, end: null }); setFreeformKeys({}); }}
+            className={`px-7 py-3.5 text-[11px] font-black rounded-2xl uppercase hover:scale-105 active:scale-95 transition-all ${selectionMode === 'freeform' ? 'bg-violet-600 text-white shadow-[0_8px_20px_-4px_rgba(124,58,237,0.4)]' : 'bg-slate-100 text-slate-500 hover:bg-violet-50 hover:text-violet-600'}`}
+          >Free Select</button>
+        </div>}
       </div>
 
       {selectedCellKey && activeCell && !activeCell.merged && (
@@ -401,22 +504,34 @@ export default function FlatLayoutEditorPage() {
               />
             </div>
             {activeCell.type === 'FLAT' && (
-              <div>
-                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-3">Status</p>
-                <div className="space-y-2">
-                  {statusButtons.map(({ label, value, color }) => {
-                    const styles = getBookingStatusStyles(value);
-                    const currentNorm = String(activeCell.status || '').trim().toUpperCase().replace(/[\s-]+/g, '_');
-                    const isActive = currentNorm === value.trim().toUpperCase().replace(/[\s-]+/g, '_');
-                    return (
-                      <button key={value}
-                        onClick={() => setGridData(prev => ({ ...prev, [selectedCellKey]: { ...prev[selectedCellKey], status: value } }))}
-                        className={`w-full p-3 rounded-xl text-[11px] font-bold uppercase transition-all border ${isActive ? styles.buttonActive : styles.buttonInactive}`}
-                      >{label} ({color})</button>
-                    );
-                  })}
+              <>
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-3">Status</p>
+                  <div className="space-y-2">
+                    {statusButtons.map(({ label, value, color }) => {
+                      const styles = getBookingStatusStyles(value);
+                      const currentNorm = String(activeCell.status || '').trim().toUpperCase().replace(/[\s-]+/g, '_');
+                      const isActive = currentNorm === value.trim().toUpperCase().replace(/[\s-]+/g, '_');
+                      return (
+                        <button key={value}
+                          onClick={() => setGridData(prev => ({ ...prev, [selectedCellKey]: { ...prev[selectedCellKey], status: value } }))}
+                          className={`w-full p-3 rounded-xl text-[11px] font-bold uppercase transition-all border ${isActive ? styles.buttonActive : styles.buttonInactive}`}
+                        >{label} ({color})</button>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Token Paid To</p>
+                  <select
+                    value={activeCell.token_paid_to || ''}
+                    onChange={e => setGridData(prev => ({ ...prev, [selectedCellKey]: { ...prev[selectedCellKey], token_paid_to: e.target.value } }))}
+                    className="w-full px-3 py-2 bg-slate-50 border rounded-xl text-[11px] font-bold outline-none focus:border-blue-500"
+                  >
+                    {TOKEN_PAID_TO_OPTIONS.map(o => <option key={o} value={o}>{o || '— None —'}</option>)}
+                  </select>
+                </div>
+              </>
             )}
             <div className="pt-8">
               <button

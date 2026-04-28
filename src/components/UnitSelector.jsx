@@ -9,9 +9,11 @@ const layoutCache = new Map();
 const UnitSelector = ({ propertyId, onSelectUnit, saleType, onNoPlots, refreshKey = 0 }) => {
     const [dims, setDims] = useState({ rows: 40, cols: 60 });
     const [gridData, setGridData] = useState({});
+    const [svgItems, setSvgItems] = useState([]); // shapes when SVG mode was saved
     const [loading, setLoading] = useState(true);
     const [hasPlots, setHasPlots] = useState(true);
     const [loadError, setLoadError] = useState('');
+    const [svgZoom, setSvgZoom] = useState(1);
 
     const normalizedSaleType = (saleType || '').toLowerCase();
     const isFlat = normalizedSaleType === 'flat';
@@ -67,6 +69,38 @@ const UnitSelector = ({ propertyId, onSelectUnit, saleType, onNoPlots, refreshKe
                     : { data: cachedItems };
                 const rawItems = Array.isArray(response.data) ? response.data : (response.data?.items || []);
                 layoutCache.set(cacheKey, rawItems);
+
+                // SVG mode: items with polygon points were saved via the SVG map editor.
+                // All SVG shapes are stored with x=0,y=0 so grid processing would collapse
+                // them all onto key "0-0" — detect them first and skip grid processing.
+                const svgLayoutItems = rawItems.filter(item =>
+                    item.points && Array.isArray(item.points) && item.points.length > 0
+                );
+                if (svgLayoutItems.length > 0) {
+                    const unitItems = rawItems.filter(item => getUnitId(item) != null);
+                    const merged = svgLayoutItems.map(shape => {
+                        const unit = unitItems.find(u =>
+                            getUnitNumber(u)?.toString() === (shape.name || shape.label || '').toString()
+                        );
+                        return {
+                            ...shape,
+                            ...(unit ? {
+                                [preferredUnitIdField]: getUnitId(unit),
+                                plot_unit_id: unit.plot_unit_id,
+                                flat_unit_id: unit.flat_unit_id,
+                                formatted_id: unit.formatted_id,
+                                status: unit.status || shape.status || 'Nil Booking',
+                            } : {
+                                status: shape.status || 'Nil Booking',
+                            }),
+                            display_name: shape.name || shape.label || '',
+                        };
+                    });
+                    setSvgItems(merged);
+                    setHasPlots(merged.some(s => (s.type || '').toUpperCase() === unitTypeName));
+                    setLoading(false);
+                    return;
+                }
 
                 const plotItems = rawItems.filter(item => getUnitId(item) != null);
                 const layoutItems = rawItems.filter(item => getUnitId(item) == null);
@@ -207,6 +241,119 @@ const UnitSelector = ({ propertyId, onSelectUnit, saleType, onNoPlots, refreshKe
 
     const titleLabel = normalizedSaleType === 'plot' ? 'Book Plots' : normalizedSaleType === 'flat' ? 'Book Flats' : 'Book Plots';
 
+    const STATUS_SVG_COLORS = {
+        'Nil Booking': '#22c55e', 'NIL_BOOKING': '#22c55e',
+        'ON_BOOKING': '#f59e0b',
+        'CONFIRMED': '#ef4444', 'UNREGISTERED': '#ef4444',
+        'REGISTERED': '#dc2626', 'SOLD': '#b91c1c', 'RENTED': '#b91c1c',
+        'BOOKED': '#ef4444',
+    };
+
+    const getSvgBBox = (pts) => {
+        const xs = pts.map(p => p.x), ys = pts.map(p => p.y);
+        const minX = Math.min(...xs), minY = Math.min(...ys);
+        const maxX = Math.max(...xs), maxY = Math.max(...ys);
+        return { cx: (minX + maxX) / 2, cy: (minY + maxY) / 2, w: maxX - minX, h: maxY - minY };
+    };
+
+    if (svgItems.length > 0) {
+        const plotSvgItems = svgItems.filter(s => (s.type || '').toUpperCase() === unitTypeName);
+        const roadSvgItems = svgItems.filter(s => ['ROAD', 'LINE'].includes((s.type || '').toUpperCase()));
+        const textSvgItems = svgItems.filter(s => (s.type || '').toUpperCase() === 'TEXT');
+
+        const allPts = svgItems.flatMap(s => s.points || []);
+        if (allPts.length === 0) return null;
+        const viewMinX = Math.min(...allPts.map(p => p.x)) - 10;
+        const viewMinY = Math.min(...allPts.map(p => p.y)) - 10;
+        const viewMaxX = Math.max(...allPts.map(p => p.x)) + 10;
+        const viewMaxY = Math.max(...allPts.map(p => p.y)) + 10;
+        const vbFullW = viewMaxX - viewMinX;
+        const vbFullH = viewMaxY - viewMinY;
+        const vbW = vbFullW / svgZoom;
+        const vbH = vbFullH / svgZoom;
+        const vbX = viewMinX + vbFullW / 2 - vbW / 2;
+        const vbY = viewMinY + vbFullH / 2 - vbH / 2;
+        const vb = `${vbX} ${vbY} ${vbW} ${vbH}`;
+
+        return (
+            <div className="unit-selector-container">
+                <h2 className="unit-selector-title">{titleLabel}</h2>
+                <p className="unit-selector-subtitle">Click on an available {unitLabel} to book</p>
+                <div className="unit-grid-scroll" style={{ height: 400, position: 'relative' }}>
+                    <div style={{ position: 'absolute', top: 8, right: 8, zIndex: 10, display: 'flex', alignItems: 'center', gap: 4, background: 'white', borderRadius: 8, padding: '4px 8px', border: '1px solid #e2e8f0', fontSize: 12, fontWeight: 700, color: '#334155', userSelect: 'none' }}>
+                        <button onClick={() => setSvgZoom(z => Math.min(4, +(z + 0.25).toFixed(2)))} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 16, lineHeight: 1, color: '#334155', padding: '0 2px' }}>+</button>
+                        <span style={{ minWidth: 36, textAlign: 'center' }}>{Math.round(svgZoom * 100)}%</span>
+                        <button onClick={() => setSvgZoom(z => Math.max(0.25, +(z - 0.25).toFixed(2)))} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 16, lineHeight: 1, color: '#334155', padding: '0 2px' }}>−</button>
+                    </div>
+                    <svg viewBox={vb} style={{ width: '100%', height: '100%' }} className="rounded-xl border border-gray-200">
+                        {roadSvgItems.map((shape, idx) => {
+                            const pts = shape.points || [];
+                            if (shape.closed === true) {
+                                return (
+                                    <polygon key={`road-${idx}`}
+                                        points={pts.map(p => `${p.x},${p.y}`).join(' ')}
+                                        fill="#1f2937" fillOpacity={0.85}
+                                        stroke="none"
+                                    />
+                                );
+                            }
+                            return (
+                                <polyline key={`road-${idx}`}
+                                    points={pts.map(p => `${p.x},${p.y}`).join(' ')}
+                                    fill="none" stroke="#1e293b" strokeWidth={2} strokeLinecap="round"
+                                />
+                            );
+                        })}
+                        {plotSvgItems.map((cell, idx) => {
+                            const st = (cell.status || '').toUpperCase().replace(/[\s-]+/g, '_');
+                            const blocked = ['CONFIRMED','UNREGISTERED','REGISTERED','SOLD','RENTED','TOKEN_PAID','ADVANCE_PAID','CLOSED','BOOKED'].includes(st);
+                            const color = STATUS_SVG_COLORS[cell.status] || STATUS_SVG_COLORS[st] || '#22c55e';
+                            const pts = cell.points || [];
+                            const bbox = getSvgBBox(pts);
+                            return (
+                                <g key={`plot-${idx}`}>
+                                    <polygon
+                                        points={pts.map(p => `${p.x},${p.y}`).join(' ')}
+                                        fill={color}
+                                        fillOpacity={blocked ? 0.9 : 0.85}
+                                        stroke={color}
+                                        strokeWidth={1.5}
+                                        style={{ cursor: blocked ? 'not-allowed' : 'pointer' }}
+                                        onClick={() => { if (!blocked) onSelectUnit(cell); }}
+                                    />
+                                    {bbox.w > 8 && (
+                                        <text x={bbox.cx} y={bbox.cy} textAnchor="middle" dominantBaseline="middle"
+                                            fontSize={Math.max(4, bbox.w * 0.25)} fontWeight="bold"
+                                            fill={blocked ? '#ffffff' : '#ffffff'}
+                                            style={{ pointerEvents: 'none', userSelect: 'none' }}
+                                        >
+                                            {cell.display_name}
+                                        </text>
+                                    )}
+                                </g>
+                            );
+                        })}
+                        {textSvgItems.map((shape, idx) => (
+                            <text key={`text-${idx}`}
+                                x={(shape.points || [])[0]?.x || 0}
+                                y={(shape.points || [])[0]?.y || 0}
+                                fontSize={shape.font_size || 14} fontWeight="bold" fill="#1e293b"
+                                style={{ pointerEvents: 'none', userSelect: 'none' }}
+                            >
+                                {shape.display_name || shape.label || shape.name || ''}
+                            </text>
+                        ))}
+                    </svg>
+                </div>
+                <div className="unit-legend">
+                    <div className="legend-item"><div className="legend-dot legend-available"></div> Available</div>
+                    <div className="legend-item"><div className="legend-dot legend-on-booking"></div> On Booking</div>
+                    <div className="legend-item"><div className="legend-dot legend-booked"></div> Confirmed/Sold</div>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="unit-selector-container">
             <h2 className="unit-selector-title">{titleLabel}</h2>
@@ -230,20 +377,14 @@ const UnitSelector = ({ propertyId, onSelectUnit, saleType, onNoPlots, refreshKe
                             let cellStyle = {};
 
                             if (cell?.type === unitTypeName) {
-                                switch (cell.status) {
-                                    case 'BOOKED':
-                                    case 'ON_BOOKING':
-                                        cellClass += " unit-plot on-booking";
-                                        break;
-                                    case 'TOKEN_PAID':
-                                    case 'ADVANCE_PAID':
-                                    case 'CLOSED':
-                                        cellClass += " unit-plot token-paid";
-                                        break;
-                                    case 'NIL_BOOKING':
-                                    default:
-                                        cellClass += " unit-plot available";
-                                        break;
+                                const st = (cell.status || '').toUpperCase();
+                                if (['CONFIRMED', 'UNREGISTERED', 'REGISTERED', 'SOLD', 'RENTED',
+                                     'BOOKED', 'TOKEN_PAID', 'ADVANCE_PAID', 'CLOSED'].includes(st)) {
+                                    cellClass += " unit-plot token-paid";
+                                } else if (st === 'ON_BOOKING') {
+                                    cellClass += " unit-plot on-booking";
+                                } else {
+                                    cellClass += " unit-plot available";
                                 }
                                 cellStyle = {
                                     fontSize: `${cell.font_size}px`,
@@ -265,7 +406,10 @@ const UnitSelector = ({ propertyId, onSelectUnit, saleType, onNoPlots, refreshKe
                             }
 
                             const handleClick = () => {
-                                if (cell?.type === unitTypeName && !['TOKEN_PAID', 'ADVANCE_PAID', 'CLOSED'].includes(cell.status)) {
+                                const st = (cell?.status || '').toUpperCase();
+                                const blocked = ['CONFIRMED', 'UNREGISTERED', 'REGISTERED', 'SOLD', 'RENTED',
+                                                 'TOKEN_PAID', 'ADVANCE_PAID', 'CLOSED'].includes(st);
+                                if (cell?.type === unitTypeName && !blocked) {
                                     onSelectUnit(cell);
                                 }
                             };

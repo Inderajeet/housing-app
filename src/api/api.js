@@ -66,6 +66,8 @@ export const endpoints = {
   getGeneralBookingFlow: ({ propertyId, unitType, unitId }) =>
     apiClient.get('/booking-general', { params: { propertyId, unitType, unitId } }),
 
+  getSiteContent: (type) => apiClient.get('/site-content', { params: { type } }),
+
   getPlotLayout: (propertyId) => apiClient.get(`/plot-units/${propertyId}`),
   getFlatLayout: (propertyId) => apiClient.get(`/flat-units/${propertyId}`),
 

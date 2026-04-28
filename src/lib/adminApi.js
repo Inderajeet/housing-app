@@ -106,6 +106,33 @@ export const uploadVillages = (file) => {
   return adminApi.post('/locations/villages/upload', fd);
 };
 
+// Site Content — Headings
+export const getContentHeadings = () => adminApi.get('/site-content/headings');
+export const updateContentHeading = (key, value) => adminApi.put('/site-content/headings', { key, value });
+
+// Site Content — Booking Flow
+export const getAdminBookingFlow = (type) => adminApi.get('/site-content/flow', { params: { type } });
+export const addAdminStage = (flowType, { stageKey, title, timeframe, nextLabel }) =>
+  adminApi.post('/site-content/flow', { flowType, stageKey, title, timeframe, nextLabel });
+export const updateAdminStage = (id, data) => adminApi.put(`/site-content/stages/${id}`, data);
+export const deleteAdminStage = (id) => adminApi.delete(`/site-content/stages/${id}`);
+
+// Site Content — Subtitles
+export const addAdminSubtitle = (stageId, text) => adminApi.post('/site-content/subtitles', { stageId, text });
+export const updateAdminSubtitle = (id, text) => adminApi.put(`/site-content/subtitles/${id}`, { text });
+export const deleteAdminSubtitle = (id) => adminApi.delete(`/site-content/subtitles/${id}`);
+
+// Site Content — Points
+export const addAdminPoint = (stageId, text) => adminApi.post('/site-content/points', { stageId, text });
+export const updateAdminPoint = (id, text) => adminApi.put(`/site-content/points/${id}`, { text });
+export const deleteAdminPoint = (id) => adminApi.delete(`/site-content/points/${id}`);
+
+// Site Content — Services
+export const getContentServices = () => adminApi.get('/site-content/services');
+export const addContentService = (stageKey, flowType, text) => adminApi.post('/site-content/services', { stageKey, flowType, text });
+export const updateContentService = (id, text) => adminApi.put(`/site-content/services/${id}`, { text });
+export const deleteContentService = (id) => adminApi.delete(`/site-content/services/${id}`);
+
 // Premium
 export const getPremiumProperties = ({ type, filter } = {}) => {
   const params = {};
@@ -125,3 +152,11 @@ export const savePlotLayout = (id, elements) => adminApi.post(`/plot-units/${id}
 export const getFlatProperties = () => adminApi.get('/flat-projects');
 export const getFlatLayout = (id) => adminApi.get(`/flat-units/${id}`);
 export const saveFlatLayout = (id, elements) => adminApi.post(`/flat-units/${id}`, { elements });
+
+// Individual Plot / Flat unit CRUD
+export const getAllPlotUnits = () => adminApi.get('/plot-unit-list');
+export const updatePlotUnit = (id, data) => adminApi.put(`/plot-unit-list/${id}`, data);
+export const deletePlotUnit = (id) => adminApi.delete(`/plot-unit-list/${id}`);
+export const getAllFlatUnits = () => adminApi.get('/flat-unit-list');
+export const updateFlatUnit = (id, data) => adminApi.put(`/flat-unit-list/${id}`, data);
+export const deleteFlatUnit = (id) => adminApi.delete(`/flat-unit-list/${id}`);

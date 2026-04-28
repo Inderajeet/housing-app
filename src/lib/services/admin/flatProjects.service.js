@@ -7,9 +7,12 @@ export const getFlatProperties = async () => {
       fp.flat_project_id, fp.layout_name, fp.total_flats,
       sp.sale_status AS booking_status,
       COUNT(fu.flat_unit_id)::INT AS unit_count,
-      COUNT(fu.flat_unit_id) FILTER (WHERE fu.status = 'Nil Booking')::INT AS nil_booking,
-      COUNT(fu.flat_unit_id) FILTER (WHERE fu.status = 'On Booking')::INT AS on_booking,
-      COUNT(fu.flat_unit_id) FILTER (WHERE fu.status = 'Confirmed')::INT AS confirmed
+      COUNT(fu.flat_unit_id) FILTER (WHERE UPPER(fu.status) = 'NIL_BOOKING' OR fu.status = 'Nil Booking' OR fu.status IS NULL)::INT AS nil_booking,
+      COUNT(fu.flat_unit_id) FILTER (WHERE UPPER(fu.status) = 'ON_BOOKING')::INT AS on_booking,
+      COUNT(fu.flat_unit_id) FILTER (WHERE UPPER(fu.status) = 'CONFIRMED')::INT AS confirmed,
+      COUNT(fu.flat_unit_id) FILTER (WHERE UPPER(fu.status) = 'UNREGISTERED')::INT AS unregistered,
+      COUNT(fu.flat_unit_id) FILTER (WHERE UPPER(fu.status) = 'REGISTERED')::INT AS registered,
+      COUNT(fu.flat_unit_id) FILTER (WHERE UPPER(fu.status) IN ('SOLD', 'RENTED'))::INT AS sold
     FROM properties p
     JOIN sale_properties sp ON sp.property_id = p.property_id AND sp.sale_type = 'flat'
     LEFT JOIN sellers s ON s.seller_id = p.seller_id

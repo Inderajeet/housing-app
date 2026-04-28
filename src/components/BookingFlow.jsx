@@ -15,18 +15,10 @@ const BookingFlow = ({
   bookedPeopleCount: bookedPeopleCountProp,
   onStatusChange,
 }) => {
-  const serviceRows = [
-    { id: "stage-1", services: ["Owner contact and document", "Help negotiate price and verify basics"] },
-    { id: "stage-2", services: ["All official copies", "*Free Legal opinion, *Refundable"] },
-    { id: "stage-3", services: ["*Legal support to your deal and money"] },
-    { id: "stage-4", services: ["Support registration from home (Soon)"] },
-  ];
-
-  const offerPoints = [
-    "Seller Direct Contact",
-    "Documents",
-    "We help negotiate price from history of sales in and around",
-  ];
+  const [serviceRows, setServiceRows] = useState([]);
+  const [offerPoints, setOfferPoints] = useState([]);
+  const [headings, setHeadings] = useState({});
+  const [advantagePoints, setAdvantagePoints] = useState({ sale_tick: [], sale_cross: [], rent_tick: [], rent_cross: [] });
 
   const [steps, setSteps] = useState([]);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
@@ -35,6 +27,7 @@ const BookingFlow = ({
   const [phone, setPhone] = useState('');
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [loadingStage, setLoadingStage] = useState(false);
+  const [loadingUpdate, setLoadingUpdate] = useState(false);
   const [showReminderModal, setShowReminderModal] = useState(false);
   const [isFinalized, setIsFinalized] = useState(false);
   const [modalMsg, setModalMsg] = useState('');
@@ -71,14 +64,14 @@ const BookingFlow = ({
 
     if (onStatusChangeRef.current) {
       const isRent = transactionType === 'rent';
-      const status = isRent
-        ? (normalizedOverallStatus === 'closed' ? 'RENTED' :
-           ['token_paid', 'confirmed'].includes(normalizedOverallStatus) ? 'BOOKED' :
-           normalizedOverallStatus === 'booked' ? 'ON_BOOKING' : 'Nil Booking')
-        : (normalizedOverallStatus === 'closed' ? 'SOLD' :
-           ['token_paid', 'confirmed'].includes(normalizedOverallStatus) ? 'BOOKED' :
-           normalizedOverallStatus === 'booked' ? 'ON_BOOKING' : 'Nil Booking');
-      onStatusChangeRef.current(status);
+      const finalStatus = normalizedOverallStatus === 'closed'
+        ? (isRent ? 'RENTED' : 'SOLD')
+        : ['confirmed', 'unregistered', 'registered', 'token_paid', 'advance_paid'].includes(normalizedOverallStatus)
+          ? 'CONFIRMED'
+          : ['on_booking', 'booked'].includes(normalizedOverallStatus)
+            ? 'ON_BOOKING'
+            : 'Nil Booking';
+      onStatusChangeRef.current(finalStatus);
     }
 
     if (normalizedOverallStatus === 'closed') {
@@ -90,23 +83,46 @@ const BookingFlow = ({
   };
 
   useEffect(() => {
-    const flowFile =
-      transactionType === 'sale'
-        ? '/data/salebookingFlow.json'
-        : transactionType === 'rent'
-          ? '/data/rentbookingFlow.json'
-          : '/data/bookingFlow.json';
-
-    fetch(flowFile)
-      .then(res => res.json())
-      .then(data => setSteps(data.stages))
-      .catch(() => {});
+    const type = transactionType === 'rent' ? 'rent' : 'sale';
+    endpoints.getSiteContent(type)
+      .then(res => {
+        const { stages = [], services = {}, offerPoints: op = [], headings: h = {} } = res.data;
+        setSteps(stages.map(s => ({
+          id: s.stage_key,
+          title: s.title,
+          subtitle: s.subtitles.map(sub => sub.subtitle_text),
+          points: s.points.map(pt => pt.point_text),
+          timeframe: s.timeframe,
+          nextLabel: s.next_label,
+        })));
+        const rows = Object.entries(services).map(([stageKey], idx) => ({
+          id: `stage-${idx + 1}`,
+          stageKey,
+          services: services[stageKey],
+        }));
+        setServiceRows(rows);
+        setOfferPoints(op);
+        setHeadings(h);
+        setAdvantagePoints(res.data.advantagePoints || { sale_tick: [], sale_cross: [], rent_tick: [], rent_cross: [] });
+      })
+      .catch(() => {
+        const flowFile = transactionType === 'rent' ? '/data/rentbookingFlow.json' : '/data/salebookingFlow.json';
+        fetch(flowFile).then(r => r.json()).then(data => setSteps(data.stages)).catch(() => {});
+      });
   }, [transactionType]);
 
   useEffect(() => {
     setSkipUnitSelection(false);
     setSelectedUnit(null);
   }, [propertyId, saleType, transactionType]);
+
+  // Reset reminder modal when user picks a new unit so it doesn't flash on unit selection
+  useEffect(() => {
+    if (selectedUnit) {
+      setShowReminderModal(false);
+      setModalMsg('');
+    }
+  }, [selectedUnit]);
 
   useEffect(() => {
     const loadGeneralFlow = async () => {
@@ -159,27 +175,30 @@ const BookingFlow = ({
     }
   };
 
-  const handleNext = async () => {
+  const handleNext = async (tokenPaidTo = null) => {
     const unitId = selectedUnit
       ? selectedUnit.plot_unit_id || selectedUnit.flat_unit_id
       : propertyId;
     const currentStageId = steps[currentStepIndex].id;
     const nextIndex = currentStepIndex + 1;
 
+    setLoadingUpdate(true);
     try {
       if (currentStageId === 'VISIT_NEGOTIATE') {
-        setModalMsg("Within two weeks, please confirm the property by paying the token amount to proceed.");
+        setModalMsg(headings.plot_confirm_msg || headings.flat_confirm_msg || "Within two weeks, please confirm the property by paying the token amount to proceed.");
       } else if (currentStageId === 'TOKEN_PAYMENT') {
-        setModalMsg("Next: Please pay part-advance within 2 weeks to secure registration.");
+        setModalMsg("Next step will move to Unregistered stage. Please proceed with documentation.");
       } else {
         setModalMsg('');
       }
 
-      await endpoints.updateBookingStage({ propertyId, unitType: resolvedUnitType, unitId, phone, stage: currentStageId });
+      await endpoints.updateBookingStage({ propertyId, unitType: resolvedUnitType, unitId, phone, stage: currentStageId, tokenPaidTo });
 
       let newStatus;
       if (currentStageId === 'VISIT_NEGOTIATE') newStatus = 'ON_BOOKING';
-      else if (currentStageId === 'TOKEN_PAYMENT') newStatus = 'BOOKED';
+      else if (currentStageId === 'TOKEN_PAYMENT') newStatus = 'CONFIRMED';
+      else if (currentStageId === 'UNREGISTERED_DOC') newStatus = 'UNREGISTERED';
+      else if (currentStageId === 'REGISTERED_DOC') newStatus = 'REGISTERED';
       else if (currentStageId === 'SALE_DEED') newStatus = transactionType === 'rent' ? 'RENTED' : 'SOLD';
 
       if (onStatusChange && newStatus) onStatusChange(newStatus);
@@ -203,6 +222,8 @@ const BookingFlow = ({
         alert("This unit is already booked by another buyer.");
         setSelectedUnit(null);
       }
+    } finally {
+      setLoadingUpdate(false);
     }
   };
 
@@ -217,22 +238,19 @@ const BookingFlow = ({
   }
 
   const getCompletedOverviewIndexes = () => {
-    const normalizedOverallStatus = (generalStatus || '').toLowerCase();
-    if (isFinalized || normalizedOverallStatus === 'closed') return new Set(steps.map((_, idx) => idx));
-    if (normalizedOverallStatus === 'advance_paid') return new Set([0, 1, 2]);
-    if (['token_paid', 'confirmed'].includes(normalizedOverallStatus)) return new Set([0, 1]);
+    const s = (generalStatus || '').toLowerCase();
+    if (isFinalized || s === 'closed') return new Set(steps.map((_, idx) => idx));
+    if (['registered', 'registered_doc'].includes(s)) return new Set([0, 1, 2, 3]);
+    if (['unregistered', 'advance_paid'].includes(s)) return new Set([0, 1, 2]);
+    if (['confirmed', 'token_paid'].includes(s)) return new Set([0, 1]);
+    if (['on_booking', 'booked'].includes(s)) return new Set();
     return new Set();
   };
 
   const completedOverviewIndexes = getCompletedOverviewIndexes();
   const bookedPeopleCount = Number(bookedPeopleCountProp) || 0;
 
-  const getPrimaryCtaLabel = () => {
-    if (activeIndex === -1) return "Book Contact";
-    if (activeIndex === 0) return "Pay Token Amount";
-    if (activeIndex === 1) return "Pay Advance Amount";
-    return "Finalize Property";
-  };
+  const getPrimaryCtaLabel = () => "Book Contact";
 
   const getSubtitlePoints = (subtitle) => {
     if (Array.isArray(subtitle)) return subtitle.filter(Boolean);
@@ -242,6 +260,20 @@ const BookingFlow = ({
 
   return (
     <div className="booking-flow-container fade-in-up">
+      {(loadingStage || loadingUpdate) && (
+        <div className="booking-loader-overlay">
+          <div className="booking-spinner" />
+        </div>
+      )}
+      {showReminderModal && (
+        <div className="modal-overlay">
+          <div className="reminder-modal-compact">
+            <Info className="modal-icon-small" />
+            <p className="modal-text-small">{modalMsg}</p>
+            <button className="mini-saffron-btn" onClick={() => setShowReminderModal(false)}>Got it</button>
+          </div>
+        </div>
+      )}
       {isSalePlotOrFlat && !selectedUnit && !skipUnitSelection ? (
         <UnitSelector
           key={refreshLayoutKey}
@@ -267,61 +299,76 @@ const BookingFlow = ({
             </div>
           )}
 
-          {showReminderModal && (
-            <div className="modal-overlay">
-              <div className="reminder-modal-compact">
-                <Info className="modal-icon-small" />
-                <p className="modal-text-small">{modalMsg}</p>
-                <button className="mini-saffron-btn" onClick={() => setShowReminderModal(false)}>Got it</button>
-              </div>
-            </div>
-          )}
-
           {!isSubmitted ? (
             <div className="general-overview">
               {!isFinalized && (
-                <div className="phone-entry-section">
-                  <div className="phone-input-group large-input">
-                    <span className="prefix">+91</span>
-                    <input
-                      type="tel"
-                      value={phone}
-                      maxLength="10"
-                      placeholder="Enter 10-digit phone number"
-                      onChange={e => setPhone(e.target.value)}
-                    />
+                <div className="phone-cta-row">
+                  <div className="phone-cta-left">
+                    <div className="phone-input-group large-input">
+                      <span className="prefix">+91</span>
+                      <input
+                        type="tel"
+                        value={phone}
+                        maxLength="10"
+                        placeholder="Enter 10-digit phone number"
+                        onChange={e => setPhone(e.target.value)}
+                      />
+                    </div>
+                    <button
+                      className="primary-btn saffron-btn"
+                      disabled={phone.length !== 10 || loadingStage}
+                      onClick={checkStageByPhone}
+                    >
+                      {loadingStage ? "Checking..." : getPrimaryCtaLabel()}
+                    </button>
                   </div>
-                  <button
-                    className="primary-btn saffron-btn mt-16"
-                    disabled={phone.length !== 10 || loadingStage}
-                    onClick={checkStageByPhone}
-                  >
-                    {loadingStage ? "Checking..." : getPrimaryCtaLabel()}
-                  </button>
+                  <div className="phone-cta-arrow-spacer" />
+                  {(() => {
+                    const isRent = transactionType === 'rent';
+                    const tickPts = isRent ? advantagePoints.rent_tick : advantagePoints.sale_tick;
+                    const crossPts = isRent ? advantagePoints.rent_cross : advantagePoints.sale_cross;
+                    if (!tickPts.length && !crossPts.length) return null;
+                    return (
+                      <div className={`advantage-box ${isRent ? 'advantage-rent' : 'advantage-sale'}`}>
+                        {tickPts.map((pt, i) => (
+                          <div key={i} className="advantage-row">
+                            <span className="adv-icon adv-tick">✓</span>
+                            <span className="adv-text">{pt}</span>
+                          </div>
+                        ))}
+                        {crossPts.map((pt, i) => (
+                          <div key={i} className="advantage-row">
+                            <span className="adv-icon adv-cross">✗</span>
+                            <span className="adv-text adv-text-muted">{pt}</span>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
                 </div>
               )}
 
               <div className="overview-split-layout">
                 <div className="overview-heading-row">
                   <div className="overview-heading-col">
-                    <h2 className="compact-title overview-heading-title">Booking Process</h2>
+                    <h2 className="compact-title overview-heading-title">{headings.booking_process_heading || 'Booking Process'}</h2>
                     <p className="compact-subtitle-light overview-heading-subtitle">
                       {isFinalized
-                        ? transactionType === 'rent' ? "Property Rented" : "Property Sold"
-                        : transactionType === 'rent' ? "Rent in 4 steps" : "Buy it in 4 steps"}
+                        ? transactionType === 'rent' ? (headings.property_rented_label || 'Property Rented') : (headings.property_sold_label || 'Property Sold')
+                        : transactionType === 'rent' ? (headings.booking_process_subtitle_rent || 'Rent in 4 steps') : (headings.booking_process_subtitle_sale || 'Buy it in 4 steps')}
                     </p>
                   </div>
                   <div className="overview-heading-arrow-spacer" />
                   <div className="overview-heading-col services-column-surface services-header-cell">
-                    <h2 className="compact-title overview-heading-title">Our Services</h2>
-                    <p className="compact-subtitle-light overview-heading-subtitle">We Provide</p>
+                    <h2 className="compact-title overview-heading-title">{headings.our_services_heading || 'Our Services'}</h2>
+                    <p className="compact-subtitle-light overview-heading-subtitle">{headings.our_services_subtitle || 'We Provide'}</p>
                   </div>
                 </div>
 
                 <div className="overview-paired-rows">
                   {steps.map((step, idx) => {
                     const isDone = completedOverviewIndexes.has(idx);
-                    const serviceRow = serviceRows[idx] || { id: `service-${idx}`, services: [] };
+                    const serviceRow = serviceRows.find(r => r.stageKey === step.id) || serviceRows[idx] || { id: `service-${idx}`, services: [] };
                     return (
                       <div key={step.id} className={`overview-paired-row ${isDone ? 'step-done' : ''}`}>
                         <div className="overview-item">
@@ -407,9 +454,20 @@ const BookingFlow = ({
                 )}
               </div>
               <div className="slide-footer-compact">
-                <button className="primary-btn green-btn" onClick={handleNext}>
-                  {currentStep.nextLabel}
-                </button>
+                {transactionType === 'sale' && currentStep.id === 'TOKEN_PAYMENT' ? (
+                  <div className="token-btn-row">
+                    <button className="primary-btn token-mandi-btn" onClick={() => handleNext('Paid Us')}>
+                      {headings.token_btn_mandi_label || 'Pay token amount via Mandi'}
+                    </button>
+                    <button className="primary-btn token-owner-btn" onClick={() => handleNext('Paid to Owner')}>
+                      {headings.token_btn_owner_label || 'Paid token amount to Owner'}
+                    </button>
+                  </div>
+                ) : (
+                  <button className="primary-btn green-btn" onClick={() => handleNext()}>
+                    {currentStep.nextLabel}
+                  </button>
+                )}
               </div>
             </div>
           )}

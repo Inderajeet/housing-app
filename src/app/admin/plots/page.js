@@ -1,16 +1,22 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import DataTable from '@/components/admin/DataTable';
 import Loader from '@/components/admin/Loader';
-import { getPlotProperties, getPlotLayout } from '@/lib/adminApi';
+import { getPlotProperties, getPlotLayout, getAllPlotUnits, updatePlotUnit, deletePlotUnit } from '@/lib/adminApi';
 
 const STATUS_COLORS = {
-  'Nil Booking': 'bg-gray-100 text-gray-600',
-  'ON_BOOKING': 'bg-yellow-100 text-yellow-800',
-  'BOOKED': 'bg-blue-100 text-blue-800',
-  'SOLD': 'bg-red-100 text-red-800',
+  'Nil Booking': 'bg-emerald-100 text-emerald-700',
+  'ON_BOOKING':  'bg-yellow-100 text-yellow-800',
+  'CONFIRMED':   'bg-red-100 text-red-800',
+  'UNREGISTERED':'bg-red-100 text-red-800',
+  'REGISTERED':  'bg-red-100 text-red-800',
+  'SOLD':        'bg-red-100 text-red-800',
+  'BOOKED':      'bg-red-100 text-red-800',
 };
+
+const UNIT_STATUS_OPTIONS = ['Nil Booking', 'ON_BOOKING', 'CONFIRMED', 'UNREGISTERED', 'REGISTERED', 'SOLD'];
+const TOKEN_PAID_TO_OPTIONS = ['', 'Paid Us', 'Paid to Owner', 'Owner returned', 'Returned to buyer'];
 
 const getApprovalClasses = (status) => {
   const s = String(status || '').toLowerCase();
@@ -20,31 +26,109 @@ const getApprovalClasses = (status) => {
   return 'bg-gray-100 text-gray-600 border-gray-200';
 };
 
+function UnitEditModal({ unit, onClose, onSave }) {
+  const [form, setForm] = useState({
+    status: unit.status || 'Nil Booking',
+    token_amount: unit.token_amount || '',
+    token_paid_to: unit.token_paid_to || '',
+    advance_amount: unit.advance_amount || '',
+    sold_rate: unit.sold_rate || '',
+    sold_date: unit.sold_date ? String(unit.sold_date).slice(0, 10) : '',
+    document_number: unit.document_number || '',
+  });
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try { await onSave(form); onClose(); }
+    finally { setSaving(false); }
+  };
+
+  const inp = 'w-full px-3 py-2 border border-gray-200 rounded-lg text-sm font-semibold outline-none focus:ring-2 focus:ring-blue-400';
+  const lbl = 'text-[10px] font-bold uppercase text-gray-400 mb-1 block';
+
+  return (
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-4">
+        <div className="flex justify-between items-center">
+          <h3 className="font-black text-gray-800">Edit Plot Unit — {unit.plot_number}</h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-red-500 text-xl">✕</button>
+        </div>
+        <div>
+          <label className={lbl}>Status</label>
+          <select value={form.status} onChange={e => setForm(p => ({ ...p, status: e.target.value }))} className={inp}>
+            {UNIT_STATUS_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
+          </select>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div><label className={lbl}>Token Amount (₹)</label><input type="number" className={inp} value={form.token_amount} onChange={e => setForm(p => ({ ...p, token_amount: e.target.value }))} /></div>
+          <div>
+            <label className={lbl}>Token Paid To</label>
+            <select className={inp} value={form.token_paid_to} onChange={e => setForm(p => ({ ...p, token_paid_to: e.target.value }))}>
+              {TOKEN_PAID_TO_OPTIONS.map(o => <option key={o} value={o}>{o || '— None —'}</option>)}
+            </select>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div><label className={lbl}>Advance Amount (₹)</label><input type="number" className={inp} value={form.advance_amount} onChange={e => setForm(p => ({ ...p, advance_amount: e.target.value }))} /></div>
+          <div><label className={lbl}>Sold Rate (₹)</label><input type="number" className={inp} value={form.sold_rate} onChange={e => setForm(p => ({ ...p, sold_rate: e.target.value }))} /></div>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div><label className={lbl}>Sold Date</label><input type="date" className={inp} value={form.sold_date} onChange={e => setForm(p => ({ ...p, sold_date: e.target.value }))} /></div>
+          <div><label className={lbl}>Document Number</label><input type="text" className={inp} value={form.document_number} onChange={e => setForm(p => ({ ...p, document_number: e.target.value }))} /></div>
+        </div>
+        <div className="flex gap-3 pt-2">
+          <button onClick={onClose} className="flex-1 py-2 bg-gray-100 text-gray-600 rounded-xl text-sm font-bold">Cancel</button>
+          <button onClick={handleSave} disabled={saving} className="flex-1 py-2 bg-blue-600 text-white rounded-xl text-sm font-bold disabled:opacity-50">{saving ? 'Saving…' : 'Save'}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function PlotsPage() {
   const router = useRouter();
+  const [activeTab, setActiveTab] = useState('properties');
   const [plots, setPlots] = useState([]);
+  const [plotUnits, setPlotUnits] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [unitsLoading, setUnitsLoading] = useState(true);
+  const [editUnit, setEditUnit] = useState(null);
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     getPlotProperties()
-      .then((res) => {
-        const data = res.data || res;
-        setPlots(Array.isArray(data) ? data : []);
-      })
+      .then(res => { const d = res.data || res; setPlots(Array.isArray(d) ? d : []); })
       .catch(() => setPlots([]))
       .finally(() => setLoading(false));
+
+    getAllPlotUnits()
+      .then(res => { const d = res.data || res; setPlotUnits(Array.isArray(d) ? d : []); })
+      .catch(() => setPlotUnits([]))
+      .finally(() => setUnitsLoading(false));
   }, []);
 
   const handleOpenEditor = async (p) => {
-    try {
-      await getPlotLayout(p.property_id);
-      router.push(`/admin/plots/editor/${p.property_id}`);
-    } catch {
-      router.push(`/admin/plots/editor/${p.property_id}`);
-    }
+    try { await getPlotLayout(p.property_id); } catch {}
+    router.push(`/admin/plots/editor/${p.property_id}`);
   };
 
-  const columns = [
+  const handleSaveUnit = async (unit, formData) => {
+    await updatePlotUnit(unit.plot_unit_id, formData);
+    setPlotUnits(prev => prev.map(u => u.plot_unit_id === unit.plot_unit_id ? { ...u, ...formData } : u));
+  };
+
+  const handleDeleteUnit = async (unit) => {
+    setDeleting(true);
+    try {
+      await deletePlotUnit(unit.plot_unit_id);
+      setPlotUnits(prev => prev.filter(u => u.plot_unit_id !== unit.plot_unit_id));
+      setDeleteConfirm(null);
+    } finally { setDeleting(false); }
+  };
+
+  const propertyColumns = [
     { header: 'Property ID', accessor: 'formatted_id', className: 'font-mono font-semibold text-blue-600' },
     { header: 'Seller Phone', accessor: 'seller_phone', className: 'font-mono text-sm' },
     {
@@ -64,21 +148,33 @@ export default function PlotsPage() {
       ),
     },
     {
-      header: 'Total Plots',
+      header: 'Total',
       accessor: (p) => <span className="font-bold text-blue-700">{p.total_plots ?? 0}</span>,
       sortable: true, sortBy: p => Number(p.total_plots) || 0,
     },
     {
-      header: 'Nil Booking', sortable: true, sortBy: p => Number(p.nil_booking) || 0,
-      accessor: (p) => <span className="font-bold text-gray-600">{p.nil_booking ?? 0}</span>,
+      header: 'Nil', sortable: true, sortBy: p => Number(p.nil_booking) || 0,
+      accessor: (p) => <span className="font-bold text-gray-500">{p.nil_booking ?? 0}</span>,
     },
     {
-      header: 'On Booking', sortable: true, sortBy: p => Number(p.on_booking) || 0,
+      header: 'On Bkg', sortable: true, sortBy: p => Number(p.on_booking) || 0,
       accessor: (p) => <span className="font-bold text-yellow-700">{p.on_booking ?? 0}</span>,
     },
     {
       header: 'Confirmed', sortable: true, sortBy: p => Number(p.confirmed) || 0,
-      accessor: (p) => <span className="font-bold text-emerald-700">{p.confirmed ?? 0}</span>,
+      accessor: (p) => <span className="font-bold text-red-600">{p.confirmed ?? 0}</span>,
+    },
+    {
+      header: 'Unreg', sortable: true, sortBy: p => Number(p.unregistered) || 0,
+      accessor: (p) => <span className="font-bold text-red-700">{p.unregistered ?? 0}</span>,
+    },
+    {
+      header: 'Reg', sortable: true, sortBy: p => Number(p.registered) || 0,
+      accessor: (p) => <span className="font-bold text-red-800">{p.registered ?? 0}</span>,
+    },
+    {
+      header: 'Sold', sortable: true, sortBy: p => Number(p.sold) || 0,
+      accessor: (p) => <span className="font-bold text-gray-800">{p.sold ?? 0}</span>,
     },
     {
       header: 'Created',
@@ -88,28 +184,125 @@ export default function PlotsPage() {
     },
   ];
 
+  const unitColumns = [
+    { header: 'Unit ID', accessor: 'plot_unit_id', className: 'font-mono text-xs text-gray-500' },
+    { header: 'Property', accessor: 'property_formatted_id', className: 'font-mono text-xs text-blue-600' },
+    { header: 'Plot #', accessor: 'plot_number', className: 'font-bold' },
+    {
+      header: 'Status', sortable: true, sortBy: u => u.status || '',
+      accessor: (u) => (
+        <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase ${STATUS_COLORS[u.status] || 'bg-gray-100 text-gray-600'}`}>
+          {u.status || 'Nil Booking'}
+        </span>
+      ),
+    },
+    { header: 'Token Amt', accessor: u => u.token_amount ? `₹${Number(u.token_amount).toLocaleString()}` : '-', className: 'text-sm' },
+    { header: 'Token Paid To', accessor: 'token_paid_to', className: 'text-xs' },
+    { header: 'Advance Amt', accessor: u => u.advance_amount ? `₹${Number(u.advance_amount).toLocaleString()}` : '-', className: 'text-sm' },
+    { header: 'Sold Rate', accessor: u => u.sold_rate ? `₹${Number(u.sold_rate).toLocaleString()}` : '-', className: 'text-sm' },
+    { header: 'Sold Date', accessor: u => u.sold_date ? String(u.sold_date).slice(0, 10) : '-', className: 'text-xs text-gray-500' },
+    { header: 'Doc Number', accessor: 'document_number', className: 'text-xs' },
+    { header: 'Buyer Phone', accessor: 'buyer_phone', className: 'font-mono text-xs' },
+  ];
+
+  const tabClass = (tab) =>
+    `px-5 py-3 text-sm font-bold border-b-2 transition-colors ${activeTab === tab ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-400 hover:text-gray-600'}`;
+
   return (
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold text-gray-800">Plot Properties</h2>
-        <p className="text-gray-500 text-xs uppercase tracking-widest font-bold mt-1">Plot-type layout editor</p>
+        <p className="text-gray-500 text-xs uppercase tracking-widest font-bold mt-1">Manage plot layouts and individual units</p>
       </div>
-      {loading ? (
-        <Loader />
-      ) : (
-        <DataTable
-          columns={columns}
-          data={plots}
-          emptyMessage="No plot properties found"
-          actions={(p) => (
-            <button
-              onClick={(e) => { e.stopPropagation(); handleOpenEditor(p); }}
-              className="px-3 py-1 bg-blue-50 text-blue-600 text-[10px] font-bold rounded-lg border border-blue-100 hover:bg-blue-100 uppercase tracking-widest"
-            >
-              Open Editor
-            </button>
-          )}
+
+      <div className="flex border-b border-gray-200">
+        <button className={tabClass('properties')} onClick={() => setActiveTab('properties')}>Plot Properties</button>
+        <button className={tabClass('units')} onClick={() => setActiveTab('units')}>Individual Plots</button>
+      </div>
+
+      {activeTab === 'properties' && (
+        loading ? <Loader /> : (
+          <DataTable
+            columns={propertyColumns}
+            data={plots}
+            emptyMessage="No plot properties found"
+            actions={(p) => (
+              <button
+                onClick={(e) => { e.stopPropagation(); handleOpenEditor(p); }}
+                className="px-3 py-1 bg-blue-50 text-blue-600 text-[10px] font-bold rounded-lg border border-blue-100 hover:bg-blue-100 uppercase tracking-widest"
+              >
+                Open Editor
+              </button>
+            )}
+          />
+        )
+      )}
+
+      {activeTab === 'units' && (
+        unitsLoading ? <Loader /> : (
+          <div className="overflow-x-auto rounded-2xl border border-gray-200 shadow-sm">
+            <table className="min-w-full text-sm">
+              <thead className="bg-gray-50">
+                <tr>
+                  {unitColumns.map(col => (
+                    <th key={col.header} className="px-4 py-3 text-left text-[10px] font-black uppercase tracking-widest text-gray-500 whitespace-nowrap">
+                      {col.header}
+                    </th>
+                  ))}
+                  <th className="px-4 py-3 text-left text-[10px] font-black uppercase tracking-widest text-gray-500">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {plotUnits.length === 0 ? (
+                  <tr><td colSpan={unitColumns.length + 1} className="px-4 py-8 text-center text-gray-400">No plot units found</td></tr>
+                ) : plotUnits.map(u => (
+                  <tr key={u.plot_unit_id} className="hover:bg-gray-50 transition-colors">
+                    {unitColumns.map(col => (
+                      <td key={col.header} className={`px-4 py-3 whitespace-nowrap ${col.className || ''}`}>
+                        {typeof col.accessor === 'function' ? col.accessor(u) : u[col.accessor] ?? '-'}
+                      </td>
+                    ))}
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setEditUnit(u)}
+                          className="px-3 py-1 bg-blue-50 text-blue-600 text-[10px] font-bold rounded-lg border border-blue-100 hover:bg-blue-100 uppercase"
+                        >Edit</button>
+                        <button
+                          onClick={() => setDeleteConfirm(u)}
+                          className="px-3 py-1 bg-red-50 text-red-600 text-[10px] font-bold rounded-lg border border-red-100 hover:bg-red-100 uppercase"
+                        >Delete</button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )
+      )}
+
+      {editUnit && (
+        <UnitEditModal
+          unit={editUnit}
+          onClose={() => setEditUnit(null)}
+          onSave={(form) => handleSaveUnit(editUnit, form)}
         />
+      )}
+
+      {deleteConfirm && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full space-y-4">
+            <h3 className="font-black text-gray-800">Delete Plot {deleteConfirm.plot_number}?</h3>
+            <p className="text-sm text-gray-500">This will remove the unit record. The layout element remains in the editor.</p>
+            <div className="flex gap-3">
+              <button onClick={() => setDeleteConfirm(null)} className="flex-1 py-2 bg-gray-100 text-gray-600 rounded-xl text-sm font-bold">Cancel</button>
+              <button onClick={() => handleDeleteUnit(deleteConfirm)} disabled={deleting} className="flex-1 py-2 bg-red-500 text-white rounded-xl text-sm font-bold disabled:opacity-50">
+                {deleting ? 'Deleting…' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

@@ -12,11 +12,15 @@ import {
 
 const BookingStatus = { NIL_BOOKING: 'Nil Booking', ON_BOOKING: 'ON_BOOKING', BOOKED: 'BOOKED', RENTED: 'RENTED' };
 const PropertyType = { RESIDENTIAL: 'residential', COMMERCIAL: 'commercial' };
+const TOKEN_PAID_TO_OPTIONS = ['', 'Paid Us', 'Paid to Owner', 'Owner returned', 'Returned to buyer'];
 const STATUS_COLORS = {
-  'Nil Booking': 'bg-gray-100 text-gray-600',
-  'ON_BOOKING': 'bg-yellow-100 text-yellow-800',
-  'BOOKED': 'bg-blue-100 text-blue-800',
-  'RENTED': 'bg-red-100 text-red-800',
+  'Nil Booking': 'bg-emerald-100 text-emerald-700',
+  'ON_BOOKING':  'bg-yellow-100 text-yellow-800',
+  'CONFIRMED':   'bg-red-100 text-red-800',
+  'UNREGISTERED':'bg-red-100 text-red-800',
+  'REGISTERED':  'bg-red-100 text-red-800',
+  'RENTED':      'bg-red-100 text-red-800',
+  'BOOKED':      'bg-red-100 text-red-800',
 };
 
 const EMPTY_FORM = {
@@ -26,6 +30,7 @@ const EMPTY_FORM = {
   status: 'pending', bhk: '', rent_amount: '', advance_amount: '',
   property_use: PropertyType.RESIDENTIAL, rent_status: BookingStatus.NIL_BOOKING,
   landmark: '', extent_area: '', extent_unit: '', description: '',
+  token_amount: '', token_paid_to: '', rent_out_rate: '', rent_out_date: '',
 };
 
 const FORM_TABS = [
@@ -454,6 +459,21 @@ export default function RentPropertiesPage() {
                     </div>
                   )}
                   <div className={fw}><label className={lbl}>Landmark</label><input disabled={isReadOnly} value={form.landmark || ''} onChange={e => handleChange('landmark', e.target.value)} className={inp} /></div>
+                  <div className="grid grid-cols-2 gap-6">
+                    <div className={fw}><label className={lbl}>Token Amount (₹)</label><input type="number" disabled={isReadOnly} value={form.token_amount || ''} onChange={e => handleChange('token_amount', e.target.value)} placeholder="Token amount paid" className={inp} /></div>
+                    <div className={fw}><label className={lbl}>Token Paid To</label>
+                      <select disabled={isReadOnly} value={form.token_paid_to || ''} onChange={e => handleChange('token_paid_to', e.target.value)} className="w-full px-4 py-2.5 rounded-xl border border-gray-300 font-semibold text-sm">
+                        {TOKEN_PAID_TO_OPTIONS.map(o => <option key={o} value={o}>{o || '— Select —'}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-6">
+                    <div className={fw}><label className={lbl}>Advance Amount (₹)</label><input type="number" disabled={isReadOnly} value={form.advance_amount || ''} onChange={e => handleChange('advance_amount', e.target.value)} placeholder="Advance paid" className={inp} /></div>
+                    <div className={fw}><label className={lbl}>Rent Out Rate (₹)</label><input type="number" disabled={isReadOnly} value={form.rent_out_rate || ''} onChange={e => handleChange('rent_out_rate', e.target.value)} placeholder="Final rent-out rate" className={inp} /></div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-6">
+                    <div className={fw}><label className={lbl}>Rent Out Date</label><input type="date" disabled={isReadOnly} value={form.rent_out_date || ''} onChange={e => handleChange('rent_out_date', e.target.value)} className={inp} /></div>
+                  </div>
                   <div className={fw}><label className={lbl}>Description</label>
                     <textarea disabled={isReadOnly} value={form.description || ''} onChange={e => handleChange('description', e.target.value)} className="w-full px-4 py-2.5 rounded-xl border border-gray-300 font-semibold text-sm min-h-[80px]" /></div>
                 </div>

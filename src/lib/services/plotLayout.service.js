@@ -9,7 +9,7 @@ export async function getLayout(propertyId) {
     propertyId
   );
   const elements = await prisma.$queryRawUnsafe(
-    `SELECT element_id, type, name, x, y, width, height, rotation, color, font_size, font_weight, visible
+    `SELECT element_id, type, name, x, y, width, height, rotation, color, font_size, font_weight, visible, points, closed
      FROM plot_layout_elements WHERE property_id = $1`,
     propertyId
   );
