@@ -28,11 +28,6 @@
     width: 100%;
     height: 100%;
     z-index: 1;
-    background-image: url('../assets/tnmap.png');
-    background-repeat: no-repeat;
-    background-position: center;
-    background-size: contain;
-    /* Changed from 'contain' to 'cover' for full screen */
 }
 
 /* Map Component Specific Styles (Must be disabled for user interaction) */
@@ -335,9 +330,7 @@
     }
 
     .map-background-overlay {
-        background-image: url('../assets/tnmap.png');
-        background-size: contain;
-        /* Ensure full coverage on mobile */
+        /* image handled by Next.js Image component */
     }
 
     /* Show bottom actions on mobile - now without background */

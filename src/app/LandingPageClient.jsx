@@ -2,22 +2,62 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useSearchParams } from 'next/navigation';
 import PremiumProperties from '../components/PremiumProperties';
 import SeoHelmet from '../components/SeoHelmet';
 import { getSearchHref } from '../utils/propertyRouting';
 import { useAppContext } from './AppContext';
+import { endpoints } from '../api/api';
+import tnmap from '../assets/tnmap.png';
 import '../styles/LandingPage.css';
+
+const hasPremiumImage = (property) => {
+  const images = Array.isArray(property?.images) ? property.images : [];
+  if (images.length === 0) return false;
+  const first = images[0];
+  if (typeof first === 'string') return Boolean(first);
+  if (typeof first === 'object' && first?.url) return true;
+  return false;
+};
 
 export default function LandingPageClient() {
   const searchParams = useSearchParams();
-  const { menuPremiumProperties: landingPremiumProperties, handlePostPropertyClick } = useAppContext();
+  const { menuPremiumProperties: contextPremium, handlePostPropertyClick } = useAppContext();
   const [activeTab, setActiveTab] = useState('BUY');
+  const [localPremium, setLocalPremium] = useState([]);
 
   useEffect(() => {
     const tab = searchParams.get('type');
     setActiveTab(tab === 'rent' ? 'RENT' : 'BUY');
   }, [searchParams]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const fetchPremium = async () => {
+      try {
+        // Fetch paid premium for both modes (same approach as search page)
+        const [rentRes, saleRes] = await Promise.all([
+          endpoints.getPremium({ property_type: 'rent' }),
+          endpoints.getPremium({ property_type: 'sale' }),
+        ]);
+        if (cancelled) return;
+        const paid = [...(rentRes?.data?.data || []), ...(saleRes?.data?.data || [])];
+        if (paid.length > 0) { setLocalPremium(paid); return; }
+
+        // Fallback: regular rent properties (PremiumProperties component filters for images internally)
+        const fallbackRes = await endpoints.getProperties('rent');
+        if (cancelled) return;
+        const all = fallbackRes?.data?.data || [];
+        const withImg = all.filter(hasPremiumImage);
+        setLocalPremium((withImg.length > 0 ? withImg : all).slice(0, 20));
+      } catch {}
+    };
+    fetchPremium();
+    return () => { cancelled = true; };
+  }, []);
+
+  const landingPremiumProperties = localPremium.length > 0 ? localPremium : contextPremium;
 
   const renderPremiumAds = () => (
     <>
@@ -61,7 +101,9 @@ export default function LandingPageClient() {
 
       {activeTab === 'BUY' && (
         <div className="landing-side sale-side">
-          <div className="map-background-overlay" aria-hidden="true" />
+          <div className="map-background-overlay" aria-hidden="true">
+            <Image src={tnmap} alt="" fill priority style={{ objectFit: 'contain', objectPosition: 'center' }} />
+          </div>
           {renderPremiumAds()}
 
           <div className="side-content-wrapper">
@@ -83,7 +125,9 @@ export default function LandingPageClient() {
 
       {activeTab === 'RENT' && (
         <div className="landing-side rent-side">
-          <div className="map-background-overlay" aria-hidden="true" />
+          <div className="map-background-overlay" aria-hidden="true">
+            <Image src={tnmap} alt="" fill priority style={{ objectFit: 'contain', objectPosition: 'center' }} />
+          </div>
           {renderPremiumAds()}
 
           <div className="side-content-wrapper">

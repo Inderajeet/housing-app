@@ -9,7 +9,7 @@ import PropertyListings from '../../components/PropertyListings';
 import PremiumProperties from '../../components/PremiumProperties';
 import SeoHelmet from '../../components/SeoHelmet';
 import { endpoints } from '../../api/api';
-import { normalizeCategory, normalizeMode } from '../../utils/propertyRouting';
+import { normalizeCategory, normalizeMode, normalizeUrlName } from '../../utils/propertyRouting';
 import { getKeywordString, getLocationLabel, getTransactionLabel } from '../../utils/seo';
 import { useAppContext } from '../AppContext';
 import '../../styles/HomePage.css';
@@ -32,6 +32,10 @@ export default function HomePage() {
 
   const queryMode = normalizeMode(searchParams.get('type') || 'rent');
   const queryCategory = normalizeCategory(searchParams.get('category'));
+  // URL uses name slugs for locations (human-readable, SEO-friendly)
+  const queryDistrict = searchParams.get('district') || '';
+  const queryTaluk = searchParams.get('taluk') || '';
+  const queryVillage = searchParams.get('village') || '';
 
   const [districtsList, setDistrictsList] = useState([]);
   const [taluksList, setTaluksList] = useState([]);
@@ -60,12 +64,64 @@ export default function HomePage() {
   const [showFilterPanel, setShowFilterPanel] = useState(true);
   const [showListingsPanel, setShowListingsPanel] = useState(true);
 
+  // Sync URL type/category → filters
   useEffect(() => {
     setFilters((prev) => {
       if (prev.lookingTo === queryMode && prev.type === queryCategory) return prev;
       return { ...prev, lookingTo: queryMode, type: queryCategory };
     });
-  }, [queryCategory, queryMode]);
+  }, [queryMode, queryCategory]);
+
+  // Resolve district name slug → district_id (and reset cascades when cleared)
+  useEffect(() => {
+    if (!districtsList.length) return;
+    if (!queryDistrict) {
+      setFilters(prev =>
+        prev.district_id === '' ? prev :
+        { ...prev, district: '', district_id: '', taluk: '', taluk_id: '', village: '', village_id: '' }
+      );
+      return;
+    }
+    const found = districtsList.find(d => normalizeUrlName(d.district_name) === queryDistrict);
+    if (found) setFilters(prev =>
+      prev.district_id === String(found.district_id) ? prev :
+      { ...prev, district: found.district_name, district_id: String(found.district_id) }
+    );
+  }, [queryDistrict, districtsList]);
+
+  // Resolve taluk name slug → taluk_id
+  useEffect(() => {
+    if (!taluksList.length) return;
+    if (!queryTaluk) {
+      setFilters(prev =>
+        prev.taluk_id === '' ? prev :
+        { ...prev, taluk: '', taluk_id: '', village: '', village_id: '' }
+      );
+      return;
+    }
+    const found = taluksList.find(t => normalizeUrlName(t.taluk_name) === queryTaluk);
+    if (found) setFilters(prev =>
+      prev.taluk_id === String(found.taluk_id) ? prev :
+      { ...prev, taluk: found.taluk_name, taluk_id: String(found.taluk_id) }
+    );
+  }, [queryTaluk, taluksList]);
+
+  // Resolve village name slug → village_id
+  useEffect(() => {
+    if (!villagesList.length) return;
+    if (!queryVillage) {
+      setFilters(prev =>
+        prev.village_id === '' ? prev :
+        { ...prev, village: '', village_id: '' }
+      );
+      return;
+    }
+    const found = villagesList.find(v => normalizeUrlName(v.village_name) === queryVillage);
+    if (found) setFilters(prev =>
+      prev.village_id === String(found.village_id) ? prev :
+      { ...prev, village: found.village_name, village_id: String(found.village_id) }
+    );
+  }, [queryVillage, villagesList]);
 
   useEffect(() => {
     const fetchInitialData = async () => {
@@ -84,21 +140,23 @@ export default function HomePage() {
     fetchInitialData();
   }, [filters.lookingTo, filters.type]);
 
-  // Sync filters → URL
+  // Sync filters → URL (writes name slugs, not IDs)
   useEffect(() => {
     const nextParams = new URLSearchParams(searchParams.toString());
     nextParams.set('type', filters.lookingTo);
-    if (filters.type) {
-      nextParams.set('category', filters.type);
-    } else {
-      nextParams.delete('category');
-    }
-    const currentQuery = searchParams.toString();
+    if (filters.type) nextParams.set('category', filters.type); else nextParams.delete('category');
+    if (filters.district) nextParams.set('district', normalizeUrlName(filters.district)); else nextParams.delete('district');
+    if (filters.taluk) nextParams.set('taluk', normalizeUrlName(filters.taluk)); else nextParams.delete('taluk');
+    if (filters.village) nextParams.set('village', normalizeUrlName(filters.village)); else nextParams.delete('village');
+    // Remove legacy ID params if any
+    nextParams.delete('district_id');
+    nextParams.delete('taluk_id');
+    nextParams.delete('village_id');
     const nextQuery = nextParams.toString();
-    if (currentQuery !== nextQuery) {
+    if (searchParams.toString() !== nextQuery) {
       router.replace(`${pathname}?${nextQuery}`, { scroll: false });
     }
-  }, [filters.lookingTo, filters.type, searchParams, router, pathname]);
+  }, [filters.lookingTo, filters.type, filters.district, filters.taluk, filters.village, searchParams, router, pathname]);
 
   useEffect(() => {
     endpoints.getPremium({ property_type: filters.lookingTo })

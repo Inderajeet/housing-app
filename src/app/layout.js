@@ -17,7 +17,7 @@ export default function RootLayout({ children }) {
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link rel="preconnect" href="https://maps.googleapis.com" />
         <link rel="preconnect" href="https://maps.gstatic.com" crossOrigin="anonymous" />
-        <link rel="preconnect" href="https://www.googletagmanager.com" />
+        <link rel="dns-prefetch" href="https://www.googletagmanager.com" />
       </head>
       <body>
         <AppProvider>

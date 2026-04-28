@@ -5,6 +5,8 @@ const normalizeText = (value) =>
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '');
 
+export const normalizeUrlName = normalizeText;
+
 export const normalizeMode = (value) => {
   const normalized = String(value ?? '').trim().toLowerCase();
   return normalized === 'sale' ? 'sale' : 'rent';
@@ -56,12 +58,46 @@ export const getPropertySlug = (property) =>
   normalizeText(property?.title) ||
   String(property?.property_id || property?.id || '').trim();
 
+const getPropertyDescSlug = (property) => {
+  const mode = getPropertyMode(property);
+  const location = normalizeText(
+    property?.village_name || property?.taluk_name || property?.district_name || ''
+  );
+
+  if (mode === 'rent') {
+    const use = String(property?.property_use || '').toLowerCase().trim();
+    if (use === 'commercial') {
+      return location ? `commercial-for-rent-in-${location}` : 'commercial-for-rent';
+    }
+    const bhkRaw = String(property?.bhk || '').trim();
+    const bhkNum =
+      bhkRaw.startsWith('1') ? '1bhk' :
+      bhkRaw.startsWith('2') ? '2bhk' :
+      (bhkRaw.startsWith('3') || bhkRaw.startsWith('4') || parseInt(bhkRaw) >= 3) ? '3bhk' :
+      'residential';
+    return location ? `${bhkNum}-residential-for-rent-in-${location}` : `${bhkNum}-residential-for-rent`;
+  }
+
+  // Sale
+  const saleType = normalizeText(property?.sale_type || '') || 'property';
+  const bhkRaw = String(property?.bhk || '').trim();
+  if (bhkRaw && ['flat', 'house'].includes(saleType)) {
+    const bhkNum =
+      bhkRaw.startsWith('1') ? '1bhk' :
+      bhkRaw.startsWith('2') ? '2bhk' :
+      (bhkRaw.startsWith('3') || parseInt(bhkRaw) >= 3) ? '3bhk' : '';
+    if (bhkNum) {
+      return location ? `${bhkNum}-${saleType}-for-sale-in-${location}` : `${bhkNum}-${saleType}-for-sale`;
+    }
+  }
+  return location ? `${saleType}-for-sale-in-${location}` : `${saleType}-for-sale`;
+};
+
 export const getPropertyHref = (property) => {
   const mode = getPropertyMode(property);
-  const category = getPropertyCategory(property);
-  const slug = getPropertySlug(property);
-
-  return `/property/${mode}/${category}/${slug}`;
+  const descSlug = getPropertyDescSlug(property);
+  const id = getPropertySlug(property);
+  return `/property/${mode}/${descSlug}/${id}`;
 };
 
 export const matchesPropertyIdentifier = (property, identifier) => {
