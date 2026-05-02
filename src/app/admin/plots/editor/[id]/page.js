@@ -141,6 +141,8 @@ export default function PlotLayoutEditorPage() {
             label: item.name || '',
             status: item.status || 'Nil Booking',
             color: STATUS_COLORS_SVG[item.status] || item.color || '#22c55e',
+            closed: item.closed ?? false,
+            fontSize: item.font_size || 12,
           })));
           setViewMode('svg');
         }
@@ -228,8 +230,10 @@ export default function PlotLayoutEditorPage() {
           status: shape.status,
           color: shape.color,
           points: shape.points,
+          closed: shape.closed ?? false,
           x: 0, y: 0, width: 1, height: 1, rotation: 0,
-          font_size: 10, font_weight: '900', visible: true,
+          font_size: shape.fontSize || 12,
+          font_weight: '900', visible: true,
         }));
       } else {
         elements = Object.keys(gridData)

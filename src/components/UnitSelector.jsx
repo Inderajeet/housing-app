@@ -383,7 +383,7 @@ const UnitSelector = ({ propertyId, onSelectUnit, saleType, onNoPlots, refreshKe
                                     />
                                     {bbox.w > 8 && (
                                         <text x={bbox.cx} y={bbox.cy} textAnchor="middle" dominantBaseline="middle"
-                                            fontSize={Math.max(4, bbox.w * 0.25)} fontWeight="bold"
+                                            fontSize={cell.fontSize || cell.font_size || 11} fontWeight="bold"
                                             fill="#ffffff"
                                             style={{ pointerEvents: 'none', userSelect: 'none' }}
                                         >

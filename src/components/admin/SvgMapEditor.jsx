@@ -403,40 +403,47 @@ export default function SvgMapEditor({ shapes, backgroundImage, unitType = 'PLOT
                 onClick: e => { e.stopPropagation(); if (!movingId) { setSelectedId(shape.id); setEditPanel(true); } },
                 onDoubleClick: e => handleShapeDblClick(shape.id, e),
               };
-              if (isClosed) {
-                return (
-                  <g key={shape.id}>
+              const roadPts = pts.map(p => `${p.x},${p.y}`).join(' ');
+              const roadCentroid = getCentroid(pts);
+              const roadFill = isMoving || isSelected ? '#3b82f6' : '#1f2937';
+              return (
+                <g key={shape.id}>
+                  {isClosed ? (
                     <polygon
-                      points={pts.map(p => `${p.x},${p.y}`).join(' ')}
-                      fill={isMoving ? '#3b82f6' : '#1f2937'}
-                      fillOpacity={isMoving ? 0.5 : 0.85}
-                      stroke={isMoving || isSelected ? '#3b82f6' : '#1e293b'}
-                      strokeWidth={(isMoving || isSelected ? 3 : 1.5) / scale}
+                      points={roadPts}
+                      fill={roadFill}
+                      fillOpacity={isMoving ? 0.65 : 0.85}
+                      stroke={isMoving || isSelected ? '#3b82f6' : 'none'}
+                      strokeWidth={isMoving || isSelected ? 3 / scale : 0}
+                      strokeLinejoin="round"
                       strokeDasharray={isMoving ? `${6 / scale},${3 / scale}` : undefined}
                       {...handlers}
                     />
-                    {isSelected && !isMoving && shape.points.map((pt, i) => (
-                      <circle key={i} cx={pt.x} cy={pt.y} r={6 / scale}
-                        fill={draggingPoint?.shapeId === shape.id && draggingPoint?.pointIdx === i ? '#3b82f6' : 'white'}
-                        stroke="#3b82f6" strokeWidth={2 / scale}
-                        style={{ cursor: 'grab' }}
-                        onMouseDown={e => { e.stopPropagation(); undoStackRef.current = [...undoStackRef.current, shapes]; setDraggingPoint({ shapeId: shape.id, pointIdx: i }); draggingPointRef.current = { shapeId: shape.id, pointIdx: i }; }}
-                      />
-                    ))}
-                  </g>
-                );
-              }
-              return (
-                <g key={shape.id}>
-                  <polyline
-                    points={pts.map(p => `${p.x},${p.y}`).join(' ')}
-                    fill="none"
-                    stroke={isMoving ? '#3b82f6' : '#1e293b'}
-                    strokeWidth={(isMoving ? 4 : 3) / scale}
-                    strokeLinecap="round"
-                    strokeDasharray={isMoving ? `${6 / scale},${3 / scale}` : undefined}
-                    {...handlers}
-                  />
+                  ) : (
+                    <polyline
+                      points={roadPts}
+                      fill="none"
+                      stroke={roadFill}
+                      strokeWidth={(isMoving || isSelected ? 4 : 3) / scale}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeDasharray={isMoving ? `${6 / scale},${3 / scale}` : undefined}
+                      {...handlers}
+                    />
+                  )}
+                  {shape.label && !/^\d+$/.test(shape.label.trim()) && (
+                    <text
+                      x={roadCentroid.cx} y={roadCentroid.cy}
+                      textAnchor="middle" dominantBaseline="middle"
+                      fontSize={(shape.fontSize || 11) / scale}
+                      fontWeight="bold"
+                      fill={isMoving || isSelected ? '#3b82f6' : '#ffffff'}
+                      pointerEvents="none"
+                      style={{ userSelect: 'none' }}
+                    >
+                      {shape.label}
+                    </text>
+                  )}
                   {isSelected && !isMoving && shape.points.map((pt, i) => (
                     <circle key={i} cx={pt.x} cy={pt.y} r={6 / scale}
                       fill={draggingPoint?.shapeId === shape.id && draggingPoint?.pointIdx === i ? '#1e293b' : 'white'}
@@ -470,11 +477,11 @@ export default function SvgMapEditor({ shapes, backgroundImage, unitType = 'PLOT
                     onClick={e => { e.stopPropagation(); if (!movingId) { setSelectedId(shape.id); setEditPanel(true); } }}
                     onDoubleClick={e => handleShapeDblClick(shape.id, e)}
                   />
-                  {bbox.w > 20 / scale && (
+                  {bbox.w > 10 / scale && (
                     <text
                       x={centroid.cx} y={centroid.cy}
                       textAnchor="middle" dominantBaseline="middle"
-                      fontSize={Math.max(8, Math.min(14, bbox.w * 0.3)) / scale}
+                      fontSize={(shape.fontSize || 11) / scale}
                       fontWeight="bold"
                       fill={isMoving || isSelected ? '#1d4ed8' : '#1e293b'}
                       pointerEvents="none"
@@ -583,13 +590,14 @@ export default function SvgMapEditor({ shapes, backgroundImage, unitType = 'PLOT
             />
           </div>
 
-          {selectedShape.type === 'text' && (
+          {(selectedShape.type === 'text' || selectedShape.type === 'plot' || selectedShape.type === 'road') && (
             <div>
               <label className="text-[10px] font-black text-slate-400 uppercase block mb-1">Font Size</label>
               <input
                 type="number"
+                min="6" max="72"
                 className="w-full p-2.5 bg-slate-50 border rounded-xl text-sm font-bold outline-none focus:border-blue-500"
-                value={selectedShape.fontSize || 14}
+                value={selectedShape.fontSize || (selectedShape.type === 'text' ? 14 : 11)}
                 onChange={e => updateShape(selectedShape.id, { fontSize: Number(e.target.value) })}
               />
             </div>
