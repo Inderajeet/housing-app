@@ -25,6 +25,23 @@ const getBBox = (points) => {
 
 const dist = (a, b) => Math.hypot(b.x - a.x, b.y - a.y);
 
+const getCentroid = (points) => {
+  if (!points || !points.length) return { cx: 0, cy: 0 };
+  return {
+    cx: points.reduce((s, p) => s + p.x, 0) / points.length,
+    cy: points.reduce((s, p) => s + p.y, 0) / points.length,
+  };
+};
+
+const nextPlotLabel = (shapesArr) => {
+  const maxL = shapesArr
+    .filter(s => s.type === 'plot')
+    .map(s => parseInt(s.label, 10))
+    .filter(n => !isNaN(n))
+    .reduce((max, n) => Math.max(max, n), 0);
+  return String(maxL + 1);
+};
+
 export default function SvgMapEditor({ shapes, backgroundImage, unitType = 'PLOT', onChange }) {
   const svgRef = useRef(null);
   const [scale, setScale] = useState(1);
@@ -159,6 +176,7 @@ export default function SvgMapEditor({ shapes, backgroundImage, unitType = 'PLOT
       onChangeWithUndo([...shapes, newShape]);
       setSelectedId(newShape.id);
       setEditPanel(true);
+      setTool('select');
       return;
     }
 
@@ -168,13 +186,14 @@ export default function SvgMapEditor({ shapes, backgroundImage, unitType = 'PLOT
         const newShape = {
           id: genId(), type: 'plot', closed: true,
           points: polyPointsRef.current,
-          label: `${unitType === 'FLAT' ? 'F' : 'P'}${shapes.filter(s => s.type === 'plot').length + 1}`,
+          label: nextPlotLabel(shapes),
           status: 'Nil Booking', color: '#22c55e',
         };
         onChangeWithUndo([...shapes, newShape]);
         setSelectedId(newShape.id);
         setEditPanel(true);
         clearPolyPoints();
+        setTool('select');
       } else {
         addPolyPoint(p);
       }
@@ -217,12 +236,13 @@ export default function SvgMapEditor({ shapes, backgroundImage, unitType = 'PLOT
         const newShape = {
           id: genId(), type: 'plot', closed: true,
           points: [{ x: x1, y: y1 }, { x: x2, y: y1 }, { x: x2, y: y2 }, { x: x1, y: y2 }],
-          label: `${unitType === 'FLAT' ? 'F' : 'P'}${shapes.filter(s => s.type === 'plot').length + 1}`,
+          label: nextPlotLabel(shapes),
           status: 'Nil Booking', color: '#22c55e',
         };
         onChangeWithUndo([...shapes, newShape]);
         setSelectedId(newShape.id);
         setEditPanel(true);
+        setTool('select');
       }
       setDrawing(false); setDrawStart(null); setDrawCurrent(null);
     }
@@ -240,13 +260,14 @@ export default function SvgMapEditor({ shapes, backgroundImage, unitType = 'PLOT
       const newShape = {
         id: genId(), type: 'plot', closed: true,
         points: finalPoints,
-        label: `${unitType === 'FLAT' ? 'F' : 'P'}${shapes.filter(s => s.type === 'plot').length + 1}`,
+        label: nextPlotLabel(shapes),
         status: 'Nil Booking', color: '#22c55e',
       };
       onChangeWithUndo([...shapes, newShape]);
       setSelectedId(newShape.id);
       setEditPanel(true);
       clearPolyPoints();
+      setTool('select');
       return;
     }
     if (tool === 'line' && polyPointsRef.current.length > 1) {
@@ -259,14 +280,21 @@ export default function SvgMapEditor({ shapes, backgroundImage, unitType = 'PLOT
       };
       onChangeWithUndo([...shapes, newShape]);
       clearPolyPoints();
+      setTool('select');
     }
   };
 
-  const handleWheel = (e) => {
-    e.preventDefault();
-    const factor = e.deltaY < 0 ? 1.1 : 0.9;
-    setScale(s => Math.max(0.2, Math.min(5, s * factor)));
-  };
+  useEffect(() => {
+    const el = svgRef.current;
+    if (!el) return;
+    const onWheel = (e) => {
+      e.preventDefault();
+      const factor = e.deltaY < 0 ? 1.1 : 0.9;
+      setScale(s => Math.max(0.2, Math.min(5, s * factor)));
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, []);
 
   const updateShape = (id, updates) => onChangeWithUndo(shapes.map(s => s.id === id ? { ...s, ...updates } : s));
 
@@ -282,7 +310,7 @@ export default function SvgMapEditor({ shapes, backgroundImage, unitType = 'PLOT
     const newShape = {
       ...shape,
       id: genId(),
-      label: shape.label + ' (Copy)',
+      label: shape.type === 'plot' ? nextPlotLabel(shapes) : shape.label + ' (Copy)',
       points: shape.points.map(p => ({ x: p.x + 20, y: p.y + 20 })),
     };
     onChangeWithUndo([...shapes, newShape]);
@@ -358,7 +386,6 @@ export default function SvgMapEditor({ shapes, backgroundImage, unitType = 'PLOT
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
           onDoubleClick={handleDblClick}
-          onWheel={handleWheel}
         >
           <g style={{ transform: `translate(${offset.x}px,${offset.y}px) scale(${scale})`, transformOrigin: '0 0' }}>
             {backgroundImage && showBg && (
@@ -429,13 +456,14 @@ export default function SvgMapEditor({ shapes, backgroundImage, unitType = 'PLOT
               const isSelected = selectedId === shape.id;
               const isMoving = movingId === shape.id;
               const bbox = getBBox(pts);
+              const centroid = getCentroid(pts);
               return (
                 <g key={shape.id}>
                   <polygon
                     points={pts.map(p => `${p.x},${p.y}`).join(' ')}
                     fill={color}
                     fillOpacity={isMoving ? 0.65 : isSelected ? 0.95 : 0.85}
-                    stroke={isMoving || isSelected ? '#3b82f6' : color}
+                    stroke={isMoving || isSelected ? '#3b82f6' : 'white'}
                     strokeWidth={(isMoving || isSelected ? 3 : 1.5) / scale}
                     strokeDasharray={isMoving ? `${6 / scale},${3 / scale}` : undefined}
                     className="cursor-pointer hover:fill-opacity-40 transition-all"
@@ -444,7 +472,7 @@ export default function SvgMapEditor({ shapes, backgroundImage, unitType = 'PLOT
                   />
                   {bbox.w > 20 / scale && (
                     <text
-                      x={bbox.cx} y={bbox.cy}
+                      x={centroid.cx} y={centroid.cy}
                       textAnchor="middle" dominantBaseline="middle"
                       fontSize={Math.max(8, Math.min(14, bbox.w * 0.3)) / scale}
                       fontWeight="bold"

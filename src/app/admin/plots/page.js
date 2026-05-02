@@ -1,9 +1,9 @@
 'use client';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import DataTable from '@/components/admin/DataTable';
 import Loader from '@/components/admin/Loader';
-import { getPlotProperties, getPlotLayout, getAllPlotUnits, updatePlotUnit, deletePlotUnit } from '@/lib/adminApi';
+import { getPlotProperties, getPlotLayout, getAllPlotUnits, updatePlotUnit, deletePlotUnit, updateSaleProperty, adminApi, bulkUpdatePlotStatuses } from '@/lib/adminApi';
 
 const STATUS_COLORS = {
   'Nil Booking': 'bg-emerald-100 text-emerald-700',
@@ -17,6 +17,21 @@ const STATUS_COLORS = {
 
 const UNIT_STATUS_OPTIONS = ['Nil Booking', 'ON_BOOKING', 'CONFIRMED', 'UNREGISTERED', 'REGISTERED', 'SOLD'];
 const TOKEN_PAID_TO_OPTIONS = ['', 'Paid Us', 'Paid to Owner', 'Owner returned', 'Returned to buyer'];
+const SALE_STATUS_OPTIONS = ['Nil Booking', 'ON_BOOKING', 'BOOKED', 'SOLD'];
+const RATE_UNIT_OPTIONS = ['', 'per sqft', 'per inch', 'per cent', 'per ground', 'per acre', 'per sq.meter'];
+
+function LabelCell({ labels, colorClass }) {
+  if (!labels) return <span className="text-gray-300 text-xs">—</span>;
+  const items = labels.split(',').map(l => l.trim()).filter(Boolean);
+  if (!items.length) return <span className="text-gray-300 text-xs">—</span>;
+  const preview = items.slice(0, 6).join(', ');
+  const extra = items.length > 6 ? ` +${items.length - 6}` : '';
+  return (
+    <span className={`font-bold text-xs ${colorClass}`} title={labels}>
+      {preview}{extra && <span className="text-gray-400">{extra}</span>}
+    </span>
+  );
+}
 
 const getApprovalClasses = (status) => {
   const s = String(status || '').toLowerCase();
@@ -26,74 +41,22 @@ const getApprovalClasses = (status) => {
   return 'bg-gray-100 text-gray-600 border-gray-200';
 };
 
-function UnitEditModal({ unit, onClose, onSave }) {
-  const [form, setForm] = useState({
-    status: unit.status || 'Nil Booking',
-    token_amount: unit.token_amount || '',
-    token_paid_to: unit.token_paid_to || '',
-    advance_amount: unit.advance_amount || '',
-    sold_rate: unit.sold_rate || '',
-    sold_date: unit.sold_date ? String(unit.sold_date).slice(0, 10) : '',
-    document_number: unit.document_number || '',
-  });
-  const [saving, setSaving] = useState(false);
-
-  const handleSave = async () => {
-    setSaving(true);
-    try { await onSave(form); onClose(); }
-    finally { setSaving(false); }
-  };
-
-  const inp = 'w-full px-3 py-2 border border-gray-200 rounded-lg text-sm font-semibold outline-none focus:ring-2 focus:ring-blue-400';
-  const lbl = 'text-[10px] font-bold uppercase text-gray-400 mb-1 block';
-
-  return (
-    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-4">
-        <div className="flex justify-between items-center">
-          <h3 className="font-black text-gray-800">Edit Plot Unit — {unit.plot_number}</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-red-500 text-xl">✕</button>
-        </div>
-        <div>
-          <label className={lbl}>Status</label>
-          <select value={form.status} onChange={e => setForm(p => ({ ...p, status: e.target.value }))} className={inp}>
-            {UNIT_STATUS_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
-          </select>
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div><label className={lbl}>Token Amount (₹)</label><input type="number" className={inp} value={form.token_amount} onChange={e => setForm(p => ({ ...p, token_amount: e.target.value }))} /></div>
-          <div>
-            <label className={lbl}>Token Paid To</label>
-            <select className={inp} value={form.token_paid_to} onChange={e => setForm(p => ({ ...p, token_paid_to: e.target.value }))}>
-              {TOKEN_PAID_TO_OPTIONS.map(o => <option key={o} value={o}>{o || '— None —'}</option>)}
-            </select>
-          </div>
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div><label className={lbl}>Advance Amount (₹)</label><input type="number" className={inp} value={form.advance_amount} onChange={e => setForm(p => ({ ...p, advance_amount: e.target.value }))} /></div>
-          <div><label className={lbl}>Sold Rate (₹)</label><input type="number" className={inp} value={form.sold_rate} onChange={e => setForm(p => ({ ...p, sold_rate: e.target.value }))} /></div>
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div><label className={lbl}>Sold Date</label><input type="date" className={inp} value={form.sold_date} onChange={e => setForm(p => ({ ...p, sold_date: e.target.value }))} /></div>
-          <div><label className={lbl}>Document Number</label><input type="text" className={inp} value={form.document_number} onChange={e => setForm(p => ({ ...p, document_number: e.target.value }))} /></div>
-        </div>
-        <div className="flex gap-3 pt-2">
-          <button onClick={onClose} className="flex-1 py-2 bg-gray-100 text-gray-600 rounded-xl text-sm font-bold">Cancel</button>
-          <button onClick={handleSave} disabled={saving} className="flex-1 py-2 bg-blue-600 text-white rounded-xl text-sm font-bold disabled:opacity-50">{saving ? 'Saving…' : 'Save'}</button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export default function PlotsPage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState('properties');
+
   const [plots, setPlots] = useState([]);
-  const [plotUnits, setPlotUnits] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [propEditId, setPropEditId] = useState(null);
+  const [propEditDraft, setPropEditDraft] = useState({});
+  const [propSaving, setPropSaving] = useState(false);
+
+  const [plotUnits, setPlotUnits] = useState([]);
   const [unitsLoading, setUnitsLoading] = useState(true);
-  const [editUnit, setEditUnit] = useState(null);
+  const [unitEditId, setUnitEditId] = useState(null);
+  const [unitEditDraft, setUnitEditDraft] = useState({});
+  const [unitSaving, setUnitSaving] = useState(false);
+
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [deleting, setDeleting] = useState(false);
 
@@ -114,9 +77,66 @@ export default function PlotsPage() {
     router.push(`/admin/plots/editor/${p.property_id}`);
   };
 
-  const handleSaveUnit = async (unit, formData) => {
-    await updatePlotUnit(unit.plot_unit_id, formData);
-    setPlotUnits(prev => prev.map(u => u.plot_unit_id === unit.plot_unit_id ? { ...u, ...formData } : u));
+  const handlePropInlineEdit = (p) => {
+    setPropEditId(p.property_id);
+    setPropEditDraft({
+      ...p,
+      sold_date: p.sold_date ? String(p.sold_date).slice(0, 10) : '',
+      nil_labels: p.nil_booking || '',
+      on_labels: p.on_booking || '',
+      confirmed_labels: p.confirmed || '',
+      unreg_labels: p.unregistered || '',
+      reg_labels: p.registered || '',
+      sold_labels: p.sold || '',
+    });
+  };
+  const handlePropInlineCancel = () => { setPropEditId(null); setPropEditDraft({}); };
+  const handlePropDraftChange = (key, val) => setPropEditDraft(prev => ({ ...prev, [key]: val }));
+  const handlePropInlineSave = async () => {
+    setPropSaving(true);
+    try {
+      const full = (await adminApi.get(`/sale/${propEditId}`)).data || {};
+      const { booking_status, seller_phone, nil_labels, on_labels, confirmed_labels, unreg_labels, reg_labels, sold_labels, ...rest } = propEditDraft;
+      const merged = {
+        ...full,
+        ...rest,
+        sale_status: booking_status ?? full.sale_status,
+        contact_phone: rest.contact_phone ?? seller_phone ?? full.contact_phone,
+      };
+      await updateSaleProperty(propEditId, merged);
+
+      const hasStatusEdits = [nil_labels, on_labels, confirmed_labels, unreg_labels, reg_labels, sold_labels].some(v => v !== undefined);
+      if (hasStatusEdits) {
+        await bulkUpdatePlotStatuses(propEditId, {
+          nil_booking: nil_labels,
+          on_booking: on_labels,
+          confirmed: confirmed_labels,
+          unregistered: unreg_labels,
+          registered: reg_labels,
+          sold: sold_labels,
+        });
+      }
+
+      setPlots(prev => prev.map(p => p.property_id === propEditId ? { ...p, ...propEditDraft } : p));
+      setPropEditId(null);
+    } catch (err) { alert('Failed: ' + (err?.response?.data?.error || err.message)); }
+    finally { setPropSaving(false); }
+  };
+
+  const handleUnitInlineEdit = (u) => {
+    setUnitEditId(u.plot_unit_id);
+    setUnitEditDraft({ ...u, sold_date: u.sold_date ? String(u.sold_date).slice(0, 10) : '' });
+  };
+  const handleUnitInlineCancel = () => { setUnitEditId(null); setUnitEditDraft({}); };
+  const handleUnitDraftChange = (key, val) => setUnitEditDraft(prev => ({ ...prev, [key]: val }));
+  const handleUnitInlineSave = async () => {
+    setUnitSaving(true);
+    try {
+      await updatePlotUnit(unitEditId, unitEditDraft);
+      setPlotUnits(prev => prev.map(u => u.plot_unit_id === unitEditId ? { ...u, ...unitEditDraft } : u));
+      setUnitEditId(null);
+    } catch (err) { alert('Failed: ' + (err?.response?.data?.error || err.message)); }
+    finally { setUnitSaving(false); }
   };
 
   const handleDeleteUnit = async (unit) => {
@@ -127,83 +147,6 @@ export default function PlotsPage() {
       setDeleteConfirm(null);
     } finally { setDeleting(false); }
   };
-
-  const propertyColumns = [
-    { header: 'Property ID', accessor: 'formatted_id', className: 'font-mono font-semibold text-blue-600' },
-    { header: 'Seller Phone', accessor: 'seller_phone', className: 'font-mono text-sm' },
-    {
-      header: 'Approval', sortable: true, sortBy: p => p.status || '',
-      accessor: (p) => (
-        <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase border ${getApprovalClasses(p.status)}`}>
-          {p.status || 'pending'}
-        </span>
-      ),
-    },
-    {
-      header: 'Booking Status', sortable: true, sortBy: p => p.booking_status || '',
-      accessor: (p) => (
-        <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase ${STATUS_COLORS[p.booking_status] || 'bg-gray-100 text-gray-600'}`}>
-          {p.booking_status || 'Nil Booking'}
-        </span>
-      ),
-    },
-    {
-      header: 'Total',
-      accessor: (p) => <span className="font-bold text-blue-700">{p.total_plots ?? 0}</span>,
-      sortable: true, sortBy: p => Number(p.total_plots) || 0,
-    },
-    {
-      header: 'Nil', sortable: true, sortBy: p => Number(p.nil_booking) || 0,
-      accessor: (p) => <span className="font-bold text-gray-500">{p.nil_booking ?? 0}</span>,
-    },
-    {
-      header: 'On Bkg', sortable: true, sortBy: p => Number(p.on_booking) || 0,
-      accessor: (p) => <span className="font-bold text-yellow-700">{p.on_booking ?? 0}</span>,
-    },
-    {
-      header: 'Confirmed', sortable: true, sortBy: p => Number(p.confirmed) || 0,
-      accessor: (p) => <span className="font-bold text-red-600">{p.confirmed ?? 0}</span>,
-    },
-    {
-      header: 'Unreg', sortable: true, sortBy: p => Number(p.unregistered) || 0,
-      accessor: (p) => <span className="font-bold text-red-700">{p.unregistered ?? 0}</span>,
-    },
-    {
-      header: 'Reg', sortable: true, sortBy: p => Number(p.registered) || 0,
-      accessor: (p) => <span className="font-bold text-red-800">{p.registered ?? 0}</span>,
-    },
-    {
-      header: 'Sold', sortable: true, sortBy: p => Number(p.sold) || 0,
-      accessor: (p) => <span className="font-bold text-gray-800">{p.sold ?? 0}</span>,
-    },
-    {
-      header: 'Created',
-      accessor: (p) => p.created_at?.split('T')[0] || '-',
-      sortable: true, sortBy: p => new Date(p.created_at).getTime(),
-      className: 'text-xs text-gray-500',
-    },
-  ];
-
-  const unitColumns = [
-    { header: 'Unit ID', accessor: 'plot_unit_id', className: 'font-mono text-xs text-gray-500' },
-    { header: 'Property', accessor: 'property_formatted_id', className: 'font-mono text-xs text-blue-600' },
-    { header: 'Plot #', accessor: 'plot_number', className: 'font-bold' },
-    {
-      header: 'Status', sortable: true, sortBy: u => u.status || '',
-      accessor: (u) => (
-        <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase ${STATUS_COLORS[u.status] || 'bg-gray-100 text-gray-600'}`}>
-          {u.status || 'Nil Booking'}
-        </span>
-      ),
-    },
-    { header: 'Token Amt', accessor: u => u.token_amount ? `₹${Number(u.token_amount).toLocaleString()}` : '-', className: 'text-sm' },
-    { header: 'Token Paid To', accessor: 'token_paid_to', className: 'text-xs' },
-    { header: 'Advance Amt', accessor: u => u.advance_amount ? `₹${Number(u.advance_amount).toLocaleString()}` : '-', className: 'text-sm' },
-    { header: 'Sold Rate', accessor: u => u.sold_rate ? `₹${Number(u.sold_rate).toLocaleString()}` : '-', className: 'text-sm' },
-    { header: 'Sold Date', accessor: u => u.sold_date ? String(u.sold_date).slice(0, 10) : '-', className: 'text-xs text-gray-500' },
-    { header: 'Doc Number', accessor: 'document_number', className: 'text-xs' },
-    { header: 'Buyer Phone', accessor: 'buyer_phone', className: 'font-mono text-xs' },
-  ];
 
   const tabClass = (tab) =>
     `px-5 py-3 text-sm font-bold border-b-2 transition-colors ${activeTab === tab ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-400 hover:text-gray-600'}`;
@@ -223,16 +166,100 @@ export default function PlotsPage() {
       {activeTab === 'properties' && (
         loading ? <Loader /> : (
           <DataTable
-            columns={propertyColumns}
+            columns={[
+              { header: 'Property ID', accessor: 'formatted_id', className: 'font-mono font-semibold text-blue-600' },
+              { header: 'Seller Name', accessor: 'seller_name', editable: true, filterable: true, filterKey: 'seller_name' },
+              { header: 'Seller Phone', accessor: 'seller_phone', editable: true, editField: 'contact_phone', filterable: true, filterKey: 'seller_phone' },
+              { header: 'Alt Phone', accessor: 'alternate_contact_phone', editable: true, filterable: true, filterKey: 'alternate_contact_phone' },
+              { header: 'Alt Name', accessor: 'alternate_seller_name', editable: true, filterable: true, filterKey: 'alternate_seller_name' },
+              {
+                header: 'Approval', sortable: true, sortBy: p => p.status || '',
+                accessor: (p) => <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase border ${getApprovalClasses(p.status)}`}>{p.status || 'pending'}</span>,
+                editable: true, editType: 'select', editField: 'status',
+                editOptions: [{ value: 'pending', label: 'Pending' }, { value: 'approved', label: 'Approved' }, { value: 'rejected', label: 'Rejected' }],
+              },
+              {
+                header: 'Booking Status', sortable: true, sortBy: p => p.booking_status || '',
+                accessor: (p) => <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase ${STATUS_COLORS[p.booking_status] || 'bg-gray-100 text-gray-600'}`}>{p.booking_status || 'Nil Booking'}</span>,
+                editable: true, editType: 'select', editField: 'booking_status',
+                editOptions: SALE_STATUS_OPTIONS.map(v => ({ value: v, label: v })),
+              },
+              { header: 'Rate (₹)', accessor: p => p.price ? `₹${Number(p.price).toLocaleString()}${p.rate_unit ? ' / ' + p.rate_unit : ''}` : '-', editable: true, editType: 'number', editField: 'price', filterable: true, filterKey: 'price' },
+              { header: 'Rate Unit', accessor: p => p.rate_unit || '-', editable: true, editType: 'select', editField: 'rate_unit', editOptions: RATE_UNIT_OPTIONS.map(v => ({ value: v, label: v || '— None —' })), filterable: true, filterKey: 'rate_unit' },
+              { header: 'Area Size', accessor: 'area_size', editable: true, filterable: true, filterKey: 'area_size' },
+              { header: 'Survey No.', accessor: 'survey_number', editable: true, filterable: true, filterKey: 'survey_number' },
+              { header: 'Layout Name', accessor: 'layout_name', editable: true, filterable: true, filterKey: 'layout_name' },
+              { header: 'Token Amt', accessor: p => p.token_amount ? `₹${Number(p.token_amount).toLocaleString()}` : '-', editable: true, editType: 'number', editField: 'token_amount', filterable: true, filterKey: 'token_amount' },
+              { header: 'Token Paid To', accessor: 'token_paid_to', editable: true, editType: 'select', editOptions: TOKEN_PAID_TO_OPTIONS.map(v => ({ value: v, label: v || '— None —' })), filterable: true, filterKey: 'token_paid_to' },
+              { header: 'Advance Amt', accessor: p => p.advance_amount ? `₹${Number(p.advance_amount).toLocaleString()}` : '-', editable: true, editType: 'number', editField: 'advance_amount', filterable: true, filterKey: 'advance_amount' },
+              { header: 'Sold Rate', accessor: p => p.sold_rate ? `₹${Number(p.sold_rate).toLocaleString()}` : '-', editable: true, editType: 'number', editField: 'sold_rate', filterable: true, filterKey: 'sold_rate' },
+              { header: 'Sold Date', accessor: p => p.sold_date ? String(p.sold_date).slice(0, 10) : '-', editable: true, editType: 'date', editField: 'sold_date', filterable: true, filterKey: 'sold_date' },
+              { header: 'DTCP', accessor: 'dtcp', editable: true, filterable: true, filterKey: 'dtcp' },
+              { header: 'Sub Reg. Office', accessor: 'sub_registrar_office', editable: true, filterable: true, filterKey: 'sub_registrar_office' },
+              {
+                header: 'Total', accessor: (p) => <span className="font-bold text-blue-700">{p.total_plots ?? 0}</span>,
+                sortable: true, sortBy: p => Number(p.total_plots) || 0,
+              },
+              {
+                header: 'Nil', sortable: true, sortBy: p => Number(p.nil_booking_count) || 0,
+                accessor: (p) => <LabelCell labels={p.nil_booking} colorClass="text-gray-500" />,
+                editable: true, editType: 'text', editField: 'nil_labels',
+              },
+              {
+                header: 'On Bkg', sortable: true, sortBy: p => Number(p.on_booking_count) || 0,
+                accessor: (p) => <LabelCell labels={p.on_booking} colorClass="text-yellow-700" />,
+                editable: true, editType: 'text', editField: 'on_labels',
+              },
+              {
+                header: 'Confirmed', sortable: true, sortBy: p => Number(p.confirmed_count) || 0,
+                accessor: (p) => <LabelCell labels={p.confirmed} colorClass="text-red-600" />,
+                editable: true, editType: 'text', editField: 'confirmed_labels',
+              },
+              {
+                header: 'Unreg', sortable: true, sortBy: p => Number(p.unregistered_count) || 0,
+                accessor: (p) => <LabelCell labels={p.unregistered} colorClass="text-red-700" />,
+                editable: true, editType: 'text', editField: 'unreg_labels',
+              },
+              {
+                header: 'Reg', sortable: true, sortBy: p => Number(p.registered_count) || 0,
+                accessor: (p) => <LabelCell labels={p.registered} colorClass="text-red-800" />,
+                editable: true, editType: 'text', editField: 'reg_labels',
+              },
+              {
+                header: 'Sold', sortable: true, sortBy: p => Number(p.sold_count) || 0,
+                accessor: (p) => <LabelCell labels={p.sold} colorClass="text-gray-800" />,
+                editable: true, editType: 'text', editField: 'sold_labels',
+              },
+              { header: 'Address', accessor: 'address', editable: true, editType: 'textarea', filterable: true, filterKey: 'address' },
+              { header: 'Latitude', accessor: 'latitude', filterable: true, filterKey: 'latitude' },
+              { header: 'Longitude', accessor: 'longitude', filterable: true, filterKey: 'longitude' },
+              { header: 'Created', accessor: (p) => p.created_at?.split('T')[0] || '-', sortable: true, sortBy: p => new Date(p.created_at).getTime(), className: 'text-xs text-gray-500' },
+            ]}
             data={plots}
             emptyMessage="No plot properties found"
-            actions={(p) => (
-              <button
-                onClick={(e) => { e.stopPropagation(); handleOpenEditor(p); }}
-                className="px-3 py-1 bg-blue-50 text-blue-600 text-[10px] font-bold rounded-lg border border-blue-100 hover:bg-blue-100 uppercase tracking-widest"
-              >
-                Open Editor
-              </button>
+            editingRowId={propEditId}
+            editDraft={propEditDraft}
+            onEditDraftChange={handlePropDraftChange}
+            onCellDoubleClick={handlePropInlineEdit}
+            cellSaving={propSaving}
+            actions={(p, isRowEditing) => (
+              <div className="flex gap-1 items-center">
+                {isRowEditing ? (
+                  <>
+                    <button onClick={handlePropInlineSave} disabled={propSaving} className="px-2 py-1 text-[10px] font-bold text-white bg-amber-500 rounded-lg hover:bg-amber-600 disabled:opacity-60 uppercase">
+                      {propSaving ? '…' : 'Save'}
+                    </button>
+                    <button onClick={handlePropInlineCancel} className="px-2 py-1 text-[10px] font-bold text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 uppercase">✕</button>
+                  </>
+                ) : (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleOpenEditor(p); }}
+                    className="px-3 py-1 bg-blue-50 text-blue-600 text-[10px] font-bold rounded-lg border border-blue-100 hover:bg-blue-100 uppercase tracking-widest"
+                  >
+                    Editor
+                  </button>
+                )}
+              </div>
             )}
           />
         )
@@ -240,54 +267,50 @@ export default function PlotsPage() {
 
       {activeTab === 'units' && (
         unitsLoading ? <Loader /> : (
-          <div className="overflow-x-auto rounded-2xl border border-gray-200 shadow-sm">
-            <table className="min-w-full text-sm">
-              <thead className="bg-gray-50">
-                <tr>
-                  {unitColumns.map(col => (
-                    <th key={col.header} className="px-4 py-3 text-left text-[10px] font-black uppercase tracking-widest text-gray-500 whitespace-nowrap">
-                      {col.header}
-                    </th>
-                  ))}
-                  <th className="px-4 py-3 text-left text-[10px] font-black uppercase tracking-widest text-gray-500">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {plotUnits.length === 0 ? (
-                  <tr><td colSpan={unitColumns.length + 1} className="px-4 py-8 text-center text-gray-400">No plot units found</td></tr>
-                ) : plotUnits.map(u => (
-                  <tr key={u.plot_unit_id} className="hover:bg-gray-50 transition-colors">
-                    {unitColumns.map(col => (
-                      <td key={col.header} className={`px-4 py-3 whitespace-nowrap ${col.className || ''}`}>
-                        {typeof col.accessor === 'function' ? col.accessor(u) : u[col.accessor] ?? '-'}
-                      </td>
-                    ))}
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => setEditUnit(u)}
-                          className="px-3 py-1 bg-blue-50 text-blue-600 text-[10px] font-bold rounded-lg border border-blue-100 hover:bg-blue-100 uppercase"
-                        >Edit</button>
-                        <button
-                          onClick={() => setDeleteConfirm(u)}
-                          className="px-3 py-1 bg-red-50 text-red-600 text-[10px] font-bold rounded-lg border border-red-100 hover:bg-red-100 uppercase"
-                        >Delete</button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <DataTable
+            columns={[
+              { header: 'Unit ID', accessor: 'plot_unit_id', className: 'font-mono text-xs text-gray-500' },
+              { header: 'Property', accessor: 'property_formatted_id', className: 'font-mono text-xs text-blue-600' },
+              { header: 'Plot #', accessor: 'plot_number', className: 'font-bold' },
+              {
+                header: 'Status', sortable: true, sortBy: u => u.status || '',
+                accessor: (u) => <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase ${STATUS_COLORS[u.status] || 'bg-gray-100 text-gray-600'}`}>{u.status || 'Nil Booking'}</span>,
+                editable: true, editType: 'select', editField: 'status',
+                editOptions: UNIT_STATUS_OPTIONS.map(v => ({ value: v, label: v })),
+              },
+              { header: 'Token Amt', accessor: u => u.token_amount ? `₹${Number(u.token_amount).toLocaleString()}` : '-', editable: true, editType: 'number', editField: 'token_amount', filterable: true, filterKey: 'token_amount' },
+              { header: 'Token Paid To', accessor: 'token_paid_to', editable: true, editType: 'select', editOptions: TOKEN_PAID_TO_OPTIONS.map(v => ({ value: v, label: v || '— None —' })), filterable: true, filterKey: 'token_paid_to' },
+              { header: 'Advance Amt', accessor: u => u.advance_amount ? `₹${Number(u.advance_amount).toLocaleString()}` : '-', editable: true, editType: 'number', editField: 'advance_amount', filterable: true, filterKey: 'advance_amount' },
+              { header: 'Sold Rate', accessor: u => u.sold_rate ? `₹${Number(u.sold_rate).toLocaleString()}` : '-', editable: true, editType: 'number', editField: 'sold_rate', filterable: true, filterKey: 'sold_rate' },
+              { header: 'Sold Date', accessor: u => u.sold_date ? String(u.sold_date).slice(0, 10) : '-', editable: true, editType: 'date', editField: 'sold_date', filterable: true, filterKey: 'sold_date' },
+              { header: 'Doc Number', accessor: 'document_number', editable: true, filterable: true, filterKey: 'document_number' },
+              { header: 'Buyer Phone', accessor: 'buyer_phone', className: 'font-mono text-xs', filterable: true, filterKey: 'buyer_phone' },
+            ]}
+            data={plotUnits}
+            emptyMessage="No plot units found"
+            editingRowId={unitEditId}
+            editDraft={unitEditDraft}
+            onEditDraftChange={handleUnitDraftChange}
+            onCellDoubleClick={handleUnitInlineEdit}
+            cellSaving={unitSaving}
+            actions={(u, isRowEditing) => (
+              <div className="flex gap-1 items-center">
+                {isRowEditing ? (
+                  <>
+                    <button onClick={handleUnitInlineSave} disabled={unitSaving} className="px-2 py-1 text-[10px] font-bold text-white bg-amber-500 rounded-lg hover:bg-amber-600 disabled:opacity-60 uppercase">
+                      {unitSaving ? '…' : 'Save'}
+                    </button>
+                    <button onClick={handleUnitInlineCancel} className="px-2 py-1 text-[10px] font-bold text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 uppercase">✕</button>
+                  </>
+                ) : (
+                  <button onClick={() => setDeleteConfirm(u)} className="p-1.5 text-red-600 bg-red-50 hover:bg-red-100 rounded-lg border border-red-100" title="Delete">
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                  </button>
+                )}
+              </div>
+            )}
+          />
         )
-      )}
-
-      {editUnit && (
-        <UnitEditModal
-          unit={editUnit}
-          onClose={() => setEditUnit(null)}
-          onSave={(form) => handleSaveUnit(editUnit, form)}
-        />
       )}
 
       {deleteConfirm && (

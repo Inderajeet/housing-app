@@ -250,7 +250,7 @@ const BookingFlow = ({
   const completedOverviewIndexes = getCompletedOverviewIndexes();
   const bookedPeopleCount = Number(bookedPeopleCountProp) || 0;
 
-  const getPrimaryCtaLabel = () => "Book Contact";
+  const getPrimaryCtaLabel = () => "Book Visit";
 
   const getSubtitlePoints = (subtitle) => {
     if (Array.isArray(subtitle)) return subtitle.filter(Boolean);

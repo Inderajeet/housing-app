@@ -153,6 +153,14 @@ export const getFlatProperties = () => adminApi.get('/flat-projects');
 export const getFlatLayout = (id) => adminApi.get(`/flat-units/${id}`);
 export const saveFlatLayout = (id, elements) => adminApi.post(`/flat-units/${id}`, { elements });
 
+// Bulk plot unit status update by label/plot_number
+export const bulkUpdatePlotStatuses = (propertyId, statusLabels) =>
+  adminApi.put('/plot-units-bulk-status', { property_id: propertyId, ...statusLabels });
+
+// Image blur edit — server applies blur to specified regions and re-uploads
+export const blurImageRegions = (assetId, blurRegions) =>
+  adminApi.post('/property-assets/blur', { asset_id: assetId, blur_regions: blurRegions });
+
 // Individual Plot / Flat unit CRUD
 export const getAllPlotUnits = () => adminApi.get('/plot-unit-list');
 export const updatePlotUnit = (id, data) => adminApi.put(`/plot-unit-list/${id}`, data);

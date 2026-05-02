@@ -41,6 +41,7 @@ export const getAll = async () => {
       r.bhk, r.rent_amount, r.advance_amount, r.property_use, r.furnished_status, r.rent_status,
       r.landmark, r.street_name, r.extent_area, r.extent_unit,
       r.alternate_contact_phone, r.alternate_seller_name,
+      r.token_amount, r.token_paid_to, r.rent_out_rate, r.rent_out_date,
       s.name as seller_name, s.phone_number as seller_phone
     FROM properties p
     JOIN rent_properties r ON r.property_id = p.property_id
@@ -61,6 +62,7 @@ export const getById = async (propertyId) => {
       r.bhk, r.rent_amount, r.advance_amount, r.property_use, r.furnished_status, r.rent_status,
       r.landmark, r.street_name, r.extent_area, r.extent_unit,
       r.alternate_contact_phone, r.alternate_seller_name,
+      r.token_amount, r.token_paid_to, r.rent_out_rate, r.rent_out_date,
       s.name as seller_name, s.phone_number as seller_phone
     FROM properties p
     JOIN rent_properties r ON r.property_id = p.property_id
@@ -157,11 +159,13 @@ export const updateRentProperty = async (propertyId, data, files = {}) => {
       toStr(data.status), toFloat(data.latitude), toFloat(data.longitude), liveImageUrl, propertyId
     );
     await tx.$executeRawUnsafe(
-      `UPDATE rent_properties SET bhk=$1, rent_amount=$2, advance_amount=$3, property_use=$4, furnished_status=$5, rent_status=$6, landmark=$7, street_name=$8, extent_area=$9, extent_unit=$10, alternate_contact_phone=$11, alternate_seller_name=$12, description=$13 WHERE property_id=$14`,
-      toInt(data.bhk), toInt(data.rent_amount) || 0, toInt(data.advance_amount) || 0,
+      `UPDATE rent_properties SET bhk=$1, rent_amount=$2, advance_amount=$3, property_use=$4, furnished_status=$5, rent_status=$6, landmark=$7, street_name=$8, extent_area=$9, extent_unit=$10, alternate_contact_phone=$11, alternate_seller_name=$12, description=$13, token_amount=$14, token_paid_to=$15, rent_out_rate=$16, rent_out_date=$17 WHERE property_id=$18`,
+      toInt(data.bhk), toFloat(data.rent_amount) || 0, toFloat(data.advance_amount) || 0,
       toStr(data.property_use), toStr(data.furnished_status), toStr(data.rent_status),
       toStr(data.landmark), toStr(data.street_name), extentArea, toStr(data.extent_unit),
-      toStr(data.alternate_contact_phone), toStr(data.alternate_seller_name), toStr(data.description), propertyId
+      toStr(data.alternate_contact_phone), toStr(data.alternate_seller_name), toStr(data.description),
+      toFloat(data.token_amount), toStr(data.token_paid_to), toFloat(data.rent_out_rate),
+      data.rent_out_date && data.rent_out_date !== '' ? new Date(data.rent_out_date) : null, propertyId
     );
   });
 

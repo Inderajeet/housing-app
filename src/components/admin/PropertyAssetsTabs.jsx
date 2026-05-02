@@ -2,6 +2,7 @@
 
 import React, { useMemo, useState, useRef, useEffect } from 'react';
 import { adminApi } from '../../lib/adminApi.js';
+import ImageBlurEditor from './ImageBlurEditor.jsx';
 
 const Spinner = () => (
   <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
@@ -26,6 +27,7 @@ export default function PropertyAssetsTabs({ propertyId, assets, setAssets, isRe
   const [uploading, setUploading] = useState(false);
   const [uploadingDrawing, setUploadingDrawing] = useState(false);
   const drawingFileRef = useRef();
+  const [blurEditAsset, setBlurEditAsset] = useState(null);
 
   const tabClass = (tab) => `py-3 text-[10px] font-bold uppercase tracking-widest transition-all ${activeTab === tab ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-400 hover:text-gray-600'}`;
 
@@ -138,7 +140,16 @@ export default function PropertyAssetsTabs({ propertyId, assets, setAssets, isRe
                 </div>
               )}
               {!isReadOnly && (
-                <button onClick={() => deleteAssets([a.asset_id])} className="absolute top-2 right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-xs">✕</button>
+                <div className="absolute top-2 right-2 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                  {type === 'image' && (
+                    <button
+                      onClick={() => setBlurEditAsset(a)}
+                      className="w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center text-xs font-bold"
+                      title="Edit / blur"
+                    >✎</button>
+                  )}
+                  <button onClick={() => deleteAssets([a.asset_id])} className="w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center text-xs">✕</button>
+                </div>
               )}
             </div>
           ))}
@@ -149,6 +160,13 @@ export default function PropertyAssetsTabs({ propertyId, assets, setAssets, isRe
 
   return (
     <div>
+      {blurEditAsset && (
+        <ImageBlurEditor
+          asset={blurEditAsset}
+          onSaved={() => refreshAssets()}
+          onClose={() => setBlurEditAsset(null)}
+        />
+      )}
       {!forcedTab && (
         <div className="flex gap-5 border-b mb-6 overflow-x-auto">
           {hasLiveImage && <button className={tabClass('live-image')} onClick={() => setActiveTab('live-image')}>Cover Image</button>}

@@ -218,12 +218,6 @@ export default function ProjectDetailsView({ routeIdentifier = '', routeMode = n
                 <div className="panel-content boundary-panel-content">
                   <h2 className="section-title">Boundary Details</h2>
                   <div className="boundary-card">
-                    {project.street_name_or_road_name && (
-                      <div className="boundary-street-row">
-                        <span className="label">Street</span>
-                        <span className="value">{project.street_name_or_road_name}</span>
-                      </div>
-                    )}
                     <div className="boundary-grid">
                       <div className="boundary-input north">
                         <label>North</label>
@@ -281,7 +275,7 @@ export default function ProjectDetailsView({ routeIdentifier = '', routeMode = n
 
             <button type="button" className={`panel-thumb booking-thumb ${activePanel === 'booking' ? 'active' : ''}`} onClick={() => setActivePanel('booking')}>
               <CalendarCheck size={18} />
-              <span>Book Contact</span>
+              <span>Book Visit</span>
             </button>
 
             {showBoundaryPanel && (

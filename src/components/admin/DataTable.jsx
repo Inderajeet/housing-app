@@ -7,6 +7,9 @@ const DataTable = ({
   itemsPerPage = 10, showPagination = true, onRowClick,
   columnFilters = {}, onColumnFilterChange,
   selectable = false, selectedIds = new Set(), onSelectionChange,
+  expandedRowId = null, renderExpandedRow = null,
+  editingRowId = null, editDraft = {}, onEditDraftChange = null,
+  onCellDoubleClick = null, cellSaving = false,
 }) => {
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
   const [currentPage, setCurrentPage] = useState(1);
@@ -39,7 +42,7 @@ const DataTable = ({
   const paginatedData = sortedData.slice(startIndex, startIndex + itemsPerPageState);
 
   const getRowId = (item, fallbackIdx) =>
-    item.property_id ?? item.enquiry_id ?? item.seller_id ?? item.buyer_id ?? item.booking_id ?? fallbackIdx;
+    item.plot_unit_id ?? item.property_id ?? item.enquiry_id ?? item.seller_id ?? item.buyer_id ?? item.booking_id ?? fallbackIdx;
 
   const pageRowIds = paginatedData.map((item, i) => getRowId(item, startIndex + i));
   const selectedOnPage = pageRowIds.filter(id => selectedIds.has(id));
@@ -80,6 +83,48 @@ const DataTable = ({
 
   const totalColSpan = columns.length + (hasActions ? 1 : 0) + (selectable ? 1 : 0);
 
+  const inputCls = 'min-w-[80px] max-w-[180px] w-full px-1.5 py-0.5 text-xs border border-amber-400 rounded-md bg-white outline-none focus:ring-2 focus:ring-amber-400';
+
+  const renderEditCell = (col, field) => {
+    const val = editDraft?.[field] ?? '';
+    if (col.editType === 'select') {
+      return (
+        <select
+          value={val}
+          onChange={e => onEditDraftChange?.(field, e.target.value)}
+          className={inputCls}
+          onClick={e => e.stopPropagation()}
+        >
+          {(col.editOptions || []).map(o => {
+            const v = typeof o === 'object' ? o.value : o;
+            const l = typeof o === 'object' ? o.label : (o || '— None —');
+            return <option key={v} value={v}>{l}</option>;
+          })}
+        </select>
+      );
+    }
+    if (col.editType === 'textarea') {
+      return (
+        <textarea
+          value={val}
+          onChange={e => onEditDraftChange?.(field, e.target.value)}
+          rows={2}
+          className={`${inputCls} resize-none`}
+          onClick={e => e.stopPropagation()}
+        />
+      );
+    }
+    return (
+      <input
+        type={col.editType || 'text'}
+        value={val}
+        onChange={e => onEditDraftChange?.(field, e.target.value)}
+        className={inputCls}
+        onClick={e => e.stopPropagation()}
+      />
+    );
+  };
+
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
       <div className="overflow-x-auto">
@@ -104,6 +149,7 @@ const DataTable = ({
                     className={`px-5 py-3.5 text-xs font-bold text-gray-500 uppercase tracking-widest whitespace-nowrap ${isSortable ? 'cursor-pointer hover:bg-gray-100' : 'cursor-default'} ${col.className || ''}`}>
                     <div className="flex items-center space-x-1">
                       <span>{col.header}</span>
+                      {col.editable && <span className="text-amber-400" title="Double-click cell to edit">✎</span>}
                       {isSortable && <svg className={`w-3 h-3 transition-transform ${sortConfig.key === col.accessor && sortConfig.direction === 'desc' ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M19 9l-7 7-7-7" /></svg>}
                     </div>
                   </th>
@@ -140,48 +186,70 @@ const DataTable = ({
             {paginatedData.length > 0 ? paginatedData.map((item, index) => {
               const rowId = getRowId(item, startIndex + index);
               const isSelected = selectedIds.has(rowId);
+              const isExpanded = renderExpandedRow && expandedRowId === rowId;
+              const isRowEditing = editingRowId != null && rowId === editingRowId;
               return (
-                <tr
-                  key={rowId}
-                  className={`hover:bg-blue-50/20 transition-colors ${onRowClick ? 'cursor-pointer' : ''} ${isSelected ? 'bg-emerald-50/30' : ''}`}
-                  onClick={onRowClick ? () => onRowClick(item) : undefined}
-                >
-                  {selectable && (
-                    <td className="px-4 py-3.5 w-10" onClick={e => e.stopPropagation()}>
-                      <input
-                        type="checkbox"
-                        checked={isSelected}
-                        onChange={() => handleSelectRow(rowId)}
-                        className="w-4 h-4 accent-emerald-600 cursor-pointer"
-                      />
-                    </td>
+                <React.Fragment key={rowId}>
+                  <tr
+                    className={`transition-colors ${onRowClick && !isRowEditing ? 'cursor-pointer' : ''} ${isSelected ? 'bg-emerald-50/30' : 'hover:bg-blue-50/20'} ${isExpanded ? 'bg-amber-50/40' : ''} ${isRowEditing ? '!bg-amber-50 ring-1 ring-inset ring-amber-300' : ''}`}
+                    onClick={onRowClick && !isRowEditing ? () => onRowClick(item) : undefined}
+                  >
+                    {selectable && (
+                      <td className="px-4 py-3.5 w-10" onClick={e => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => handleSelectRow(rowId)}
+                          className="w-4 h-4 accent-emerald-600 cursor-pointer"
+                        />
+                      </td>
+                    )}
+                    {columns.map((col, ci) => {
+                      const editField = col.editField || (typeof col.accessor === 'string' ? col.accessor : null);
+                      const showEditInput = isRowEditing && col.editable && editField;
+                      const canStartEdit = !editingRowId && col.editable && onCellDoubleClick;
+                      return (
+                        <td
+                          key={ci}
+                          className={`px-5 py-3.5 text-sm text-gray-700 whitespace-nowrap ${col.className || ''} ${canStartEdit ? 'cursor-text' : ''}`}
+                          onDoubleClick={canStartEdit ? (e) => { e.stopPropagation(); onCellDoubleClick(item); } : undefined}
+                          title={canStartEdit ? 'Double-click to edit row' : undefined}
+                        >
+                          {showEditInput
+                            ? renderEditCell(col, editField)
+                            : (typeof col.accessor === 'function' ? col.accessor(item) : item?.[col.accessor] ?? '-')}
+                        </td>
+                      );
+                    })}
+                    {hasActions && (
+                      <td
+                        className="px-5 py-3.5 text-sm text-center whitespace-nowrap sticky right-0 bg-white border-l border-gray-200 shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.06)] z-10"
+                        onClick={e => e.stopPropagation()}
+                      >
+                        <div className="flex justify-center items-center space-x-1.5">
+                          {onView && !isRowEditing && (
+                            <button onClick={() => onView(item)} className="p-1.5 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg border border-blue-100" title="View">
+                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                            </button>
+                          )}
+                          {onEdit && !isRowEditing && (
+                            <button onClick={() => onEdit(item)} className="p-1.5 text-amber-600 bg-amber-50 hover:bg-amber-100 rounded-lg border border-amber-100" title="Edit">
+                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                            </button>
+                          )}
+                          {actions && actions(item, isRowEditing)}
+                        </div>
+                      </td>
+                    )}
+                  </tr>
+                  {isExpanded && (
+                    <tr>
+                      <td colSpan={totalColSpan} className="p-0 border-b-2 border-amber-200">
+                        {renderExpandedRow(item)}
+                      </td>
+                    </tr>
                   )}
-                  {columns.map((col, ci) => (
-                    <td key={ci} className={`px-5 py-3.5 text-sm text-gray-700 whitespace-nowrap ${col.className || ''}`}>
-                      {typeof col.accessor === 'function' ? col.accessor(item) : item?.[col.accessor] ?? '-'}
-                    </td>
-                  ))}
-                  {hasActions && (
-                    <td
-                      className="px-5 py-3.5 text-sm text-center whitespace-nowrap sticky right-0 bg-white border-l border-gray-200 shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.06)] z-10"
-                      onClick={e => e.stopPropagation()}
-                    >
-                      <div className="flex justify-center items-center space-x-1.5">
-                        {onView && (
-                          <button onClick={() => onView(item)} className="p-1.5 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg border border-blue-100" title="View">
-                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
-                          </button>
-                        )}
-                        {onEdit && (
-                          <button onClick={() => onEdit(item)} className="p-1.5 text-amber-600 bg-amber-50 hover:bg-amber-100 rounded-lg border border-amber-100" title="Edit">
-                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
-                          </button>
-                        )}
-                        {actions && actions(item)}
-                      </div>
-                    </td>
-                  )}
-                </tr>
+                </React.Fragment>
               );
             }) : (
               <tr>

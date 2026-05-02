@@ -24,12 +24,13 @@ const STATUS_COLORS = {
 };
 
 const TOKEN_PAID_TO_OPTIONS = ['', 'Paid Us', 'Paid to Owner', 'Owner returned', 'Returned to buyer'];
+const RATE_UNIT_OPTIONS = ['', 'per sqft', 'per inch', 'per cent', 'per ground', 'per acre', 'per sq.meter'];
 
 const EMPTY_FORM = {
   contact_phone: '', seller_name: '', alternate_contact_phone: '', alternate_seller_name: '',
   title: '', address: '', latitude: '', longitude: '',
   district_id: '', taluk_id: '', village_id: '',
-  status: 'pending', sale_type: SaleType.LAND, price: '', area_size: '',
+  status: 'pending', sale_type: SaleType.LAND, price: '', rate_unit: '', area_size: '',
   survey_number: '', street_name_or_road_name: '', layout_name: '',
   boundary_north: '', boundary_south: '', boundary_east: '', boundary_west: '',
   sale_status: SaleStatus.NIL_BOOKING, total_units_count: '', booked_units: '', open_units: '',
@@ -82,6 +83,26 @@ export default function SalePropertiesPage() {
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [bulkDeleting, setBulkDeleting] = useState(false);
   const [showBulkConfirm, setShowBulkConfirm] = useState(false);
+
+  const [inlineEditId, setInlineEditId] = useState(null);
+  const [inlineEditDraft, setInlineEditDraft] = useState({});
+  const [inlineSaving, setInlineSaving] = useState(false);
+
+  const handleInlineEdit = (p) => {
+    setInlineEditId(p.property_id);
+    setInlineEditDraft({ ...p, sold_date: p.sold_date ? String(p.sold_date).slice(0, 10) : '' });
+  };
+  const handleInlineCancel = () => { setInlineEditId(null); setInlineEditDraft({}); };
+  const handleInlineDraftChange = (key, val) => setInlineEditDraft(prev => ({ ...prev, [key]: val }));
+  const handleInlineSave = async () => {
+    setInlineSaving(true);
+    try {
+      await updateSaleProperty(inlineEditId, inlineEditDraft);
+      setAllProperties(prev => prev.map(p => p.property_id === inlineEditId ? { ...p, ...inlineEditDraft } : p));
+      setInlineEditId(null);
+    } catch (err) { alert('Failed: ' + (err?.response?.data?.error || err.message)); }
+    finally { setInlineSaving(false); }
+  };
 
   const showExtraFields = form.sale_type?.toUpperCase() === 'PLOT' || form.sale_type?.toUpperCase() === 'FLAT';
   const isNewProperty = !selected?.property_id;
@@ -511,43 +532,80 @@ export default function SalePropertiesPage() {
           selectable
           selectedIds={selectedIds}
           onSelectionChange={setSelectedIds}
+          editingRowId={inlineEditId}
+          editDraft={inlineEditDraft}
+          onEditDraftChange={handleInlineDraftChange}
+          onCellDoubleClick={handleInlineEdit}
+          cellSaving={inlineSaving}
           columns={[
             { header: 'ID', accessor: 'formatted_id' },
             { header: 'Registered', accessor: p => new Date(p.created_at).toLocaleDateString(), sortable: true, sortBy: p => new Date(p.created_at).getTime() },
-            { header: 'Type', accessor: 'sale_type' },
+            { header: 'Type', accessor: 'sale_type', editable: true, editType: 'select', editOptions: Object.values(SaleType).map(v => ({ value: v, label: v })) },
             {
               header: 'Approval', sortable: true, sortBy: p => p.status || 'pending',
-              accessor: p => {
-                const s = p.status || 'pending';
-                const c = { approved: 'bg-green-100 text-green-800 border-green-200', pending: 'bg-yellow-100 text-yellow-800 border-yellow-200', rejected: 'bg-red-100 text-red-800 border-red-200' };
-                return <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase border ${c[s] || 'bg-gray-100 text-gray-800 border-gray-200'}`}>{s.charAt(0).toUpperCase() + s.slice(1)}</span>;
-              }
+              accessor: p => { const s = p.status || 'pending'; const c = { approved: 'bg-green-100 text-green-800 border-green-200', pending: 'bg-yellow-100 text-yellow-800 border-yellow-200', rejected: 'bg-red-100 text-red-800 border-red-200' }; return <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase border ${c[s] || 'bg-gray-100 text-gray-800 border-gray-200'}`}>{s.charAt(0).toUpperCase() + s.slice(1)}</span>; },
+              editable: true, editType: 'select', editField: 'status',
+              editOptions: [{ value: 'pending', label: 'Pending' }, { value: 'approved', label: 'Approved' }, { value: 'rejected', label: 'Rejected' }],
             },
-            { header: 'Booking Status', sortable: true, sortBy: p => p.sale_status || '', accessor: p => <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase ${STATUS_COLORS[p.sale_status] || 'bg-gray-200'}`}>{p.sale_status}</span> },
+            {
+              header: 'Booking Status', sortable: true, sortBy: p => p.sale_status || '',
+              accessor: p => <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase ${STATUS_COLORS[p.sale_status] || 'bg-gray-200'}`}>{p.sale_status}</span>,
+              editable: true, editType: 'select', editField: 'sale_status',
+              editOptions: Object.values(SaleStatus).map(v => ({ value: v, label: v })),
+            },
+            { header: 'Primary Phone', accessor: 'contact_phone', editable: true, filterable: true, filterKey: 'contact_phone', className: 'font-bold text-emerald-600' },
+            { header: 'Alt Phone', accessor: 'alternate_contact_phone', editable: true, filterable: true, filterKey: 'alternate_contact_phone' },
+            { header: 'Primary Name', accessor: 'seller_name', editable: true, filterable: true, filterKey: 'seller_name' },
+            { header: 'Alt Name', accessor: 'alternate_seller_name', editable: true, filterable: true, filterKey: 'alternate_seller_name' },
+            { header: 'Rate (₹)', accessor: p => p.price ? `₹${Number(p.price).toLocaleString()}${p.rate_unit ? ' / ' + p.rate_unit : ''}` : '-', editable: true, editType: 'number', editField: 'price', filterable: true, filterKey: 'price' },
+            { header: 'Rate Unit', accessor: p => p.rate_unit || '-', editable: true, editType: 'select', editField: 'rate_unit', editOptions: RATE_UNIT_OPTIONS.map(v => ({ value: v, label: v || '— None —' })), filterable: true, filterKey: 'rate_unit' },
+            { header: 'Area Size', accessor: 'area_size', editable: true, filterable: true, filterKey: 'area_size' },
+            { header: 'Extension', accessor: 'extension', editable: true, filterable: true, filterKey: 'extension' },
+            { header: 'Survey No.', accessor: 'survey_number', editable: true, filterable: true, filterKey: 'survey_number' },
+            { header: 'Landmark', accessor: 'street_name_or_road_name', editable: true, filterable: true, filterKey: 'street_name_or_road_name' },
+            { header: 'Layout Name', accessor: 'layout_name', editable: true, filterable: true, filterKey: 'layout_name' },
+            { header: 'Token Amt', accessor: p => p.token_amount ? `₹${Number(p.token_amount).toLocaleString()}` : '-', editable: true, editType: 'number', editField: 'token_amount', filterable: true, filterKey: 'token_amount' },
+            { header: 'Token Paid To', accessor: 'token_paid_to', editable: true, editType: 'select', editOptions: TOKEN_PAID_TO_OPTIONS.map(v => ({ value: v, label: v || '— None —' })), filterable: true, filterKey: 'token_paid_to' },
+            { header: 'Advance Amt', accessor: p => p.advance_amount ? `₹${Number(p.advance_amount).toLocaleString()}` : '-', editable: true, editType: 'number', editField: 'advance_amount', filterable: true, filterKey: 'advance_amount' },
+            { header: 'Sold Rate', accessor: p => p.sold_rate ? `₹${Number(p.sold_rate).toLocaleString()}` : '-', editable: true, editType: 'number', editField: 'sold_rate', filterable: true, filterKey: 'sold_rate' },
+            { header: 'Sold Date', accessor: p => p.sold_date ? String(p.sold_date).slice(0, 10) : '-', editable: true, editType: 'date', editField: 'sold_date', filterable: true, filterKey: 'sold_date' },
+            { header: 'Boundary N', accessor: 'boundary_north', editable: true, filterable: true, filterKey: 'boundary_north' },
+            { header: 'Boundary S', accessor: 'boundary_south', editable: true, filterable: true, filterKey: 'boundary_south' },
+            { header: 'Boundary E', accessor: 'boundary_east', editable: true, filterable: true, filterKey: 'boundary_east' },
+            { header: 'Boundary W', accessor: 'boundary_west', editable: true, filterable: true, filterKey: 'boundary_west' },
+            { header: 'DTCP', accessor: 'dtcp', editable: true, filterable: true, filterKey: 'dtcp' },
+            { header: 'Sub Reg. Office', accessor: 'sub_registrar_office', editable: true, filterable: true, filterKey: 'sub_registrar_office' },
+            { header: 'Gift Deed', accessor: 'gift_deed', editable: true, filterable: true, filterKey: 'gift_deed' },
+            { header: 'Parent Doc', accessor: 'parent_document', editable: true, filterable: true, filterKey: 'parent_document' },
             { header: 'Latitude', accessor: 'latitude', filterable: true, filterKey: 'latitude' },
             { header: 'Longitude', accessor: 'longitude', filterable: true, filterKey: 'longitude' },
-            { header: 'Primary Phone', accessor: 'contact_phone', filterable: true, filterKey: 'contact_phone', className: 'font-bold text-emerald-600' },
-            { header: 'Additional Phone', accessor: 'alternate_contact_phone', filterable: true, filterKey: 'alternate_contact_phone' },
-            { header: 'Primary Name', accessor: 'seller_name', filterable: true, filterKey: 'seller_name' },
-            { header: 'Additional Name', accessor: 'alternate_seller_name', filterable: true, filterKey: 'alternate_seller_name' },
-            { header: 'Price (₹)', accessor: p => p.price ? `₹${Number(p.price).toLocaleString()}` : '-', filterable: true, filterKey: 'price' },
-            { header: 'Area Size', accessor: 'area_size', filterable: true, filterKey: 'area_size' },
-            { header: 'Survey No.', accessor: 'survey_number', filterable: true, filterKey: 'survey_number' },
-            { header: 'Landmark', accessor: 'street_name_or_road_name', filterable: true, filterKey: 'street_name_or_road_name' },
-            { header: 'DTCP', accessor: 'dtcp', filterable: true, filterKey: 'dtcp' },
-            { header: 'Sub Reg. Office', accessor: 'sub_registrar_office', filterable: true, filterKey: 'sub_registrar_office' },
-            { header: 'Gift Deed', accessor: 'gift_deed', filterable: true, filterKey: 'gift_deed' },
-            { header: 'Parent Document', accessor: 'parent_document', filterable: true, filterKey: 'parent_document' },
+            { header: 'Address', accessor: 'address', editable: true, editType: 'textarea', filterable: true, filterKey: 'address' },
+            { header: 'Description', accessor: 'description', editable: true, editType: 'textarea', filterable: true, filterKey: 'description' },
           ]}
           data={filteredProperties}
           columnFilters={columnFilters}
           onColumnFilterChange={handleColumnFilterChange}
-          onEdit={p => openModal(p, 'edit')}
           onView={p => openModal(p, 'view')}
-          actions={p => (
-            <button onClick={() => setDeleteTarget(p)} className="p-1.5 text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors border border-red-100" title="Delete">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-            </button>
+          actions={(p, isRowEditing) => (
+            <div className="flex gap-1 items-center">
+              {isRowEditing ? (
+                <>
+                  <button onClick={handleInlineSave} disabled={inlineSaving} className="px-2 py-1 text-[10px] font-bold text-white bg-amber-500 rounded-lg hover:bg-amber-600 disabled:opacity-60 uppercase">
+                    {inlineSaving ? '…' : 'Save'}
+                  </button>
+                  <button onClick={handleInlineCancel} className="px-2 py-1 text-[10px] font-bold text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 uppercase">✕</button>
+                </>
+              ) : (
+                <>
+                  <button onClick={() => openModal(p, 'edit')} className="p-1.5 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg border border-blue-100" title="Full Edit">
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+                  </button>
+                  <button onClick={() => setDeleteTarget(p)} className="p-1.5 text-red-600 bg-red-50 hover:bg-red-100 rounded-lg border border-red-100" title="Delete">
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                  </button>
+                </>
+              )}
+            </div>
           )}
         />
       )}
@@ -631,8 +689,13 @@ export default function SalePropertiesPage() {
                         {Object.values(SaleType).map(s => <option key={s} value={s}>{s}</option>)}
                       </select></div>
                   </div>
-                  <div className="grid grid-cols-2 gap-6">
-                    <div className={fw}><label className={lbl}>Price (₹)</label><input disabled={isReadOnly} value={form.price} onChange={e => handleChange('price', e.target.value)} className={inp()} /></div>
+                  <div className="grid grid-cols-3 gap-6">
+                    <div className={fw}><label className={lbl}>Rate (₹)</label><input disabled={isReadOnly} value={form.price} onChange={e => handleChange('price', e.target.value)} className={inp()} /></div>
+                    <div className={fw}><label className={lbl}>Rate Unit</label>
+                      <select disabled={isReadOnly} value={form.rate_unit || ''} onChange={e => handleChange('rate_unit', e.target.value)} className="w-full px-4 py-2.5 rounded-xl border border-gray-300 font-semibold text-sm">
+                        {RATE_UNIT_OPTIONS.map(o => <option key={o} value={o}>{o || '— Select —'}</option>)}
+                      </select>
+                    </div>
                     <div className={fw}><label className={lbl}>Area Size</label><input disabled={isReadOnly} value={form.area_size} onChange={e => handleChange('area_size', e.target.value)} className={inp()} /></div>
                   </div>
                   <div className="grid grid-cols-2 gap-6">

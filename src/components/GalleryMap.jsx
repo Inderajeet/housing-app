@@ -63,12 +63,16 @@ const GalleryMap = ({ location, status, title, propertyData = null }) => {
   }, [propertyData, title, location?.taluk_name, location?.village_name]);
 
   const isRent = !!popupData?.rent_amount;
-  const detailsType = isRent
-    ? ((popupData?.property_use || '').toLowerCase() === 'commercial' ? 'Commercial' : `${popupData?.bhk || ''} BHK`.trim() || 'Rental')
-    : (capitalizeFirst(popupData?.sale_type) || 'Property');
-  const detailsPrice = isRent ? `${formatPrice(popupData?.rent_amount)}/mo` : formatPrice(popupData?.sale_price);
+  const saleType = (popupData?.sale_type || '').toLowerCase();
+  const isPlotOrFlat = ['plot', 'flat'].includes(saleType);
   const detailsId = popupData?.formatted_id || popupData?.title || title || 'Property';
   const saleTitle = !isRent && popupData?.title ? popupData.title : '';
+
+  const formatRate = () => {
+    const price = formatPrice(popupData?.sale_price || popupData?.price);
+    const unit = popupData?.rate_unit;
+    return unit ? `${price}/${unit}` : price;
+  };
 
   const infoWindowOptions = { pixelOffset: { width: 0, height: -30 }, maxWidth: 280, disableAutoPan: true };
 
@@ -172,20 +176,63 @@ const GalleryMap = ({ location, status, title, propertyData = null }) => {
       <aside className="gallery-map-details-panel" aria-label="Property details">
         <div className="gallery-map-details-head">
           <h3 className="gallery-map-details-title">{detailsId}</h3>
-          <div className="gallery-map-details-price">{detailsPrice}</div>
         </div>
         {saleTitle && <div className="gallery-map-details-subtitle">{saleTitle}</div>}
         <div className="gallery-map-details-list">
-          {isRent && popupData?.advance_amount && (
-            <div className="gallery-map-details-row">
-              <span className="label">Advance</span>
-              <span className="value">{formatPrice(popupData.advance_amount)}</span>
-            </div>
+          {isRent ? (
+            <>
+              <div className="gallery-map-details-row">
+                <span className="label">Rent</span>
+                <span className="value">{formatPrice(popupData?.rent_amount)}/mo</span>
+              </div>
+              {popupData?.advance_amount && (
+                <div className="gallery-map-details-row">
+                  <span className="label">Advance</span>
+                  <span className="value">{formatPrice(popupData.advance_amount)}</span>
+                </div>
+              )}
+              {popupData?.landmark && (
+                <div className="gallery-map-details-row">
+                  <span className="label">Landmark</span>
+                  <span className="value">{popupData.landmark}</span>
+                </div>
+              )}
+            </>
+          ) : isPlotOrFlat ? (
+            <>
+              <div className="gallery-map-details-row">
+                <span className="label">Rate</span>
+                <span className="value">{formatRate()}</span>
+              </div>
+              {popupData?.layout_name && (
+                <div className="gallery-map-details-row">
+                  <span className="label">Layout</span>
+                  <span className="value">{popupData.layout_name}</span>
+                </div>
+              )}
+            </>
+          ) : (
+            <>
+              <div className="gallery-map-details-row">
+                <span className="label">Price</span>
+                <span className="value">{formatPrice(popupData?.sale_price || popupData?.price)}</span>
+              </div>
+              {(popupData?.area_size || popupData?.extent_area) && (
+                <div className="gallery-map-details-row">
+                  <span className="label">Extent</span>
+                  <span className="value">
+                    {popupData.area_size || [popupData.extent_area, popupData.extent_unit].filter(Boolean).join(' ')}
+                  </span>
+                </div>
+              )}
+              {popupData?.landmark && (
+                <div className="gallery-map-details-row">
+                  <span className="label">Landmark</span>
+                  <span className="value">{popupData.landmark}</span>
+                </div>
+              )}
+            </>
           )}
-          <div className="gallery-map-details-row">
-            <span className="label">Type</span>
-            <span className="value">{detailsType}</span>
-          </div>
         </div>
       </aside>
 

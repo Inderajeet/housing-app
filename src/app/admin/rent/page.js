@@ -75,6 +75,10 @@ export default function RentPropertiesPage() {
   const [bulkDeleting, setBulkDeleting] = useState(false);
   const [showBulkConfirm, setShowBulkConfirm] = useState(false);
 
+  const [inlineEditId, setInlineEditId] = useState(null);
+  const [inlineEditDraft, setInlineEditDraft] = useState({});
+  const [inlineSaving, setInlineSaving] = useState(false);
+
   const isNewProperty = !selected?.property_id;
 
   const tabBtnClass = (key) => {
@@ -237,6 +241,22 @@ export default function RentPropertiesPage() {
 
   const handleColumnFilterChange = (key, value) => setColumnFilters(prev => ({ ...prev, [key]: value }));
 
+  const handleInlineEdit = (p) => {
+    setInlineEditId(p.property_id);
+    setInlineEditDraft({ ...p, rent_out_date: p.rent_out_date ? String(p.rent_out_date).slice(0, 10) : '' });
+  };
+  const handleInlineCancel = () => { setInlineEditId(null); setInlineEditDraft({}); };
+  const handleInlineDraftChange = (key, val) => setInlineEditDraft(prev => ({ ...prev, [key]: val }));
+  const handleInlineSave = async () => {
+    setInlineSaving(true);
+    try {
+      await updateRentProperty(inlineEditId, inlineEditDraft);
+      setAllProperties(prev => prev.map(p => p.property_id === inlineEditId ? { ...p, ...inlineEditDraft } : p));
+      setInlineEditId(null);
+    } catch (err) { alert('Failed: ' + (err?.response?.data?.error || err.message)); }
+    finally { setInlineSaving(false); }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -330,41 +350,76 @@ export default function RentPropertiesPage() {
           selectable
           selectedIds={selectedIds}
           onSelectionChange={setSelectedIds}
+          editingRowId={inlineEditId}
+          editDraft={inlineEditDraft}
+          onEditDraftChange={handleInlineDraftChange}
+          onCellDoubleClick={handleInlineEdit}
+          cellSaving={inlineSaving}
           columns={[
             { header: 'ID', accessor: 'formatted_id' },
             { header: 'Registered', accessor: p => new Date(p.created_at).toLocaleDateString(), sortable: true, sortBy: p => new Date(p.created_at).getTime() },
-            { header: 'Property Type', accessor: 'property_use' },
+            {
+              header: 'Property Type', accessor: 'property_use',
+              editable: true, editType: 'select',
+              editOptions: Object.values(PropertyType).map(v => ({ value: v, label: v })),
+            },
             {
               header: 'Approval', sortable: true, sortBy: p => p.status || 'pending',
-              accessor: p => {
-                const s = p.status || 'pending';
-                const c = { approved: 'bg-green-100 text-green-800 border-green-200', pending: 'bg-yellow-100 text-yellow-800 border-yellow-200', rejected: 'bg-red-100 text-red-800 border-red-200' };
-                return <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase border ${c[s] || 'bg-gray-100 text-gray-800 border-gray-200'}`}>{s.charAt(0).toUpperCase() + s.slice(1)}</span>;
-              }
+              accessor: p => { const s = p.status || 'pending'; const c = { approved: 'bg-green-100 text-green-800 border-green-200', pending: 'bg-yellow-100 text-yellow-800 border-yellow-200', rejected: 'bg-red-100 text-red-800 border-red-200' }; return <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase border ${c[s] || 'bg-gray-100 text-gray-800 border-gray-200'}`}>{s.charAt(0).toUpperCase() + s.slice(1)}</span>; },
+              editable: true, editType: 'select', editField: 'status',
+              editOptions: [{ value: 'pending', label: 'Pending' }, { value: 'approved', label: 'Approved' }, { value: 'rejected', label: 'Rejected' }],
             },
-            { header: 'Booking Status', sortable: true, sortBy: p => p.rent_status || '', accessor: p => <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase ${STATUS_COLORS[p.rent_status] || 'bg-gray-200'}`}>{p.rent_status || 'Nil Booking'}</span> },
-            { header: 'Primary Phone', accessor: 'contact_phone', filterable: true, filterKey: 'contact_phone', className: 'font-bold text-emerald-600' },
-            { header: 'Additional Phone', accessor: 'alternate_contact_phone', filterable: true, filterKey: 'alternate_contact_phone' },
-            { header: 'Primary Name', accessor: 'seller_name', filterable: true, filterKey: 'seller_name' },
-            { header: 'Additional Name', accessor: 'alternate_seller_name', filterable: true, filterKey: 'alternate_seller_name' },
-            { header: 'Rent (₹)', accessor: p => p.rent_amount ? `₹${Number(p.rent_amount).toLocaleString()}` : '-', filterable: true, filterKey: 'rent_amount' },
-            { header: 'Advance (₹)', accessor: p => p.advance_amount ? `₹${Number(p.advance_amount).toLocaleString()}` : '-', filterable: true, filterKey: 'advance_amount' },
-            { header: 'BHK', accessor: 'bhk', filterable: true, filterKey: 'bhk' },
-            { header: 'Extent', accessor: p => p.extent_area ? `${p.extent_area}${p.extent_unit ? ' ' + p.extent_unit : ''}` : '-', filterable: true, filterKey: 'extent_area' },
-            { header: 'Landmark', accessor: 'landmark', filterable: true, filterKey: 'landmark' },
+            {
+              header: 'Booking Status', sortable: true, sortBy: p => p.rent_status || '',
+              accessor: p => <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase ${STATUS_COLORS[p.rent_status] || 'bg-gray-200'}`}>{p.rent_status || 'Nil Booking'}</span>,
+              editable: true, editType: 'select', editField: 'rent_status',
+              editOptions: Object.values(BookingStatus).map(v => ({ value: v, label: v })),
+            },
+            { header: 'Primary Phone', accessor: 'contact_phone', editable: true, filterable: true, filterKey: 'contact_phone', className: 'font-bold text-emerald-600' },
+            { header: 'Alt Phone', accessor: 'alternate_contact_phone', editable: true, filterable: true, filterKey: 'alternate_contact_phone' },
+            { header: 'Primary Name', accessor: 'seller_name', editable: true, filterable: true, filterKey: 'seller_name' },
+            { header: 'Alt Name', accessor: 'alternate_seller_name', editable: true, filterable: true, filterKey: 'alternate_seller_name' },
+            { header: 'Rent Amount (₹)', accessor: p => p.rent_amount ? `₹${Number(p.rent_amount).toLocaleString()}` : '-', editable: true, editType: 'number', editField: 'rent_amount', filterable: true, filterKey: 'rent_amount' },
+            { header: 'Advance (₹)', accessor: p => p.advance_amount ? `₹${Number(p.advance_amount).toLocaleString()}` : '-', editable: true, editType: 'number', editField: 'advance_amount', filterable: true, filterKey: 'advance_amount' },
+            { header: 'BHK', accessor: 'bhk', editable: true, editType: 'number', filterable: true, filterKey: 'bhk' },
+            { header: 'Extent Area', accessor: 'extent_area', editable: true, editType: 'number', filterable: true, filterKey: 'extent_area' },
+            { header: 'Extent Unit', accessor: 'extent_unit', editable: true, filterable: true, filterKey: 'extent_unit' },
+            { header: 'Furnished', accessor: 'furnished_status', editable: true, filterable: true, filterKey: 'furnished_status' },
+            { header: 'Landmark', accessor: 'landmark', editable: true, filterable: true, filterKey: 'landmark' },
+            { header: 'Street Name', accessor: 'street_name', editable: true, filterable: true, filterKey: 'street_name' },
+            { header: 'Token Amt', accessor: p => p.token_amount ? `₹${Number(p.token_amount).toLocaleString()}` : '-', editable: true, editType: 'number', editField: 'token_amount', filterable: true, filterKey: 'token_amount' },
+            { header: 'Token Paid To', accessor: 'token_paid_to', editable: true, editType: 'select', editOptions: TOKEN_PAID_TO_OPTIONS.map(v => ({ value: v, label: v || '— None —' })), filterable: true, filterKey: 'token_paid_to' },
+            { header: 'Rent Out Rate', accessor: p => p.rent_out_rate ? `₹${Number(p.rent_out_rate).toLocaleString()}` : '-', editable: true, editType: 'number', editField: 'rent_out_rate', filterable: true, filterKey: 'rent_out_rate' },
+            { header: 'Rent Out Date', accessor: p => p.rent_out_date ? String(p.rent_out_date).slice(0, 10) : '-', editable: true, editType: 'date', editField: 'rent_out_date', filterable: true, filterKey: 'rent_out_date' },
             { header: 'Latitude', accessor: 'latitude', filterable: true, filterKey: 'latitude' },
             { header: 'Longitude', accessor: 'longitude', filterable: true, filterKey: 'longitude' },
-            { header: 'Description', accessor: 'description', filterable: true, filterKey: 'description' },
+            { header: 'Address', accessor: 'address', editable: true, editType: 'textarea', filterable: true, filterKey: 'address' },
+            { header: 'Description', accessor: 'description', editable: true, editType: 'textarea', filterable: true, filterKey: 'description' },
           ]}
           data={filteredProperties}
           columnFilters={columnFilters}
           onColumnFilterChange={handleColumnFilterChange}
-          onEdit={p => openModal(p, 'edit')}
           onView={p => openModal(p, 'view')}
-          actions={p => (
-            <button onClick={() => setDeleteTarget(p)} className="p-1.5 text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors border border-red-100" title="Delete">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-            </button>
+          actions={(p, isRowEditing) => (
+            <div className="flex gap-1 items-center">
+              {isRowEditing ? (
+                <>
+                  <button onClick={handleInlineSave} disabled={inlineSaving} className="px-2 py-1 text-[10px] font-bold text-white bg-amber-500 rounded-lg hover:bg-amber-600 disabled:opacity-60 uppercase">
+                    {inlineSaving ? '…' : 'Save'}
+                  </button>
+                  <button onClick={handleInlineCancel} className="px-2 py-1 text-[10px] font-bold text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 uppercase">✕</button>
+                </>
+              ) : (
+                <>
+                  <button onClick={() => openModal(p, 'edit')} className="p-1.5 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg border border-blue-100" title="Full Edit">
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+                  </button>
+                  <button onClick={() => setDeleteTarget(p)} className="p-1.5 text-red-600 bg-red-50 hover:bg-red-100 rounded-lg border border-red-100" title="Delete">
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                  </button>
+                </>
+              )}
+            </div>
           )}
         />
       )}

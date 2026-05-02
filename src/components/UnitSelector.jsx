@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { endpoints } from '../api/api';
 import '../styles/UnitSelector.css';
 
@@ -14,6 +14,11 @@ const UnitSelector = ({ propertyId, onSelectUnit, saleType, onNoPlots, refreshKe
     const [hasPlots, setHasPlots] = useState(true);
     const [loadError, setLoadError] = useState('');
     const [svgZoom, setSvgZoom] = useState(1);
+    const [svgPan, setSvgPan] = useState({ x: 0, y: 0 });
+    const [pendingCell, setPendingCell] = useState(null);
+    const svgRef = useRef(null);
+    const panStartRef = useRef(null);
+    const pendingTimerRef = useRef(null);
 
     const normalizedSaleType = (saleType || '').toLowerCase();
     const isFlat = normalizedSaleType === 'flat';
@@ -271,21 +276,74 @@ const UnitSelector = ({ propertyId, onSelectUnit, saleType, onNoPlots, refreshKe
         const vbFullH = viewMaxY - viewMinY;
         const vbW = vbFullW / svgZoom;
         const vbH = vbFullH / svgZoom;
-        const vbX = viewMinX + vbFullW / 2 - vbW / 2;
-        const vbY = viewMinY + vbFullH / 2 - vbH / 2;
+        const vbX = viewMinX + vbFullW / 2 - vbW / 2 + svgPan.x;
+        const vbY = viewMinY + vbFullH / 2 - vbH / 2 + svgPan.y;
         const vb = `${vbX} ${vbY} ${vbW} ${vbH}`;
+
+        const handleSvgPointerDown = (e) => {
+            if (e.target.tagName === 'polygon') return;
+            panStartRef.current = {
+                clientX: e.clientX, clientY: e.clientY,
+                panX: svgPan.x, panY: svgPan.y,
+            };
+        };
+        const handleSvgPointerMove = (e) => {
+            if (!panStartRef.current) return;
+            const svgEl = svgRef.current;
+            if (!svgEl) return;
+            const rect = svgEl.getBoundingClientRect();
+            const scaleX = vbW / rect.width;
+            const scaleY = vbH / rect.height;
+            const dx = (e.clientX - panStartRef.current.clientX) * scaleX;
+            const dy = (e.clientY - panStartRef.current.clientY) * scaleY;
+            setSvgPan({ x: panStartRef.current.panX - dx, y: panStartRef.current.panY - dy });
+        };
+        const handleSvgPointerUp = () => { panStartRef.current = null; };
+
+        const handlePlotClick = (cell) => {
+            const st = (cell.status || '').toUpperCase().replace(/[\s-]+/g, '_');
+            const blocked = ['CONFIRMED','UNREGISTERED','REGISTERED','SOLD','RENTED','TOKEN_PAID','ADVANCE_PAID','CLOSED','BOOKED'].includes(st);
+            if (blocked) return;
+            if (pendingTimerRef.current) clearTimeout(pendingTimerRef.current);
+            if (pendingCell === cell) {
+                setPendingCell(null);
+                return;
+            }
+            setPendingCell(cell);
+            pendingTimerRef.current = setTimeout(() => {
+                onSelectUnit(cell);
+                setPendingCell(null);
+                pendingTimerRef.current = null;
+            }, 1000);
+        };
 
         return (
             <div className="unit-selector-container">
                 <h2 className="unit-selector-title">{titleLabel}</h2>
-                <p className="unit-selector-subtitle">Click on an available {unitLabel} to book</p>
+                <p className="unit-selector-subtitle">
+                    {pendingCell
+                        ? `Plot ${pendingCell.display_name} selected — proceeding…`
+                        : `Select and Visit`}
+                </p>
                 <div className="unit-grid-scroll" style={{ height: 400, position: 'relative' }}>
                     <div style={{ position: 'absolute', top: 8, right: 8, zIndex: 10, display: 'flex', alignItems: 'center', gap: 4, background: 'white', borderRadius: 8, padding: '4px 8px', border: '1px solid #e2e8f0', fontSize: 12, fontWeight: 700, color: '#334155', userSelect: 'none' }}>
                         <button onClick={() => setSvgZoom(z => Math.min(4, +(z + 0.25).toFixed(2)))} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 16, lineHeight: 1, color: '#334155', padding: '0 2px' }}>+</button>
                         <span style={{ minWidth: 36, textAlign: 'center' }}>{Math.round(svgZoom * 100)}%</span>
                         <button onClick={() => setSvgZoom(z => Math.max(0.25, +(z - 0.25).toFixed(2)))} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 16, lineHeight: 1, color: '#334155', padding: '0 2px' }}>−</button>
+                        {(svgPan.x !== 0 || svgPan.y !== 0) && (
+                            <button onClick={() => setSvgPan({ x: 0, y: 0 })} style={{ border: 'none', background: '#f1f5f9', cursor: 'pointer', fontSize: 10, fontWeight: 900, color: '#64748b', padding: '2px 6px', borderRadius: 4, marginLeft: 4 }}>Reset</button>
+                        )}
                     </div>
-                    <svg viewBox={vb} style={{ width: '100%', height: '100%' }} className="rounded-xl border border-gray-200">
+                    <svg
+                        ref={svgRef}
+                        viewBox={vb}
+                        style={{ width: '100%', height: '100%', cursor: panStartRef.current ? 'grabbing' : 'grab', touchAction: 'none' }}
+                        className="rounded-xl border border-gray-200"
+                        onPointerDown={handleSvgPointerDown}
+                        onPointerMove={handleSvgPointerMove}
+                        onPointerUp={handleSvgPointerUp}
+                        onPointerLeave={handleSvgPointerUp}
+                    >
                         {roadSvgItems.map((shape, idx) => {
                             const pts = shape.points || [];
                             if (shape.closed === true) {
@@ -307,6 +365,7 @@ const UnitSelector = ({ propertyId, onSelectUnit, saleType, onNoPlots, refreshKe
                         {plotSvgItems.map((cell, idx) => {
                             const st = (cell.status || '').toUpperCase().replace(/[\s-]+/g, '_');
                             const blocked = ['CONFIRMED','UNREGISTERED','REGISTERED','SOLD','RENTED','TOKEN_PAID','ADVANCE_PAID','CLOSED','BOOKED'].includes(st);
+                            const isPending = pendingCell === cell;
                             const color = STATUS_SVG_COLORS[cell.status] || STATUS_SVG_COLORS[st] || '#22c55e';
                             const pts = cell.points || [];
                             const bbox = getSvgBBox(pts);
@@ -314,17 +373,18 @@ const UnitSelector = ({ propertyId, onSelectUnit, saleType, onNoPlots, refreshKe
                                 <g key={`plot-${idx}`}>
                                     <polygon
                                         points={pts.map(p => `${p.x},${p.y}`).join(' ')}
-                                        fill={color}
-                                        fillOpacity={blocked ? 0.9 : 0.85}
-                                        stroke={color}
-                                        strokeWidth={1.5}
+                                        fill={isPending ? '#3b82f6' : color}
+                                        fillOpacity={blocked ? 0.9 : isPending ? 0.95 : 0.85}
+                                        stroke={isPending ? '#1d4ed8' : color}
+                                        strokeWidth={isPending ? 3 : 1.5}
                                         style={{ cursor: blocked ? 'not-allowed' : 'pointer' }}
-                                        onClick={() => { if (!blocked) onSelectUnit(cell); }}
+                                        onPointerDown={e => e.stopPropagation()}
+                                        onClick={() => handlePlotClick(cell)}
                                     />
                                     {bbox.w > 8 && (
                                         <text x={bbox.cx} y={bbox.cy} textAnchor="middle" dominantBaseline="middle"
                                             fontSize={Math.max(4, bbox.w * 0.25)} fontWeight="bold"
-                                            fill={blocked ? '#ffffff' : '#ffffff'}
+                                            fill="#ffffff"
                                             style={{ pointerEvents: 'none', userSelect: 'none' }}
                                         >
                                             {cell.display_name}
@@ -410,7 +470,13 @@ const UnitSelector = ({ propertyId, onSelectUnit, saleType, onNoPlots, refreshKe
                                 const blocked = ['CONFIRMED', 'UNREGISTERED', 'REGISTERED', 'SOLD', 'RENTED',
                                                  'TOKEN_PAID', 'ADVANCE_PAID', 'CLOSED'].includes(st);
                                 if (cell?.type === unitTypeName && !blocked) {
-                                    onSelectUnit(cell);
+                                    if (pendingTimerRef.current) clearTimeout(pendingTimerRef.current);
+                                    setPendingCell(cell);
+                                    pendingTimerRef.current = setTimeout(() => {
+                                        onSelectUnit(cell);
+                                        setPendingCell(null);
+                                        pendingTimerRef.current = null;
+                                    }, 1000);
                                 }
                             };
 

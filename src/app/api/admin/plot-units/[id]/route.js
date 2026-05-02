@@ -8,6 +8,7 @@ export async function GET(request, { params }) {
     const data = await getLayout(id);
     return NextResponse.json(data);
   } catch (e) {
+    console.error('[plot-units GET]', e);
     const { status, body } = toApiError(e);
     return NextResponse.json(body, { status });
   }
@@ -20,6 +21,7 @@ export async function POST(request, { params }) {
     const result = await saveLayout(id, elements || []);
     return NextResponse.json(result);
   } catch (e) {
+    console.error('[plot-units POST]', e);
     const { status, body } = toApiError(e);
     return NextResponse.json(body, { status });
   }

@@ -4,6 +4,15 @@ import { useRouter, useParams } from 'next/navigation';
 import { getPlotLayout, savePlotLayout } from '@/lib/adminApi';
 import SvgMapEditor from '@/components/admin/SvgMapEditor';
 
+const STATUS_COLORS_SVG = {
+  'Nil Booking': '#22c55e',
+  'ON_BOOKING':  '#f59e0b',
+  'CONFIRMED':   '#ef4444',
+  'UNREGISTERED':'#ef4444',
+  'REGISTERED':  '#dc2626',
+  'SOLD':        '#b91c1c',
+};
+
 const getBookingStatusStyles = (status) => {
   const s = String(status || '').trim().toUpperCase().replace(/[\s-]+/g, '_');
   if (s === 'NIL_BOOKING') return { tile: 'bg-emerald-500 text-white shadow-inner', buttonActive: 'bg-emerald-500 text-white border-emerald-600', buttonInactive: 'bg-white text-emerald-600 border-emerald-100' };
@@ -67,6 +76,7 @@ export default function PlotLayoutEditorPage() {
   const [bulkInputs, setBulkInputs] = useState({ nil: '', on: '', confirmed: '' });
   const [viewMode, setViewMode] = useState('grid'); // 'grid' | 'svg'
   const [svgShapes, setSvgShapes] = useState([]);
+  const [direction, setDirection] = useState('horizontal'); // 'horizontal' | 'vertical'
 
   const showToast = (message, type = 'success') => setToast({ message, type });
   const recordHistory = (data) => setHistory((prev) => [...prev, JSON.stringify(data)].slice(-20));
@@ -124,13 +134,13 @@ export default function PlotLayoutEditorPage() {
         // Load SVG shapes (elements with polygon points)
         const svgItems = rawItems.filter(item => item.points && Array.isArray(item.points) && item.points.length > 0);
         if (svgItems.length > 0) {
-          setSvgShapes(svgItems.map(item => ({
-            id: item.element_id ? String(item.element_id) : String(Math.random()),
+          setSvgShapes(svgItems.map((item, idx) => ({
+            id: item.element_id ? `${item.element_id}_${idx}` : Math.random().toString(36).slice(2, 9),
             type: (item.type || 'PLOT').toUpperCase() === 'PLOT' ? 'plot' : 'road',
             points: item.points,
             label: item.name || '',
             status: item.status || 'Nil Booking',
-            color: item.color || '#22c55e',
+            color: STATUS_COLORS_SVG[item.status] || item.color || '#22c55e',
           })));
           setViewMode('svg');
         }
@@ -186,16 +196,24 @@ export default function PlotLayoutEditorPage() {
   const applyBulkStatus = (statusValue, numbersStr) => {
     const nums = parseNumberList(numbersStr);
     if (!nums.size) return;
-    recordHistory(gridData);
-    setGridData(prev => {
-      const next = { ...prev };
-      Object.keys(next).forEach(k => {
-        if (!next[k].merged && next[k].type === 'PLOT' && nums.has(String(next[k].display_name).trim())) {
-          next[k] = { ...next[k], status: statusValue };
-        }
+    if (viewMode === 'svg') {
+      setSvgShapes(prev => prev.map(s =>
+        s.type === 'plot' && nums.has(String(s.label).trim())
+          ? { ...s, status: statusValue, color: STATUS_COLORS_SVG[statusValue] || s.color }
+          : s
+      ));
+    } else {
+      recordHistory(gridData);
+      setGridData(prev => {
+        const next = { ...prev };
+        Object.keys(next).forEach(k => {
+          if (!next[k].merged && next[k].type === 'PLOT' && nums.has(String(next[k].display_name).trim())) {
+            next[k] = { ...next[k], status: statusValue };
+          }
+        });
+        return next;
       });
-      return next;
-    });
+    }
   };
 
   const handleSave = async () => {
@@ -272,6 +290,38 @@ export default function PlotLayoutEditorPage() {
     if (type === 'CLEAR') {
       for (let r = rMin; r <= rMax; r++)
         for (let c = cMin; c <= cMax; c++) delete newGrid[`${r}-${c}`];
+    } else if (type === 'PLOT') {
+      if (direction === 'horizontal') {
+        for (let r = rMin; r <= rMax; r++) {
+          let c = cMin;
+          while (c <= cMax) {
+            const key = `${r}-${c}`;
+            const span = c + 1 <= cMax ? 2 : 1;
+            newGrid[key] = {
+              type: 'PLOT', row: r, col: c, merged: false, anchorKey: null,
+              colSpan: span, rowSpan: 1, display_name: '', isManual: false,
+              status: 'Nil Booking', rotation: 0, color: '#ffffff', font_size: 10, font_weight: '900',
+            };
+            if (span === 2) newGrid[`${r}-${c + 1}`] = { merged: true, anchorKey: key };
+            c += span;
+          }
+        }
+      } else {
+        for (let c = cMin; c <= cMax; c++) {
+          let r = rMin;
+          while (r <= rMax) {
+            const key = `${r}-${c}`;
+            const span = r + 1 <= rMax ? 2 : 1;
+            newGrid[key] = {
+              type: 'PLOT', row: r, col: c, merged: false, anchorKey: null,
+              colSpan: 1, rowSpan: span, display_name: '', isManual: false,
+              status: 'Nil Booking', rotation: 0, color: '#ffffff', font_size: 10, font_weight: '900',
+            };
+            if (span === 2) newGrid[`${r + 1}-${c}`] = { merged: true, anchorKey: key };
+            r += span;
+          }
+        }
+      }
     } else {
       const isRoad = type === 'ROAD';
       for (let r = rMin; r <= rMax; r++) {
@@ -345,28 +395,43 @@ export default function PlotLayoutEditorPage() {
             <span className="text-slate-400 text-xs">{showBulkStatus ? '▲ Hide' : '▼ Show'}</span>
           </button>
           {showBulkStatus && (
-            <div className="px-10 pb-3 flex items-center gap-6 flex-wrap">
-              {[
-                { key: 'nil', label: 'Nil Booking', value: 'Nil Booking', bg: 'bg-emerald-50 border-emerald-200 focus:border-emerald-500', pill: 'bg-emerald-500' },
-                { key: 'on', label: 'On Booking', value: 'ON_BOOKING', bg: 'bg-yellow-50 border-yellow-200 focus:border-yellow-500', pill: 'bg-yellow-400' },
-                { key: 'confirmed', label: 'Confirmed', value: 'CONFIRMED', bg: 'bg-red-50 border-red-200 focus:border-red-500', pill: 'bg-red-500' },
-              ].map(({ key, label, value, bg, pill }) => (
-                <div key={key} className="flex items-center gap-2">
-                  <span className={`w-2.5 h-2.5 rounded-full ${pill}`} />
-                  <span className="text-[10px] font-black text-slate-500 uppercase">{label}</span>
-                  <input
-                    value={bulkInputs[key]}
-                    onChange={e => setBulkInputs(prev => ({ ...prev, [key]: e.target.value }))}
-                    onBlur={e => { if (e.target.value.trim()) applyBulkStatus(value, e.target.value); }}
-                    placeholder="e.g. 1,3,5-8"
-                    className={`w-32 px-3 py-1.5 rounded-lg border text-[11px] font-semibold outline-none ${bg}`}
-                  />
-                  <button
-                    onClick={() => { if (bulkInputs[key].trim()) applyBulkStatus(value, bulkInputs[key]); }}
-                    className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 rounded-lg text-[10px] font-black uppercase text-slate-600 transition-all"
-                  >Apply</button>
-                </div>
-              ))}
+            <div className="px-10 pb-3 space-y-3">
+              <div className="flex items-center gap-6 flex-wrap">
+                {[
+                  { key: 'nil', label: 'Nil Booking', value: 'Nil Booking', bg: 'bg-emerald-50 border-emerald-200 focus:border-emerald-500', pill: 'bg-emerald-500' },
+                  { key: 'on', label: 'On Booking', value: 'ON_BOOKING', bg: 'bg-yellow-50 border-yellow-200 focus:border-yellow-500', pill: 'bg-yellow-400' },
+                  { key: 'confirmed', label: 'Confirmed', value: 'CONFIRMED', bg: 'bg-red-50 border-red-200 focus:border-red-500', pill: 'bg-red-500' },
+                ].map(({ key, label, value, bg, pill }) => (
+                  <div key={key} className="flex items-center gap-2">
+                    <span className={`w-2.5 h-2.5 rounded-full ${pill}`} />
+                    <span className="text-[10px] font-black text-slate-500 uppercase">{label}</span>
+                    <input
+                      value={bulkInputs[key]}
+                      onChange={e => setBulkInputs(prev => ({ ...prev, [key]: e.target.value }))}
+                      onBlur={e => { if (e.target.value.trim()) applyBulkStatus(value, e.target.value); }}
+                      placeholder="e.g. 1,3,5-8"
+                      className={`w-32 px-3 py-1.5 rounded-lg border text-[11px] font-semibold outline-none ${bg}`}
+                    />
+                    <button
+                      onClick={() => { if (bulkInputs[key].trim()) applyBulkStatus(value, bulkInputs[key]); }}
+                      className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 rounded-lg text-[10px] font-black uppercase text-slate-600 transition-all"
+                    >Apply</button>
+                  </div>
+                ))}
+              </div>
+              {/* Plot labels reference */}
+              {(() => {
+                const plotLabels = viewMode === 'svg'
+                  ? svgShapes.filter(s => s.type === 'plot').map(s => s.label).filter(Boolean)
+                  : Object.values(gridData).filter(c => c && !c.merged && c.type === 'PLOT' && c.display_name).map(c => c.display_name);
+                if (!plotLabels.length) return null;
+                return (
+                  <div className="text-[10px] text-slate-400 font-semibold">
+                    <span className="font-black uppercase text-slate-500 mr-2">Plot Labels:</span>
+                    {plotLabels.slice(0, 60).join(', ')}{plotLabels.length > 60 ? ` …+${plotLabels.length - 60}` : ''}
+                  </div>
+                );
+              })()}
             </div>
           )}
         </div>
@@ -442,7 +507,10 @@ export default function PlotLayoutEditorPage() {
                         setFreeformKeys({ [key]: true });
                         setSelection({ start: null, end: null });
                       } else {
-                        setSelection({ start: { r, c }, end: { r, c } });
+                        const defaultEnd = direction === 'horizontal'
+                          ? { r, c: Math.min(c + 1, dims.cols - 1) }
+                          : { r: Math.min(r + 1, dims.rows - 1), c };
+                        setSelection({ start: { r, c }, end: defaultEnd });
                         setFreeformKeys({});
                       }
                       isSelectingRef.current = true;
@@ -477,6 +545,17 @@ export default function PlotLayoutEditorPage() {
             onClick={() => { setSelectionMode(m => m === 'rect' ? 'freeform' : 'rect'); setSelection({ start: null, end: null }); setFreeformKeys({}); }}
             className={`px-7 py-3.5 text-[11px] font-black rounded-2xl uppercase hover:scale-105 active:scale-95 transition-all ${selectionMode === 'freeform' ? 'bg-violet-600 text-white shadow-[0_8px_20px_-4px_rgba(124,58,237,0.4)]' : 'bg-slate-100 text-slate-500 hover:bg-violet-50 hover:text-violet-600'}`}
           >Free Select</button>
+          <div className="w-px h-8 bg-slate-200 mx-2" />
+          <div className="flex items-center bg-slate-100 rounded-2xl p-1 gap-1">
+            <button
+              onClick={() => setDirection('horizontal')}
+              className={`px-5 py-2.5 text-[11px] font-black rounded-xl uppercase transition-all ${direction === 'horizontal' ? 'bg-white text-blue-600 shadow' : 'text-slate-400 hover:text-slate-600'}`}
+            >⟷ Horizontal</button>
+            <button
+              onClick={() => setDirection('vertical')}
+              className={`px-5 py-2.5 text-[11px] font-black rounded-xl uppercase transition-all ${direction === 'vertical' ? 'bg-white text-blue-600 shadow' : 'text-slate-400 hover:text-slate-600'}`}
+            >↕ Vertical</button>
+          </div>
         </div>}
       </div>
 

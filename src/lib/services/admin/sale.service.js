@@ -36,11 +36,12 @@ export const getAll = async () => {
       p.seller_id, p.contact_phone, p.address, p.status,
       COALESCE((SELECT COUNT(DISTINCT b.buyer_id)::INT FROM bookings b WHERE b.property_id = p.property_id AND b.unit_type = 'sale'), 0) AS booked_people_count,
       p.live_image, p.latitude, p.longitude, p.district_id, p.taluk_id, p.village_id, p.area_id,
-      s.sale_type, s.price, s.area_size, s.street_name_or_road_name, s.survey_number,
+      s.sale_type, s.price, s.rate_unit, s.area_size, s.extension, s.street_name_or_road_name, s.survey_number,
       s.boundary_north, s.boundary_south, s.boundary_east, s.boundary_west, s.sale_status,
       s.drawing_image, s.total_units_count, s.booked_units, s.open_units,
       s.alternate_contact_phone, s.alternate_seller_name, s.layout_name, s.dtcp,
       s.parent_document, s.sub_registrar_office, s.gift_deed,
+      s.token_amount, s.token_paid_to, s.sold_rate, s.sold_date, s.advance_amount,
       seller.name AS seller_name, seller.phone_number AS seller_phone
     FROM properties p
     INNER JOIN sale_properties s ON s.property_id = p.property_id
@@ -57,11 +58,12 @@ export const getById = async (propertyId) => {
       p.seller_id, p.contact_phone, p.address, p.status,
       COALESCE((SELECT COUNT(DISTINCT b.buyer_id)::INT FROM bookings b WHERE b.property_id = p.property_id AND b.unit_type = 'sale'), 0) AS booked_people_count,
       p.live_image, p.latitude, p.longitude, p.district_id, p.taluk_id, p.village_id, p.area_id,
-      s.sale_type, s.price, s.area_size, s.street_name_or_road_name, s.survey_number,
+      s.sale_type, s.price, s.rate_unit, s.area_size, s.extension, s.street_name_or_road_name, s.survey_number,
       s.boundary_north, s.boundary_south, s.boundary_east, s.boundary_west, s.sale_status,
       s.drawing_image, s.total_units_count, s.booked_units, s.open_units,
       s.alternate_contact_phone, s.alternate_seller_name, s.layout_name, s.dtcp,
       s.parent_document, s.sub_registrar_office, s.gift_deed,
+      s.token_amount, s.token_paid_to, s.sold_rate, s.sold_date, s.advance_amount,
       seller.name AS seller_name, seller.phone_number AS seller_phone
     FROM properties p
     INNER JOIN sale_properties s ON s.property_id = p.property_id
@@ -99,9 +101,9 @@ export const createSaleProperty = async (data, files = {}) => {
     const propertyId = propRes[0].property_id;
     const saleType = toStr(data.sale_type)?.toLowerCase();
     await tx.$executeRawUnsafe(
-      `INSERT INTO sale_properties (property_id, sale_type, price, area_size, street_name_or_road_name, survey_number, boundary_north, boundary_south, boundary_east, boundary_west, sale_status, drawing_image, total_units_count, booked_units, open_units, alternate_contact_phone, alternate_seller_name, layout_name, dtcp, parent_document, sub_registrar_office, gift_deed)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)`,
-      propertyId, toStr(data.sale_type), toInt(data.price) || 0, toStr(data.area_size),
+      `INSERT INTO sale_properties (property_id, sale_type, price, rate_unit, area_size, street_name_or_road_name, survey_number, boundary_north, boundary_south, boundary_east, boundary_west, sale_status, drawing_image, total_units_count, booked_units, open_units, alternate_contact_phone, alternate_seller_name, layout_name, dtcp, parent_document, sub_registrar_office, gift_deed)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)`,
+      propertyId, toStr(data.sale_type), toInt(data.price) || 0, toStr(data.rate_unit), toStr(data.area_size),
       toStr(data.street_name_or_road_name), toStr(data.survey_number),
       toStr(data.boundary_north), toStr(data.boundary_south), toStr(data.boundary_east), toStr(data.boundary_west),
       toStr(data.sale_status), null, toInt(data.total_units_count) || 0,
@@ -178,14 +180,17 @@ export const updateSaleProperty = async (propertyId, data, files = {}) => {
       toInt(data.village_id), toInt(data.area_id), toStr(data.status), liveImageUrl, propertyId
     );
     await tx.$executeRawUnsafe(
-      `UPDATE sale_properties SET sale_type=$1, price=$2, area_size=$3, street_name_or_road_name=$4, survey_number=$5, boundary_north=$6, boundary_south=$7, boundary_east=$8, boundary_west=$9, sale_status=$10, total_units_count=$11, booked_units=$12, open_units=$13, drawing_image=$14, alternate_contact_phone=$15, alternate_seller_name=$16, layout_name=$17, dtcp=$18, parent_document=$19, sub_registrar_office=$20, gift_deed=$21 WHERE property_id=$22`,
-      toStr(data.sale_type), toInt(data.price) || 0, toStr(data.area_size), toStr(data.street_name_or_road_name),
+      `UPDATE sale_properties SET sale_type=$1, price=$2, rate_unit=$3, area_size=$4, street_name_or_road_name=$5, survey_number=$6, boundary_north=$7, boundary_south=$8, boundary_east=$9, boundary_west=$10, sale_status=$11, total_units_count=$12, booked_units=$13, open_units=$14, drawing_image=$15, alternate_contact_phone=$16, alternate_seller_name=$17, layout_name=$18, dtcp=$19, parent_document=$20, sub_registrar_office=$21, gift_deed=$22, token_amount=$23, token_paid_to=$24, sold_rate=$25, sold_date=$26, advance_amount=$27, extension=$28 WHERE property_id=$29`,
+      toStr(data.sale_type), toFloat(data.price) || 0, toStr(data.rate_unit), toStr(data.area_size), toStr(data.street_name_or_road_name),
       toStr(data.survey_number), toStr(data.boundary_north), toStr(data.boundary_south),
       toStr(data.boundary_east), toStr(data.boundary_west), toStr(data.sale_status),
       toInt(data.total_units_count) || 0, toStr(data.booked_units) || 0, toStr(data.open_units) || 0,
       drawingImageUrl, toStr(data.alternate_contact_phone), toStr(data.alternate_seller_name),
       toStr(data.layout_name), toStr(data.dtcp), toStr(data.parent_document),
-      toStr(data.sub_registrar_office), toStr(data.gift_deed), propertyId
+      toStr(data.sub_registrar_office), toStr(data.gift_deed),
+      toFloat(data.token_amount), toStr(data.token_paid_to),
+      toFloat(data.sold_rate), data.sold_date && data.sold_date !== '' ? new Date(data.sold_date) : null,
+      toFloat(data.advance_amount), toStr(data.extension), propertyId
     );
   });
 
