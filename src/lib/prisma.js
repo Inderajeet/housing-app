@@ -17,7 +17,7 @@ if (!globalForPrisma.prisma) {
     keepAlive: true,
     keepAliveInitialDelayMillis: 10000,
     idleTimeoutMillis: 60000,
-    max: 5,
+    max: 10,
   });
   pool.on('error', (err) => {
     console.error('[pg pool] idle client error:', err.message);

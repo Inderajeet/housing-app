@@ -330,6 +330,13 @@
     margin: 0;
 }
 
+.property-price-text {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #1a7f4b;
+    margin: 2px 0 0;
+}
+
 .price-area-container {
     display: flex;
     gap: 30px;

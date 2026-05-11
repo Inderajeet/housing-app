@@ -155,13 +155,38 @@ const SalePropertyForm = ({ data, onChange, onSubmit, onNext, mode = 'details' }
                 </div>
 
                 <div className="form-group">
-                    <label>Expected Price (Rs)</label>
-                    <input type="number" value={data.price || ''} onChange={(e) => onChange('price', e.target.value)} className="input-field" />
+                    <label>Expected Rate</label>
+                    <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                        <input type="number" value={data.price || ''} onChange={(e) => onChange('price', e.target.value)} className="input-field" style={{ flex: 1, margin: 0 }} placeholder="Amount (Rs)" />
+                        <div className="option-group" style={{ margin: 0, flexShrink: 0 }}>
+                            {[{ label: 'Sqft', value: 'sqft' }, { label: 'Cent', value: 'cent' }].map(u => (
+                                <button key={u.value} type="button" className={`option-btn ${data.rate_unit === u.value ? 'active' : ''}`} onClick={() => onChange('rate_unit', data.rate_unit === u.value ? '' : u.value)}>{u.label}</button>
+                            ))}
+                        </div>
+                    </div>
                 </div>
 
                 <div className="form-group">
                     <label>Extent Area</label>
-                    <input type="text" value={data.area_size || ''} onChange={(e) => onChange('area_size', e.target.value)} className="input-field" />
+                    <input type="text" value={data.extension || ''} onChange={(e) => onChange('extension', e.target.value)} className="input-field" />
+                </div>
+
+                <div className="form-group">
+                    <label>Extension Unit</label>
+                    <div className="option-group">
+                        {[
+                            { label: 'Sqft', value: 'sqft' },
+                            { label: 'Cent', value: 'cent' },
+                            { label: 'Sq.m', value: 'sq.m' },
+                            { label: 'Acre', value: 'acre' },
+                            { label: 'Ground', value: 'ground' },
+                            { label: 'Guntha', value: 'guntha' },
+                            { label: 'Kanal', value: 'kanal' },
+                            { label: 'Marla', value: 'marla' },
+                        ].map(u => (
+                            <button key={u.value} type="button" className={`option-btn ${data.area_size === u.value ? 'active' : ''}`} onClick={() => onChange('area_size', data.area_size === u.value ? '' : u.value)}>{u.label}</button>
+                        ))}
+                    </div>
                 </div>
 
                 <div className="modal-actions full-width-center">

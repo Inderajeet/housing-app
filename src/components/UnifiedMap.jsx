@@ -45,7 +45,7 @@ const UnifiedMap = ({ properties = [], mapCenter, mapZoom }) => {
   }, [center, zoom, mapLoaded]);
 
   const formatPrice = (price) => {
-    if (!price || isNaN(price)) return 'Price on request';
+    if (price == null || price === '' || Number.isNaN(Number(price)) || Number(price) === 0) return null;
     const n = Number(price);
     if (n >= 10000000) return `₹${(n / 10000000).toFixed(2)} Cr`;
     if (n >= 100000) return `₹${(n / 100000).toFixed(2)} L`;
@@ -96,20 +96,38 @@ const UnifiedMap = ({ properties = [], mapCenter, mapZoom }) => {
     const isRent = !!property.rent_amount;
     const saleType = (property.sale_type || '').toLowerCase();
     const isPlotOrFlat = ['plot', 'flat'].includes(saleType);
-    const landmark = property.street_name_or_road_name || '';
+    const landmark = property.street_name_or_road_name || property.landmark || property.street_name || '';
     const locationStr = landmark || [property.village_name, property.taluk_name].filter(Boolean).join(', ') || 'Location available';
+    const layoutName = property.title || property.layout_name || '';
 
     return (
       <div
         className="popup-content popup-clickable"
+        style={{ position: 'relative' }}
         onClick={() => router.push(getPropertyHref(property))}
       >
+        <button
+          className="popup-close-btn"
+          onClick={(e) => { e.stopPropagation(); setHoveredProperty(null); }}
+          aria-label="Close"
+        >✕</button>
+
+        {isPlotOrFlat && layoutName && (
+          <div className="popup-layout-name">{layoutName}</div>
+        )}
+
         <div className="popup-id-badge">{property.formatted_id || 'Property'}</div>
 
-        <div className="popup-price">
-          {isRent ? formatPrice(property.rent_amount) : formatPrice(property.sale_price)}
-          {isRent && <span className="price-period">/mo</span>}
-        </div>
+        {(isRent ? formatPrice(property.rent_amount) : formatPrice(property.sale_price || property.price)) && (
+          <div className="popup-price">
+            {isRent
+              ? <>{formatPrice(property.rent_amount)}<span className="price-period">/mo</span></>
+              : property.rate_unit
+                ? <>{formatPrice(property.sale_price || property.price)}<span className="price-period">/{property.rate_unit}</span></>
+                : formatPrice(property.sale_price || property.price)
+            }
+          </div>
+        )}
 
         <div className="popup-details-grid">
           {isRent ? (
@@ -125,16 +143,16 @@ const UnifiedMap = ({ properties = [], mapCenter, mapZoom }) => {
                 <span className="detail-value">
                   {(property.property_use || '').toLowerCase() === 'commercial'
                     ? 'Commercial'
-                    : `${property.bhk || ''} BHK`.trim() || 'Residential'}
+                    : property.bhk ? `${property.bhk} BHK` : 'Residential'}
                 </span>
               </div>
             </>
           ) : isPlotOrFlat ? (
             <>
-              {property.title && (
+              {(property.extension || property.area_size) && (
                 <div className="detail-item">
-                  <span className="detail-label">Layout</span>
-                  <span className="detail-value">{property.title}</span>
+                  <span className="detail-label">Extent</span>
+                  <span className="detail-value">{[property.extension, property.area_size].filter(Boolean).join(' ')}</span>
                 </div>
               )}
               <div className="detail-item">
@@ -144,10 +162,10 @@ const UnifiedMap = ({ properties = [], mapCenter, mapZoom }) => {
             </>
           ) : (
             <>
-              {property.extent_area && (
+              {(property.extension || property.area_size) && (
                 <div className="detail-item">
-                  <span className="detail-label">Area</span>
-                  <span className="detail-value">{[property.extent_area, property.extent_unit].filter(Boolean).join(' ')}</span>
+                  <span className="detail-label">Extent</span>
+                  <span className="detail-value">{[property.extension, property.area_size].filter(Boolean).join(' ')}</span>
                 </div>
               )}
               <div className="detail-item">

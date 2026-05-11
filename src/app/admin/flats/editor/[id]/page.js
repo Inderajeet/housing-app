@@ -65,6 +65,9 @@ export default function FlatLayoutEditorPage() {
   const [showDrawingRef, setShowDrawingRef] = useState(false);
   const [showBulkStatus, setShowBulkStatus] = useState(false);
   const [bulkInputs, setBulkInputs] = useState({ nil: '', on: '', confirmed: '' });
+  const [bulkBhk, setBulkBhk] = useState('');
+  const [svgBulkBhkLabels, setSvgBulkBhkLabels] = useState('');
+  const [svgBulkBhkValue, setSvgBulkBhkValue] = useState('');
   const [viewMode, setViewMode] = useState('grid');
   const [svgShapes, setSvgShapes] = useState([]);
 
@@ -114,14 +117,19 @@ export default function FlatLayoutEditorPage() {
         // Load SVG shapes
         const svgItems = rawItems.filter(item => item.points && Array.isArray(item.points) && item.points.length > 0);
         if (svgItems.length > 0) {
-          setSvgShapes(svgItems.map(item => ({
-            id: item.element_id ? String(item.element_id) : String(Math.random()),
-            type: (item.type || 'FLAT').toUpperCase() === 'FLAT' ? 'plot' : 'road',
-            points: item.points,
-            label: item.name || '',
-            status: item.status || 'Nil Booking',
-            color: item.color || '#22c55e',
-          })));
+          setSvgShapes(svgItems.map(item => {
+            const rawName = item.name || '';
+            const [parsedLabel, parsedBhk] = rawName.includes('|') ? rawName.split('|') : [rawName, ''];
+            return {
+              id: item.element_id ? String(item.element_id) : String(Math.random()),
+              type: (item.type || 'FLAT').toUpperCase() === 'FLAT' ? 'plot' : 'road',
+              points: item.points,
+              label: parsedLabel,
+              bhk: parsedBhk,
+              status: item.status || 'Nil Booking',
+              color: item.color || '#22c55e',
+            };
+          }));
           setViewMode('svg');
         }
 
@@ -158,11 +166,14 @@ export default function FlatLayoutEditorPage() {
             ? (unitStatusByKey.get(`id:${item.flat_unit_id}`) || unitStatusByKey.get(`name:${String(item.name || item.flat_number || '').trim()}`) || item.status || 'Nil Booking')
             : item.status;
 
+          const rawName = item.name || item.label || '';
+          const [parsedName, parsedBhk] = rawName.includes('|') ? rawName.split('|') : [rawName, ''];
           const key = `${y}-${x}`;
           mapped[key] = {
             ...item, row: y, col: x, colSpan: w, rowSpan: h,
-            display_name: item.name || item.label || '',
-            isManual: isNaN(item.name) && item.type === 'FLAT',
+            display_name: parsedName,
+            bhk: parsedBhk,
+            isManual: isNaN(parsedName) && item.type === 'FLAT',
             type: item.type || 'FLAT', status: resolvedStatus,
             token_paid_to: item.token_paid_to || '',
             rotation: item.rotation || 0,
@@ -207,7 +218,7 @@ export default function FlatLayoutEditorPage() {
         elements = svgShapes.map(shape => ({
           property_id: id,
           type: shape.type === 'plot' ? 'FLAT' : 'ROAD',
-          name: shape.label,
+          name: shape.bhk ? `${shape.label}|${shape.bhk}` : shape.label,
           status: shape.status,
           color: shape.color,
           points: shape.points,
@@ -223,7 +234,8 @@ export default function FlatLayoutEditorPage() {
               property_id: id, type: cell.type,
               x: cell.col, y: cell.row,
               width: cell.colSpan || 1, height: cell.rowSpan || 1,
-              name: cell.display_name, status: cell.status,
+              name: cell.bhk ? `${cell.display_name}|${cell.bhk}` : cell.display_name,
+              status: cell.status,
               token_paid_to: cell.token_paid_to || null,
               rotation: parseInt(cell.rotation || 0), color: cell.color,
               font_size: parseInt(cell.font_size || 10), font_weight: cell.font_weight || '900',
@@ -253,7 +265,7 @@ export default function FlatLayoutEditorPage() {
             type, row: r, col: c, merged: false, anchorKey: null,
             colSpan: 1, rowSpan: 1,
             display_name: type === 'TEXT' ? 'LABEL' : '',
-            status: 'Nil Booking', rotation: 0,
+            bhk: '', status: 'Nil Booking', rotation: 0,
             color: type === 'TEXT' ? '#2563eb' : '#ffffff',
             font_size: type === 'TEXT' ? 14 : 10, font_weight: '900',
           };
@@ -287,7 +299,7 @@ export default function FlatLayoutEditorPage() {
             colSpan: shouldMerge && isAnchor ? cMax - cMin + 1 : 1,
             rowSpan: shouldMerge && isAnchor ? rMax - rMin + 1 : 1,
             display_name: isAnchor ? (isText ? 'LABEL' : '') : '',
-            status: 'Nil Booking', rotation: 0,
+            bhk: '', status: 'Nil Booking', rotation: 0,
             color: isText ? '#2563eb' : '#ffffff',
             font_size: isText ? 14 : 10, font_weight: '900',
           };
@@ -296,6 +308,48 @@ export default function FlatLayoutEditorPage() {
     }
     setGridData(refreshFlatNumbers(newGrid));
     setSelection({ start: null, end: null });
+  };
+
+  const applyBulkBhk = (bhkValue) => {
+    if (!bhkValue.trim()) return;
+    if (viewMode === 'svg') {
+      setSvgShapes(prev => prev.map(s =>
+        s.type === 'plot' ? { ...s, bhk: bhkValue.trim() } : s
+      ));
+      return;
+    }
+    const selectedKeys = selectionMode === 'freeform'
+      ? Object.keys(freeformKeys)
+      : (() => {
+          const { start, end } = selection;
+          if (!start || !end) return [];
+          const keys = [];
+          for (let r = Math.min(start.r, end.r); r <= Math.max(start.r, end.r); r++)
+            for (let c = Math.min(start.c, end.c); c <= Math.max(start.c, end.c); c++)
+              keys.push(`${r}-${c}`);
+          return keys;
+        })();
+    if (!selectedKeys.length) { alert('Select flats first, then apply BHK.'); return; }
+    recordHistory(gridData);
+    setGridData(prev => {
+      const next = { ...prev };
+      selectedKeys.forEach(k => {
+        if (next[k] && !next[k].merged && next[k].type === 'FLAT')
+          next[k] = { ...next[k], bhk: bhkValue.trim() };
+      });
+      return next;
+    });
+  };
+
+  const applyBulkBhkByLabel = (bhkValue, numbersStr) => {
+    if (!bhkValue.trim() || !numbersStr.trim()) return;
+    const nums = parseNumberList(numbersStr);
+    if (!nums.size) return;
+    setSvgShapes(prev => prev.map(s =>
+      s.type === 'plot' && nums.has(String(s.label).trim())
+        ? { ...s, bhk: bhkValue.trim() }
+        : s
+    ));
   };
 
   const activeCell = selectedCellKey ? gridData[selectedCellKey] : null;
@@ -347,28 +401,74 @@ export default function FlatLayoutEditorPage() {
             <span className="text-slate-400 text-xs">{showBulkStatus ? '▲ Hide' : '▼ Show'}</span>
           </button>
           {showBulkStatus && (
-            <div className="px-10 pb-3 flex items-center gap-6 flex-wrap">
-              {[
-                { key: 'nil', label: 'Nil Booking', value: 'Nil Booking', bg: 'bg-emerald-50 border-emerald-200 focus:border-emerald-500', pill: 'bg-emerald-500' },
-                { key: 'on', label: 'On Booking', value: 'ON_BOOKING', bg: 'bg-yellow-50 border-yellow-200 focus:border-yellow-500', pill: 'bg-yellow-400' },
-                { key: 'confirmed', label: 'Confirmed', value: 'CONFIRMED', bg: 'bg-red-50 border-red-200 focus:border-red-500', pill: 'bg-red-500' },
-              ].map(({ key, label, value, bg, pill }) => (
-                <div key={key} className="flex items-center gap-2">
-                  <span className={`w-2.5 h-2.5 rounded-full ${pill}`} />
-                  <span className="text-[10px] font-black text-slate-500 uppercase">{label}</span>
+            <div className="px-10 pb-3 space-y-3">
+              <div className="flex items-center gap-6 flex-wrap">
+                {[
+                  { key: 'nil', label: 'Nil Booking', value: 'Nil Booking', bg: 'bg-emerald-50 border-emerald-200 focus:border-emerald-500', pill: 'bg-emerald-500' },
+                  { key: 'on', label: 'On Booking', value: 'ON_BOOKING', bg: 'bg-yellow-50 border-yellow-200 focus:border-yellow-500', pill: 'bg-yellow-400' },
+                  { key: 'confirmed', label: 'Confirmed', value: 'CONFIRMED', bg: 'bg-red-50 border-red-200 focus:border-red-500', pill: 'bg-red-500' },
+                ].map(({ key, label, value, bg, pill }) => (
+                  <div key={key} className="flex items-center gap-2">
+                    <span className={`w-2.5 h-2.5 rounded-full ${pill}`} />
+                    <span className="text-[10px] font-black text-slate-500 uppercase">{label}</span>
+                    <input
+                      value={bulkInputs[key]}
+                      onChange={e => setBulkInputs(prev => ({ ...prev, [key]: e.target.value }))}
+                      onBlur={e => { if (e.target.value.trim()) applyBulkStatus(value, e.target.value); }}
+                      placeholder="e.g. 1,3,5-8"
+                      className={`w-32 px-3 py-1.5 rounded-lg border text-[11px] font-semibold outline-none ${bg}`}
+                    />
+                    <button
+                      onClick={() => { if (bulkInputs[key].trim()) applyBulkStatus(value, bulkInputs[key]); }}
+                      className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 rounded-lg text-[10px] font-black uppercase text-slate-600 transition-all"
+                    >Apply</button>
+                  </div>
+                ))}
+              </div>
+              <div className="flex items-center gap-3 pt-1 border-t border-slate-100">
+                <span className="text-[10px] font-black text-slate-500 uppercase">Bulk BHK</span>
+                {viewMode === 'grid' && <span className="text-[9px] text-slate-400">(select flats first)</span>}
+                {[1,2,3,4].map(n => (
+                  <button key={n} onClick={() => applyBulkBhk(String(n))}
+                    className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg text-[10px] font-black uppercase border border-indigo-100 transition-all"
+                  >{n} BHK</button>
+                ))}
+                <input
+                  value={bulkBhk}
+                  onChange={e => setBulkBhk(e.target.value.replace(/\D/g, '').slice(0, 2))}
+                  placeholder="Custom"
+                  className="w-20 px-3 py-1.5 rounded-lg border text-[11px] font-semibold outline-none bg-indigo-50 border-indigo-200 focus:border-indigo-500"
+                />
+                <button onClick={() => applyBulkBhk(bulkBhk)}
+                  className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 rounded-lg text-[10px] font-black uppercase text-slate-600 transition-all"
+                >Apply</button>
+              </div>
+              {viewMode === 'svg' && (
+                <div className="flex items-center gap-3 pt-1 border-t border-slate-100">
+                  <span className="text-[10px] font-black text-slate-500 uppercase">BHK by Label</span>
+                  <span className="text-[9px] text-slate-400">(SVG mode)</span>
                   <input
-                    value={bulkInputs[key]}
-                    onChange={e => setBulkInputs(prev => ({ ...prev, [key]: e.target.value }))}
-                    onBlur={e => { if (e.target.value.trim()) applyBulkStatus(value, e.target.value); }}
+                    value={svgBulkBhkLabels}
+                    onChange={e => setSvgBulkBhkLabels(e.target.value)}
                     placeholder="e.g. 1,3,5-8"
-                    className={`w-32 px-3 py-1.5 rounded-lg border text-[11px] font-semibold outline-none ${bg}`}
+                    className="w-32 px-3 py-1.5 rounded-lg border text-[11px] font-semibold outline-none bg-indigo-50 border-indigo-200 focus:border-indigo-500"
                   />
-                  <button
-                    onClick={() => { if (bulkInputs[key].trim()) applyBulkStatus(value, bulkInputs[key]); }}
+                  {[1,2,3,4].map(n => (
+                    <button key={n} onClick={() => applyBulkBhkByLabel(String(n), svgBulkBhkLabels)}
+                      className="px-3 py-1.5 bg-violet-50 hover:bg-violet-100 text-violet-700 rounded-lg text-[10px] font-black uppercase border border-violet-100 transition-all"
+                    >{n}BHK</button>
+                  ))}
+                  <input
+                    value={svgBulkBhkValue}
+                    onChange={e => setSvgBulkBhkValue(e.target.value.replace(/\D/g, '').slice(0, 2))}
+                    placeholder="Custom"
+                    className="w-20 px-3 py-1.5 rounded-lg border text-[11px] font-semibold outline-none bg-violet-50 border-violet-200 focus:border-violet-500"
+                  />
+                  <button onClick={() => applyBulkBhkByLabel(svgBulkBhkValue, svgBulkBhkLabels)}
                     className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 rounded-lg text-[10px] font-black uppercase text-slate-600 transition-all"
                   >Apply</button>
                 </div>
-              ))}
+              )}
             </div>
           )}
         </div>
@@ -460,7 +560,10 @@ export default function FlatLayoutEditorPage() {
                     }}
                     className={cellClass}
                   >
-                    <span style={cellStyle} className="whitespace-nowrap pointer-events-none">{cell?.display_name || ''}</span>
+                    <span style={cellStyle} className="whitespace-nowrap pointer-events-none leading-none">{cell?.display_name || ''}</span>
+                    {cell?.type === 'FLAT' && cell?.bhk && (
+                      <span className="absolute bottom-0 left-0 right-0 text-center text-[7px] font-bold leading-none pb-[1px] pointer-events-none opacity-80">{cell.bhk}BHK</span>
+                    )}
                   </div>
                 );
               })
@@ -519,6 +622,16 @@ export default function FlatLayoutEditorPage() {
                         >{label} ({color})</button>
                       );
                     })}
+                  </div>
+                </div>
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">BHK</p>
+                  <div className="flex gap-2 flex-wrap">
+                    {['', '1', '2', '3', '4'].map(v => (
+                      <button key={v} onClick={() => setGridData(prev => ({ ...prev, [selectedCellKey]: { ...prev[selectedCellKey], bhk: v } }))}
+                        className={`px-3 py-2 rounded-xl text-[11px] font-bold border transition-all ${activeCell.bhk === v ? 'bg-indigo-600 text-white border-indigo-700' : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-indigo-50'}`}
+                      >{v || 'None'}{v ? ' BHK' : ''}</button>
+                    ))}
                   </div>
                 </div>
                 <div>

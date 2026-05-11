@@ -18,7 +18,8 @@ const STATUS_COLORS = {
 const UNIT_STATUS_OPTIONS = ['Nil Booking', 'ON_BOOKING', 'CONFIRMED', 'UNREGISTERED', 'REGISTERED', 'SOLD'];
 const TOKEN_PAID_TO_OPTIONS = ['', 'Paid Us', 'Paid to Owner', 'Owner returned', 'Returned to buyer'];
 const SALE_STATUS_OPTIONS = ['Nil Booking', 'ON_BOOKING', 'BOOKED', 'SOLD'];
-const RATE_UNIT_OPTIONS = ['', 'per sqft', 'per inch', 'per cent', 'per ground', 'per acre', 'per sq.meter'];
+const RATE_UNIT_OPTIONS = ['', 'sqft', 'cent'];
+const EXTENT_UNIT_OPTIONS = ['', 'sqft', 'cent', 'sq.m', 'acre', 'ground', 'guntha', 'kanal', 'marla'];
 
 function LabelCell({ labels, colorClass }) {
   if (!labels) return <span className="text-gray-300 text-xs">—</span>;
@@ -186,7 +187,8 @@ export default function PlotsPage() {
               },
               { header: 'Rate (₹)', accessor: p => p.price ? `₹${Number(p.price).toLocaleString()}${p.rate_unit ? ' / ' + p.rate_unit : ''}` : '-', editable: true, editType: 'number', editField: 'price', filterable: true, filterKey: 'price' },
               { header: 'Rate Unit', accessor: p => p.rate_unit || '-', editable: true, editType: 'select', editField: 'rate_unit', editOptions: RATE_UNIT_OPTIONS.map(v => ({ value: v, label: v || '— None —' })), filterable: true, filterKey: 'rate_unit' },
-              { header: 'Area Size', accessor: 'area_size', editable: true, filterable: true, filterKey: 'area_size' },
+              { header: 'Extent Area', accessor: 'extension', editable: true, filterable: true, filterKey: 'extension' },
+              { header: 'Extent Unit', accessor: p => p.area_size || '-', editable: true, editType: 'select', editField: 'area_size', editOptions: EXTENT_UNIT_OPTIONS.map(v => ({ value: v, label: v || '— None —' })), filterable: true, filterKey: 'area_size' },
               { header: 'Survey No.', accessor: 'survey_number', editable: true, filterable: true, filterKey: 'survey_number' },
               { header: 'Layout Name', accessor: 'layout_name', editable: true, filterable: true, filterKey: 'layout_name' },
               { header: 'Token Amt', accessor: p => p.token_amount ? `₹${Number(p.token_amount).toLocaleString()}` : '-', editable: true, editType: 'number', editField: 'token_amount', filterable: true, filterKey: 'token_amount' },

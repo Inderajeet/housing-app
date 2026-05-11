@@ -24,13 +24,14 @@ const STATUS_COLORS = {
 };
 
 const TOKEN_PAID_TO_OPTIONS = ['', 'Paid Us', 'Paid to Owner', 'Owner returned', 'Returned to buyer'];
-const RATE_UNIT_OPTIONS = ['', 'per sqft', 'per inch', 'per cent', 'per ground', 'per acre', 'per sq.meter'];
+const RATE_UNIT_OPTIONS = ['', 'sqft', 'cent'];
+const EXTENT_UNIT_OPTIONS = ['', 'sqft', 'cent', 'sq.m', 'acre', 'ground', 'guntha', 'kanal', 'marla'];
 
 const EMPTY_FORM = {
   contact_phone: '', seller_name: '', alternate_contact_phone: '', alternate_seller_name: '',
   title: '', address: '', latitude: '', longitude: '',
   district_id: '', taluk_id: '', village_id: '',
-  status: 'pending', sale_type: SaleType.LAND, price: '', rate_unit: '', area_size: '',
+  status: 'pending', sale_type: SaleType.LAND, price: '', rate_unit: '', extension: '', area_size: '',
   survey_number: '', street_name_or_road_name: '', layout_name: '',
   boundary_north: '', boundary_south: '', boundary_east: '', boundary_west: '',
   sale_status: SaleStatus.NIL_BOOKING, total_units_count: '', booked_units: '', open_units: '',
@@ -559,8 +560,8 @@ export default function SalePropertiesPage() {
             { header: 'Alt Name', accessor: 'alternate_seller_name', editable: true, filterable: true, filterKey: 'alternate_seller_name' },
             { header: 'Rate (₹)', accessor: p => p.price ? `₹${Number(p.price).toLocaleString()}${p.rate_unit ? ' / ' + p.rate_unit : ''}` : '-', editable: true, editType: 'number', editField: 'price', filterable: true, filterKey: 'price' },
             { header: 'Rate Unit', accessor: p => p.rate_unit || '-', editable: true, editType: 'select', editField: 'rate_unit', editOptions: RATE_UNIT_OPTIONS.map(v => ({ value: v, label: v || '— None —' })), filterable: true, filterKey: 'rate_unit' },
-            { header: 'Area Size', accessor: 'area_size', editable: true, filterable: true, filterKey: 'area_size' },
-            { header: 'Extension', accessor: 'extension', editable: true, filterable: true, filterKey: 'extension' },
+            { header: 'Extent Area', accessor: 'extension', editable: true, filterable: true, filterKey: 'extension' },
+            { header: 'Extension Unit', accessor: p => p.area_size || '-', editable: true, editType: 'select', editField: 'area_size', editOptions: EXTENT_UNIT_OPTIONS.map(v => ({ value: v, label: v || '— None —' })), filterable: true, filterKey: 'area_size' },
             { header: 'Survey No.', accessor: 'survey_number', editable: true, filterable: true, filterKey: 'survey_number' },
             { header: 'Landmark', accessor: 'street_name_or_road_name', editable: true, filterable: true, filterKey: 'street_name_or_road_name' },
             { header: 'Layout Name', accessor: 'layout_name', editable: true, filterable: true, filterKey: 'layout_name' },
@@ -689,14 +690,19 @@ export default function SalePropertiesPage() {
                         {Object.values(SaleType).map(s => <option key={s} value={s}>{s}</option>)}
                       </select></div>
                   </div>
-                  <div className="grid grid-cols-3 gap-6">
+                  <div className="grid grid-cols-4 gap-6">
                     <div className={fw}><label className={lbl}>Rate (₹)</label><input disabled={isReadOnly} value={form.price} onChange={e => handleChange('price', e.target.value)} className={inp()} /></div>
                     <div className={fw}><label className={lbl}>Rate Unit</label>
                       <select disabled={isReadOnly} value={form.rate_unit || ''} onChange={e => handleChange('rate_unit', e.target.value)} className="w-full px-4 py-2.5 rounded-xl border border-gray-300 font-semibold text-sm">
                         {RATE_UNIT_OPTIONS.map(o => <option key={o} value={o}>{o || '— Select —'}</option>)}
                       </select>
                     </div>
-                    <div className={fw}><label className={lbl}>Area Size</label><input disabled={isReadOnly} value={form.area_size} onChange={e => handleChange('area_size', e.target.value)} className={inp()} /></div>
+                    <div className={fw}><label className={lbl}>Extent Area</label><input disabled={isReadOnly} value={form.extension || ''} onChange={e => handleChange('extension', e.target.value)} className={inp()} /></div>
+                    <div className={fw}><label className={lbl}>Extension Unit</label>
+                      <select disabled={isReadOnly} value={form.area_size || ''} onChange={e => handleChange('area_size', e.target.value)} className="w-full px-4 py-2.5 rounded-xl border border-gray-300 font-semibold text-sm">
+                        {EXTENT_UNIT_OPTIONS.map(o => <option key={o} value={o}>{o || '— Select —'}</option>)}
+                      </select>
+                    </div>
                   </div>
                   <div className="grid grid-cols-2 gap-6">
                     <div className={fw}><label className={lbl}>Survey Number</label><input disabled={isReadOnly} value={form.survey_number} onChange={e => handleChange('survey_number', e.target.value)} className={inp()} /></div>

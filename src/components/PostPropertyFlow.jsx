@@ -233,8 +233,10 @@ const PostPropertyFlow = ({ onClose, initialTransactionType = 'rent', onSuccessf
                     ...payload,
                     sale_type: formData.saleType,
                     price: formData.price,
+                    rate_unit: formData.rate_unit || null,
                     survey_number: formData.survey_number,
                     area_size: formData.area_size || null,
+                    extension: formData.extension || null,
                     boundary_north: formData.boundary_north,
                     boundary_south: formData.boundary_south,
                     boundary_east: formData.boundary_east,
@@ -303,7 +305,12 @@ const PostPropertyFlow = ({ onClose, initialTransactionType = 'rent', onSuccessf
                 )}
                 <div className="modal-header">
                     <ProgressBar currentStep={currentStep} />
-                    <button className="close-button" onClick={onClose}>X</button>
+                    <button className="close-button" onClick={onClose} aria-label="Close">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <line x1="18" y1="6" x2="6" y2="18" />
+                            <line x1="6" y1="6" x2="18" y2="18" />
+                        </svg>
+                    </button>
                 </div>
                 {stepComponent}
             </div>

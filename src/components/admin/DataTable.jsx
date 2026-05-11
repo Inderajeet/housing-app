@@ -42,7 +42,7 @@ const DataTable = ({
   const paginatedData = sortedData.slice(startIndex, startIndex + itemsPerPageState);
 
   const getRowId = (item, fallbackIdx) =>
-    item.plot_unit_id ?? item.property_id ?? item.enquiry_id ?? item.seller_id ?? item.buyer_id ?? item.booking_id ?? fallbackIdx;
+    item.plot_unit_id ?? item.enquiry_id ?? item.booking_id ?? item.property_id ?? item.seller_id ?? item.buyer_id ?? fallbackIdx;
 
   const pageRowIds = paginatedData.map((item, i) => getRowId(item, startIndex + i));
   const selectedOnPage = pageRowIds.filter(id => selectedIds.has(id));

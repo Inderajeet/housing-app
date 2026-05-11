@@ -45,7 +45,7 @@ const GalleryMap = ({ location, status, title, propertyData = null }) => {
   });
 
   const formatPrice = (price) => {
-    if (!price || Number.isNaN(Number(price))) return 'Price on request';
+    if (price == null || price === '' || Number.isNaN(Number(price)) || Number(price) === 0) return null;
     const n = Number(price);
     if (n >= 10000000) return `₹${(n / 10000000).toFixed(2)} Cr`;
     if (n >= 100000) return `₹${(n / 100000).toFixed(2)} L`;
@@ -70,6 +70,7 @@ const GalleryMap = ({ location, status, title, propertyData = null }) => {
 
   const formatRate = () => {
     const price = formatPrice(popupData?.sale_price || popupData?.price);
+    if (!price) return null;
     const unit = popupData?.rate_unit;
     return unit ? `${price}/${unit}` : price;
   };
@@ -78,12 +79,22 @@ const GalleryMap = ({ location, status, title, propertyData = null }) => {
 
   const renderPopupContent = () => (
     <div className="property-popup">
-      <div className="popup-content">
+      <div className="popup-content" style={{ position: 'relative' }}>
+        <button
+          className="popup-close-btn"
+          onClick={(e) => { e.stopPropagation(); setShowInfo(false); }}
+          aria-label="Close"
+        >✕</button>
         <div className="popup-header">{popupData?.formatted_id || popupData?.title || title || 'Property'}</div>
-        <div className="popup-price">
-          {isRent ? formatPrice(popupData?.rent_amount) : formatPrice(popupData?.sale_price)}
-          {isRent && <span className="price-period">/mo</span>}
-        </div>
+        {(isRent ? formatPrice(popupData?.rent_amount) : formatPrice(popupData?.sale_price)) && (
+          <div className="popup-price">
+            {isRent ? formatPrice(popupData?.rent_amount) : formatPrice(popupData?.sale_price)}
+            {isRent && <span className="price-period">/mo</span>}
+            {!isRent && isPlotOrFlat && popupData?.rate_unit && (
+              <span className="price-period">/{popupData.rate_unit}</span>
+            )}
+          </div>
+        )}
         <div className="popup-details-grid">
           <div className="detail-item">
             <span className="detail-label">Type</span>
@@ -111,7 +122,7 @@ const GalleryMap = ({ location, status, title, propertyData = null }) => {
             <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
             <circle cx="12" cy="10" r="3" />
           </svg>
-          <span>{[popupData?.taluk_name, popupData?.village_name].filter(Boolean).join(', ') || 'Location available'}</span>
+          <span>{popupData?.landmark || popupData?.street_name || popupData?.street_name_or_road_name || popupData?.village_name || popupData?.taluk_name || 'Location available'}</span>
         </div>
       </div>
     </div>
@@ -181,11 +192,13 @@ const GalleryMap = ({ location, status, title, propertyData = null }) => {
         <div className="gallery-map-details-list">
           {isRent ? (
             <>
-              <div className="gallery-map-details-row">
-                <span className="label">Rent</span>
-                <span className="value">{formatPrice(popupData?.rent_amount)}/mo</span>
-              </div>
-              {popupData?.advance_amount && (
+              {formatPrice(popupData?.rent_amount) && (
+                <div className="gallery-map-details-row">
+                  <span className="label">Rent</span>
+                  <span className="value">{formatPrice(popupData?.rent_amount)}/mo</span>
+                </div>
+              )}
+              {popupData?.advance_amount && formatPrice(popupData.advance_amount) && (
                 <div className="gallery-map-details-row">
                   <span className="label">Advance</span>
                   <span className="value">{formatPrice(popupData.advance_amount)}</span>
@@ -200,10 +213,12 @@ const GalleryMap = ({ location, status, title, propertyData = null }) => {
             </>
           ) : isPlotOrFlat ? (
             <>
-              <div className="gallery-map-details-row">
-                <span className="label">Rate</span>
-                <span className="value">{formatRate()}</span>
-              </div>
+              {formatRate() && (
+                <div className="gallery-map-details-row">
+                  <span className="label">Rate</span>
+                  <span className="value">{formatRate()}</span>
+                </div>
+              )}
               {popupData?.layout_name && (
                 <div className="gallery-map-details-row">
                   <span className="label">Layout</span>
@@ -213,15 +228,18 @@ const GalleryMap = ({ location, status, title, propertyData = null }) => {
             </>
           ) : (
             <>
-              <div className="gallery-map-details-row">
-                <span className="label">Price</span>
-                <span className="value">{formatPrice(popupData?.sale_price || popupData?.price)}</span>
-              </div>
-              {(popupData?.area_size || popupData?.extent_area) && (
+              {formatPrice(popupData?.sale_price || popupData?.price) && (
+                <div className="gallery-map-details-row">
+                  <span className="label">Rate</span>
+                  <span className="value">{formatPrice(popupData?.sale_price || popupData?.price)}</span>
+                </div>
+              )}
+              {(popupData?.extension || popupData?.area_size || popupData?.extent_area) && (
                 <div className="gallery-map-details-row">
                   <span className="label">Extent</span>
                   <span className="value">
-                    {popupData.area_size || [popupData.extent_area, popupData.extent_unit].filter(Boolean).join(' ')}
+                    {[popupData.extension, popupData.area_size].filter(Boolean).join(' ') ||
+                     [popupData.extent_area, popupData.extent_unit].filter(Boolean).join(' ')}
                   </span>
                 </div>
               )}

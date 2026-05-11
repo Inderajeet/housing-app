@@ -29,6 +29,7 @@ model bookings {
   unit_id        Int?
   token_paid_to  String?    @db.VarChar(50)
   advance_amount Decimal?   @db.Decimal(15, 2)
+  contact_notes  contact_notes[]
   buyers         buyers     @relation(fields: [buyer_id], references: [buyer_id], onDelete: NoAction, onUpdate: NoAction)
   enquiries      enquiries? @relation(fields: [enquiry_id], references: [enquiry_id], onDelete: NoAction, onUpdate: NoAction)
   properties     properties @relation(fields: [property_id], references: [property_id], onDelete: Cascade, onUpdate: NoAction)
@@ -36,6 +37,7 @@ model bookings {
 
   @@unique([property_id, unit_type, unit_id], map: "unique_active_booking", where: raw("((status)::text = 'confirmed'::text)"))
   @@unique([property_id, unit_type, unit_id], map: "unique_active_booking_per_unit", where: raw("((status)::text = 'confirmed'::text)"))
+  @@index([property_id, unit_type], map: "idx_bookings_property_unit")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -57,6 +59,7 @@ model buyers {
   created_at            DateTime?               @default(now()) @db.Timestamp(6)
   bookings              bookings[]
   buyer_property_status buyer_property_status[]
+  contact_notes         contact_notes[]
   enquiries             enquiries[]
   flat_units            flat_units[]
   payments              payments[]
@@ -90,6 +93,7 @@ model enquiries {
   unit_type      String?     @db.VarChar(10)
   unit_id        Int?
   bookings       bookings[]
+  contact_notes  contact_notes[]
   buyers         buyers?     @relation(fields: [buyer_id], references: [buyer_id], onDelete: NoAction, onUpdate: NoAction)
   properties     properties? @relation(fields: [property_id], references: [property_id], onDelete: Cascade, onUpdate: NoAction)
   sellers        sellers?    @relation(fields: [seller_id], references: [seller_id], onUpdate: NoAction)
@@ -187,6 +191,8 @@ model plot_layout_elements {
   closed       Boolean?    @default(false)
   plot_units   plot_units? @relation(fields: [plot_unit_id], references: [plot_unit_id], onUpdate: NoAction, map: "fk_plot_unit")
   properties   properties  @relation(fields: [property_id], references: [property_id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([property_id], map: "idx_plot_elements_property")
 }
 
 model plot_units {
@@ -205,6 +211,8 @@ model plot_units {
   plot_layout_elements plot_layout_elements[]
   buyers               buyers?                @relation(fields: [assigned_buyer_id], references: [buyer_id], onUpdate: NoAction, map: "plot_units_buyer_fkey")
   properties           properties             @relation(fields: [property_id], references: [property_id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([property_id], map: "idx_plot_units_property")
 }
 
 model premium_properties {
@@ -239,6 +247,7 @@ model properties {
   live_image            String?
   bookings              bookings[]
   buyer_property_status buyer_property_status[]
+  contact_notes         contact_notes[]
   enquiries             enquiries[]
   flat_layout_elements  flat_layout_elements[]
   flat_projects         flat_projects?
@@ -255,6 +264,11 @@ model properties {
   property_assets       property_assets[]
   rent_properties       rent_properties?
   sale_properties       sale_properties?
+
+  @@index([status, property_type], map: "idx_properties_status_type")
+  @@index([district_id, status],   map: "idx_properties_district_status")
+  @@index([taluk_id, status],      map: "idx_properties_taluk_status")
+  @@index([village_id, status],    map: "idx_properties_village_status")
 }
 
 model property_assets {
@@ -269,6 +283,8 @@ model property_assets {
   mime_type   String?    @db.VarChar(255)
   sort_order  Int?
   properties  properties @relation(fields: [property_id], references: [property_id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([property_id, asset_type], map: "idx_property_assets_property_type")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -337,13 +353,14 @@ model sale_properties {
 }
 
 model sellers {
-  seller_id       Int          @id @default(autoincrement())
-  name            String       @db.VarChar(150)
-  phone_number    String       @unique @db.VarChar(20)
-  alternate_phone String?      @db.VarChar(20)
-  email           String?      @db.VarChar(150)
+  seller_id       Int             @id @default(autoincrement())
+  name            String          @db.VarChar(150)
+  phone_number    String          @unique @db.VarChar(20)
+  alternate_phone String?         @db.VarChar(20)
+  email           String?         @db.VarChar(150)
   address         String?
-  created_at      DateTime?    @default(now()) @db.Timestamp(6)
+  created_at      DateTime?       @default(now()) @db.Timestamp(6)
+  contact_notes   contact_notes[]
   enquiries       enquiries[]
   payments        payments[]
   properties      properties[]
@@ -419,4 +436,27 @@ model site_content {
   content_key   String    @unique @db.VarChar(100)
   content_value String
   updated_at    DateTime? @default(now()) @db.Timestamptz(6)
+}
+
+model contact_notes {
+  id          Int         @id @default(autoincrement())
+  note_date   DateTime    @default(now()) @db.Timestamptz(6)
+  note_text   String
+  buyer_id    Int?
+  seller_id   Int?
+  property_id Int?
+  enquiry_id  Int?
+  booking_id  Int?
+  created_at  DateTime    @default(now()) @db.Timestamptz(6)
+  buyers      buyers?     @relation(fields: [buyer_id], references: [buyer_id], onDelete: Cascade, onUpdate: NoAction)
+  sellers     sellers?    @relation(fields: [seller_id], references: [seller_id], onDelete: Cascade, onUpdate: NoAction)
+  properties  properties? @relation(fields: [property_id], references: [property_id], onDelete: Cascade, onUpdate: NoAction)
+  enquiries   enquiries?  @relation(fields: [enquiry_id], references: [enquiry_id], onDelete: Cascade, onUpdate: NoAction)
+  bookings    bookings?   @relation(fields: [booking_id], references: [booking_id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([buyer_id], map: "idx_contact_notes_buyer")
+  @@index([seller_id], map: "idx_contact_notes_seller")
+  @@index([property_id], map: "idx_contact_notes_property")
+  @@index([enquiry_id], map: "idx_contact_notes_enquiry")
+  @@index([booking_id], map: "idx_contact_notes_booking")
 }

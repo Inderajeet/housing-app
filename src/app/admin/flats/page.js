@@ -17,6 +17,8 @@ const STATUS_COLORS = {
 
 const UNIT_STATUS_OPTIONS = ['Nil Booking', 'ON_BOOKING', 'CONFIRMED', 'UNREGISTERED', 'REGISTERED', 'SOLD'];
 const TOKEN_PAID_TO_OPTIONS = ['', 'Paid Us', 'Paid to Owner', 'Owner returned', 'Returned to buyer'];
+const RATE_UNIT_OPTIONS = ['', 'sqft', 'cent'];
+const EXTENT_UNIT_OPTIONS = ['', 'sqft', 'cent', 'sq.m', 'acre', 'ground', 'guntha', 'kanal', 'marla'];
 
 const getApprovalClasses = (status) => {
   const s = String(status || '').toLowerCase();
@@ -130,7 +132,12 @@ export default function FlatsPage() {
 
   const propertyColumns = [
     { header: 'Property ID', accessor: 'formatted_id', className: 'font-mono font-semibold text-blue-600' },
+    { header: 'Layout Name', accessor: 'layout_name', className: 'font-semibold text-gray-700' },
     { header: 'Seller Phone', accessor: 'seller_phone', className: 'font-mono text-sm' },
+    { header: 'Rate (₹)', accessor: p => p.price ? `₹${Number(p.price).toLocaleString()}${p.rate_unit ? ' / ' + p.rate_unit : ''}` : '-' },
+    { header: 'Rate Unit', accessor: p => p.rate_unit || '-' },
+    { header: 'Extent Area', accessor: p => p.extension || '-' },
+    { header: 'Extent Unit', accessor: p => p.area_size || '-' },
     {
       header: 'Approval', sortable: true, sortBy: p => p.status || '',
       accessor: (p) => (

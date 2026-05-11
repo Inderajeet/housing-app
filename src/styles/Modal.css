@@ -120,13 +120,24 @@
 }
 
 .close-button {
-    background: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f3f4f6;
     border: none;
-    font-size: 1.5rem;
+    border-radius: 50%;
+    width: 34px;
+    height: 34px;
     cursor: pointer;
-    color: #4b5563;
+    color: #6b7280;
     padding: 0;
     margin-left: 20px;
+    flex-shrink: 0;
+    transition: background 0.15s, color 0.15s;
+}
+.close-button:hover {
+    background: #e5e7eb;
+    color: #111827;
 }
 
 /* --- Progress Bar STYLES (Cleaned for PostPropertyFlow) --- */

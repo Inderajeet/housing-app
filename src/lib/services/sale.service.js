@@ -10,10 +10,11 @@ export async function getAll(type) {
     SELECT p.property_id, p.formatted_id, p.created_at, p.title, p.description, p.seller_id,
       p.contact_phone, p.address, p.status,
       COALESCE((SELECT COUNT(DISTINCT b.buyer_id)::INT FROM bookings b
-        WHERE b.property_id = p.property_id AND b.unit_type = 'sale'), 0) AS booked_people_count,
+        WHERE b.property_id = p.property_id AND b.unit_type IN ('sale', 'plot', 'flat')), 0) AS booked_people_count,
       p.latitude, p.longitude,
       d.district_id, d.district_name, t.taluk_id, t.taluk_name, v.village_id, v.village_name,
-      s.sale_type, s.price AS sale_price, s.area_size, s.street_name_or_road_name,
+      s.sale_type, s.price AS sale_price, s.rate_unit, s.area_size, s.extension,
+      s.street_name_or_road_name, s.layout_name,
       s.survey_number, s.boundary_north, s.boundary_south, s.boundary_east, s.boundary_west,
       s.sale_status,
       CASE WHEN LOWER(COALESCE(s.sale_type, '')) IN ('plot', 'flat') THEN s.drawing_image ELSE NULL END AS drawing_image,

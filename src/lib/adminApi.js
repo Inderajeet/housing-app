@@ -161,6 +161,11 @@ export const bulkUpdatePlotStatuses = (propertyId, statusLabels) =>
 export const blurImageRegions = (assetId, blurRegions) =>
   adminApi.post('/property-assets/blur', { asset_id: assetId, blur_regions: blurRegions });
 
+// Contact Notes
+export const getContactNotes = (params) => adminApi.get('/contact-notes', { params });
+export const createContactNote = (data) => adminApi.post('/contact-notes', data);
+export const deleteContactNote = (id) => adminApi.delete(`/contact-notes/${id}`);
+
 // Individual Plot / Flat unit CRUD
 export const getAllPlotUnits = () => adminApi.get('/plot-unit-list');
 export const updatePlotUnit = (id, data) => adminApi.put(`/plot-unit-list/${id}`, data);

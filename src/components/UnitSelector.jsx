@@ -32,6 +32,15 @@ const UnitSelector = ({ propertyId, onSelectUnit, saleType, onNoPlots, refreshKe
     const getUnitId = (item) => item?.[preferredUnitIdField] ?? item?.[fallbackUnitIdField] ?? null;
     const getUnitNumber = (item) => item?.[preferredUnitNumberField] ?? item?.[fallbackUnitNumberField] ?? null;
 
+    const stripBhk = (raw) => {
+        if (!raw) return { label: '', bhk: '' };
+        const str = raw.toString();
+        const idx = str.indexOf('|');
+        return idx !== -1
+            ? { label: str.slice(0, idx).trim(), bhk: str.slice(idx + 1).trim() }
+            : { label: str, bhk: '' };
+    };
+
     const refreshPlotNumbers = (currentGrid) => {
         const newGrid = { ...currentGrid };
         const plotKeys = Object.keys(newGrid).filter(
@@ -46,9 +55,11 @@ const UnitSelector = ({ propertyId, onSelectUnit, saleType, onNoPlots, refreshKe
         let currentAutoIndex = 1;
         plotKeys.forEach((key) => {
             const cell = newGrid[key];
-            const unitNumber = getUnitNumber(cell);
-            if (unitNumber) {
-                cell.display_name = unitNumber.toString();
+            const rawUnitNumber = getUnitNumber(cell);
+            const { label: unitLabel, bhk: unitBhk } = stripBhk(rawUnitNumber);
+            if (unitLabel) {
+                cell.display_name = unitLabel;
+                if (unitBhk && !cell.bhk) cell.bhk = unitBhk;
                 cell.isManual = true;
             } else if (!(cell.isManual && cell.display_name !== "")) {
                 cell.display_name = currentAutoIndex.toString();
@@ -84,8 +95,13 @@ const UnitSelector = ({ propertyId, onSelectUnit, saleType, onNoPlots, refreshKe
                 if (svgLayoutItems.length > 0) {
                     const unitItems = rawItems.filter(item => getUnitId(item) != null);
                     const merged = svgLayoutItems.map(shape => {
+                        // name field may encode "label|bhk" — parse it
+                        const rawName = shape.name || shape.label || '';
+                        const pipeIdx = rawName.indexOf('|');
+                        const plotLabel = pipeIdx !== -1 ? rawName.slice(0, pipeIdx).trim() : rawName;
+                        const bhkVal = pipeIdx !== -1 ? rawName.slice(pipeIdx + 1).trim() : '';
                         const unit = unitItems.find(u =>
-                            getUnitNumber(u)?.toString() === (shape.name || shape.label || '').toString()
+                            stripBhk(getUnitNumber(u)).label === plotLabel
                         );
                         return {
                             ...shape,
@@ -98,7 +114,8 @@ const UnitSelector = ({ propertyId, onSelectUnit, saleType, onNoPlots, refreshKe
                             } : {
                                 status: shape.status || 'Nil Booking',
                             }),
-                            display_name: shape.name || shape.label || '',
+                            display_name: plotLabel,
+                            bhk: bhkVal || shape.bhk || '',
                         };
                     });
                     setSvgItems(merged);
@@ -128,10 +145,15 @@ const UnitSelector = ({ propertyId, onSelectUnit, saleType, onNoPlots, refreshKe
                     if (x + w > maxC) maxC = x + w;
 
                     const key = `${y}-${x}`;
+                    const rawItemName = item.name || item.label || '';
+                    const itemPipeIdx = rawItemName.indexOf('|');
+                    const parsedItemName = itemPipeIdx !== -1 ? rawItemName.slice(0, itemPipeIdx).trim() : rawItemName;
+                    const parsedItemBhk = itemPipeIdx !== -1 ? rawItemName.slice(itemPipeIdx + 1).trim() : '';
                     mapped[key] = {
                         ...item,
                         row: y, col: x, colSpan: w, rowSpan: h,
-                        display_name: item.name || item.label || '',
+                        display_name: parsedItemName,
+                        bhk: parsedItemBhk || item.bhk || '',
                         type: item.type || unitTypeName,
                         rotation: item.rotation || 0,
                         color: item.color || (item.type === 'TEXT' ? '#1e293b' : '#ffffff'),
@@ -151,42 +173,32 @@ const UnitSelector = ({ propertyId, onSelectUnit, saleType, onNoPlots, refreshKe
 
                 plotItems.forEach(plot => {
                     const unitId = getUnitId(plot);
-                    const unitNumber = getUnitNumber(plot);
+                    const rawUnitNumber = getUnitNumber(plot);
+                    const { label: unitLabel, bhk: unitBhk } = stripBhk(rawUnitNumber);
                     const plotX = parseInt(plot.x, 10) || 0;
                     const plotY = parseInt(plot.y, 10) || 0;
-                    if (plotY < minR) minR = plotY;
-                    if (plotX < minC) minC = plotX;
-                    if (plotY + 1 > maxR) maxR = plotY + 1;
-                    if (plotX + 1 > maxC) maxC = plotX + 1;
 
                     const cellKey = Object.keys(mapped).find(
-                        key => mapped[key].display_name === unitNumber?.toString()
+                        key => mapped[key].display_name === unitLabel
                     );
                     if (cellKey) {
                         mapped[cellKey] = {
                             ...mapped[cellKey],
                             [preferredUnitIdField]: unitId,
-                            [preferredUnitNumberField]: unitNumber,
+                            [preferredUnitNumberField]: unitLabel,
                             plot_unit_id: plot.plot_unit_id,
                             flat_unit_id: plot.flat_unit_id,
-                            plot_number: plot.plot_number,
-                            flat_number: plot.flat_number,
+                            plot_number: unitLabel,
+                            flat_number: unitLabel,
                             formatted_id: plot.formatted_id,
+                            bhk: mapped[cellKey].bhk || unitBhk || '',
                             type: unitTypeName,
-                            status: plot.status.toUpperCase() || 'NIL_BOOKING',
-                        };
-                    } else {
-                        const key = `${plotY}-${plotX}`;
-                        mapped[key] = {
-                            ...plot,
-                            [preferredUnitIdField]: unitId,
-                            [preferredUnitNumberField]: unitNumber,
-                            row: plotY, col: plotX, colSpan: 1, rowSpan: 1,
-                            display_name: unitNumber?.toString() || '',
-                            type: unitTypeName,
-                            status: plot.status.toUpperCase() || 'NIL_BOOKING',
+                            status: (plot.status || 'NIL_BOOKING').toUpperCase(),
+                            booked_people_count: plot.booked_people_count,
                         };
                     }
+                    // Only add an orphan cell if the unit has a real grid position
+                    // (plot_units have no x/y — dropping orphans prevents the spurious top-left cell)
                 });
 
                 if (!Number.isFinite(minR)) {
@@ -375,20 +387,33 @@ const UnitSelector = ({ propertyId, onSelectUnit, saleType, onNoPlots, refreshKe
                                         points={pts.map(p => `${p.x},${p.y}`).join(' ')}
                                         fill={isPending ? '#3b82f6' : color}
                                         fillOpacity={blocked ? 0.9 : isPending ? 0.95 : 0.85}
-                                        stroke={isPending ? '#1d4ed8' : color}
+                                        stroke={isPending ? '#1d4ed8' : 'white'}
                                         strokeWidth={isPending ? 3 : 1.5}
                                         style={{ cursor: blocked ? 'not-allowed' : 'pointer' }}
                                         onPointerDown={e => e.stopPropagation()}
                                         onClick={() => handlePlotClick(cell)}
                                     />
                                     {bbox.w > 8 && (
-                                        <text x={bbox.cx} y={bbox.cy} textAnchor="middle" dominantBaseline="middle"
+                                        <>
+                                        <text x={bbox.cx} y={cell.bhk ? bbox.cy - (cell.fontSize || cell.font_size || 11) * 0.6 : bbox.cy}
+                                            textAnchor="middle" dominantBaseline="middle"
                                             fontSize={cell.fontSize || cell.font_size || 11} fontWeight="bold"
-                                            fill="#ffffff"
+                                            fill="#1e293b"
                                             style={{ pointerEvents: 'none', userSelect: 'none' }}
                                         >
                                             {cell.display_name}
                                         </text>
+                                        {cell.bhk && (
+                                            <text x={bbox.cx} y={bbox.cy + (cell.fontSize || cell.font_size || 11) * 0.7}
+                                                textAnchor="middle" dominantBaseline="middle"
+                                                fontSize={(cell.fontSize || cell.font_size || 11) * 0.75} fontWeight="600"
+                                                fill="#1e293b"
+                                                style={{ pointerEvents: 'none', userSelect: 'none' }}
+                                            >
+                                                {cell.bhk}BHK
+                                            </text>
+                                        )}
+                                        </>
                                     )}
                                 </g>
                             );
@@ -494,6 +519,9 @@ const UnitSelector = ({ propertyId, onSelectUnit, saleType, onNoPlots, refreshKe
                                 >
                                     {cell?.display_name && (
                                         <span style={cellStyle} className="unit-label">{cell.display_name}</span>
+                                    )}
+                                    {cell?.type === unitTypeName && cell?.bhk && (
+                                        <span className="unit-bhk-label">{cell.bhk}BHK</span>
                                     )}
                                 </div>
                             );

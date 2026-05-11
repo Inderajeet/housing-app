@@ -46,6 +46,14 @@
   color: #0ea5e9;
 }
 
+.popup-layout-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 4px;
+  letter-spacing: -0.01em;
+}
+
 .popup-id-badge {
   display: inline-block;
   font-size: 11px;
@@ -137,6 +145,32 @@
 }
 
 /* Marker status colors are handled inline via SVG */
+.popup-close-btn {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 22px;
+  height: 22px;
+  border: none;
+  background: #f1f5f9;
+  color: #64748b;
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  transition: background 0.15s, color 0.15s;
+  z-index: 10;
+}
+
+.popup-close-btn:hover {
+  background: #ef4444;
+  color: #fff;
+}
+
 /* Hide Google Maps InfoWindow close button */
 .gm-ui-hover-effect {
   display: none !important;

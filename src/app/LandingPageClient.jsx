@@ -36,21 +36,24 @@ export default function LandingPageClient() {
     let cancelled = false;
     const fetchPremium = async () => {
       try {
-        // Fetch paid premium for both modes (same approach as search page)
-        const [rentRes, saleRes] = await Promise.all([
-          endpoints.getPremium({ property_type: 'rent' }),
-          endpoints.getPremium({ property_type: 'sale' }),
-        ]);
+        // Fetch paid premium (no filter → all types)
+        const premiumRes = await endpoints.getPremium();
         if (cancelled) return;
-        const paid = [...(rentRes?.data?.data || []), ...(saleRes?.data?.data || [])];
+        const paid = premiumRes?.data?.data || [];
         if (paid.length > 0) { setLocalPremium(paid); return; }
 
-        // Fallback: regular rent properties (PremiumProperties component filters for images internally)
-        const fallbackRes = await endpoints.getProperties('rent');
+        // Fallback: use regular properties with images from both rent and sale
+        const [rentRes, saleRes] = await Promise.all([
+          endpoints.getProperties('rent'),
+          endpoints.getProperties('sale'),
+        ]);
         if (cancelled) return;
-        const all = fallbackRes?.data?.data || [];
-        const withImg = all.filter(hasPremiumImage);
-        setLocalPremium((withImg.length > 0 ? withImg : all).slice(0, 20));
+        const allProps = [
+          ...(rentRes?.data?.data || []),
+          ...(saleRes?.data?.data || []),
+        ];
+        const withImg = allProps.filter(hasPremiumImage);
+        setLocalPremium((withImg.length > 0 ? withImg : allProps).slice(0, 20));
       } catch {}
     };
     fetchPremium();

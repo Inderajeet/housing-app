@@ -74,6 +74,9 @@ export default function PlotLayoutEditorPage() {
   const [showDrawingRef, setShowDrawingRef] = useState(false);
   const [showBulkStatus, setShowBulkStatus] = useState(false);
   const [bulkInputs, setBulkInputs] = useState({ nil: '', on: '', confirmed: '' });
+  const [bulkBhk, setBulkBhk] = useState('');
+  const [svgBulkBhkLabels, setSvgBulkBhkLabels] = useState('');
+  const [svgBulkBhkValue, setSvgBulkBhkValue] = useState('');
   const [viewMode, setViewMode] = useState('grid'); // 'grid' | 'svg'
   const [svgShapes, setSvgShapes] = useState([]);
   const [direction, setDirection] = useState('horizontal'); // 'horizontal' | 'vertical'
@@ -96,19 +99,29 @@ export default function PlotLayoutEditorPage() {
 
   const refreshPlotNumbers = useCallback((currentGrid) => {
     const newGrid = { ...currentGrid };
-    const keys = Object.keys(newGrid).filter((k) => newGrid[k].type === 'PLOT' && !newGrid[k].merged);
-    keys.sort((a, b) => {
+    const allKeys = Object.keys(newGrid).filter((k) => newGrid[k].type === 'PLOT' && !newGrid[k].merged);
+
+    // Find the highest number already assigned so new plots continue from there
+    let maxNum = 0;
+    allKeys.forEach((k) => {
+      if (newGrid[k].display_name !== '') {
+        const num = parseInt(newGrid[k].display_name, 10);
+        if (!isNaN(num) && num > maxNum) maxNum = num;
+      }
+    });
+
+    // Only assign numbers to new plots that have no display_name yet
+    const emptyKeys = allKeys.filter((k) => newGrid[k].display_name === '');
+    emptyKeys.sort((a, b) => {
       const [rA, cA] = a.split('-').map(Number);
       const [rB, cB] = b.split('-').map(Number);
       return rA !== rB ? rA - rB : cA - cB;
     });
-    let idx = 1;
-    keys.forEach((k) => {
-      if (!(newGrid[k].isManual && newGrid[k].display_name !== '')) {
-        newGrid[k].display_name = String(idx++);
-        newGrid[k].isManual = false;
-      }
+    let idx = maxNum + 1;
+    emptyKeys.forEach((k) => {
+      newGrid[k].display_name = String(idx++);
     });
+
     return newGrid;
   }, []);
 
@@ -134,16 +147,21 @@ export default function PlotLayoutEditorPage() {
         // Load SVG shapes (elements with polygon points)
         const svgItems = rawItems.filter(item => item.points && Array.isArray(item.points) && item.points.length > 0);
         if (svgItems.length > 0) {
-          setSvgShapes(svgItems.map((item, idx) => ({
-            id: item.element_id ? `${item.element_id}_${idx}` : Math.random().toString(36).slice(2, 9),
-            type: (item.type || 'PLOT').toUpperCase() === 'PLOT' ? 'plot' : 'road',
-            points: item.points,
-            label: item.name || '',
-            status: item.status || 'Nil Booking',
-            color: STATUS_COLORS_SVG[item.status] || item.color || '#22c55e',
-            closed: item.closed ?? false,
-            fontSize: item.font_size || 12,
-          })));
+          setSvgShapes(svgItems.map((item, idx) => {
+            const rawName = item.name || '';
+            const [parsedLabel, parsedBhk] = rawName.includes('|') ? rawName.split('|') : [rawName, ''];
+            return {
+              id: item.element_id ? `${item.element_id}_${idx}` : Math.random().toString(36).slice(2, 9),
+              type: (item.type || 'PLOT').toUpperCase() === 'PLOT' ? 'plot' : 'road',
+              points: item.points,
+              label: parsedLabel,
+              bhk: parsedBhk,
+              status: item.status || 'Nil Booking',
+              color: STATUS_COLORS_SVG[item.status] || item.color || '#22c55e',
+              closed: item.closed ?? false,
+              fontSize: item.font_size || 12,
+            };
+          }));
           setViewMode('svg');
         }
 
@@ -169,11 +187,14 @@ export default function PlotLayoutEditorPage() {
             ? (unitStatusByKey.get(`id:${item.plot_unit_id}`) || unitStatusByKey.get(`name:${String(item.name || item.plot_number || '').trim()}`) || item.status || 'Nil Booking')
             : item.status;
 
+          const rawName = item.name || item.label || '';
+          const [parsedName, parsedBhk] = rawName.includes('|') ? rawName.split('|') : [rawName, ''];
           const key = `${y}-${x}`;
           mapped[key] = {
             ...item, row: y, col: x, colSpan: w, rowSpan: h,
-            display_name: item.name || item.label || '',
-            isManual: isNaN(item.name) && item.type === 'PLOT',
+            display_name: parsedName,
+            bhk: parsedBhk,
+            isManual: isNaN(parsedName) && item.type === 'PLOT',
             type: item.type || 'PLOT', status: resolvedStatus,
             token_paid_to: item.token_paid_to || '',
             rotation: item.rotation || 0,
@@ -218,6 +239,51 @@ export default function PlotLayoutEditorPage() {
     }
   };
 
+  const applyBulkBhk = (bhkValue) => {
+    if (!bhkValue.trim()) return;
+    if (viewMode === 'svg') {
+      // For SVG: apply to currently selected shape or all if no selection
+      setSvgShapes(prev => prev.map(s =>
+        s.type === 'plot' && (selectedCellKey ? s.id === selectedCellKey : true)
+          ? { ...s, bhk: bhkValue.trim() }
+          : s
+      ));
+      return;
+    }
+    const selectedKeys = selectionMode === 'freeform'
+      ? Object.keys(freeformKeys)
+      : (() => {
+          const { start, end } = selection;
+          if (!start || !end) return [];
+          const keys = [];
+          for (let r = Math.min(start.r, end.r); r <= Math.max(start.r, end.r); r++)
+            for (let c = Math.min(start.c, end.c); c <= Math.max(start.c, end.c); c++)
+              keys.push(`${r}-${c}`);
+          return keys;
+        })();
+    if (!selectedKeys.length) { alert('Select plots first, then apply BHK.'); return; }
+    recordHistory(gridData);
+    setGridData(prev => {
+      const next = { ...prev };
+      selectedKeys.forEach(k => {
+        if (next[k] && !next[k].merged && next[k].type === 'PLOT')
+          next[k] = { ...next[k], bhk: bhkValue.trim() };
+      });
+      return next;
+    });
+  };
+
+  const applyBulkBhkByLabel = (bhkValue, numbersStr) => {
+    if (!bhkValue.trim() || !numbersStr.trim()) return;
+    const nums = parseNumberList(numbersStr);
+    if (!nums.size) return;
+    setSvgShapes(prev => prev.map(s =>
+      s.type === 'plot' && nums.has(String(s.label).trim())
+        ? { ...s, bhk: bhkValue.trim() }
+        : s
+    ));
+  };
+
   const handleSave = async () => {
     setIsSaving(true);
     try {
@@ -226,7 +292,7 @@ export default function PlotLayoutEditorPage() {
         elements = svgShapes.map(shape => ({
           property_id: id,
           type: shape.type === 'plot' ? 'PLOT' : 'ROAD',
-          name: shape.label,
+          name: shape.bhk ? `${shape.label}|${shape.bhk}` : shape.label,
           status: shape.status,
           color: shape.color,
           points: shape.points,
@@ -244,7 +310,8 @@ export default function PlotLayoutEditorPage() {
               property_id: id, type: cell.type,
               x: cell.col, y: cell.row,
               width: cell.colSpan || 1, height: cell.rowSpan || 1,
-              name: cell.display_name, status: cell.status,
+              name: cell.bhk ? `${cell.display_name}|${cell.bhk}` : cell.display_name,
+              status: cell.status,
               token_paid_to: cell.token_paid_to || null,
               rotation: parseInt(cell.rotation || 0), color: cell.color,
               font_size: parseInt(cell.font_size || 10), font_weight: cell.font_weight || '900',
@@ -274,7 +341,7 @@ export default function PlotLayoutEditorPage() {
             type, row: r, col: c, merged: false, anchorKey: null,
             colSpan: 1, rowSpan: 1,
             display_name: type === 'TEXT' ? 'LABEL' : '',
-            status: 'Nil Booking', rotation: 0,
+            bhk: '', status: 'Nil Booking', rotation: 0,
             color: type === 'TEXT' ? '#2563eb' : '#ffffff',
             font_size: type === 'TEXT' ? 14 : 10, font_weight: '900',
           };
@@ -303,7 +370,7 @@ export default function PlotLayoutEditorPage() {
             const span = c + 1 <= cMax ? 2 : 1;
             newGrid[key] = {
               type: 'PLOT', row: r, col: c, merged: false, anchorKey: null,
-              colSpan: span, rowSpan: 1, display_name: '', isManual: false,
+              colSpan: span, rowSpan: 1, display_name: '', bhk: '', isManual: false,
               status: 'Nil Booking', rotation: 0, color: '#ffffff', font_size: 10, font_weight: '900',
             };
             if (span === 2) newGrid[`${r}-${c + 1}`] = { merged: true, anchorKey: key };
@@ -318,7 +385,7 @@ export default function PlotLayoutEditorPage() {
             const span = r + 1 <= rMax ? 2 : 1;
             newGrid[key] = {
               type: 'PLOT', row: r, col: c, merged: false, anchorKey: null,
-              colSpan: 1, rowSpan: span, display_name: '', isManual: false,
+              colSpan: 1, rowSpan: span, display_name: '', bhk: '', isManual: false,
               status: 'Nil Booking', rotation: 0, color: '#ffffff', font_size: 10, font_weight: '900',
             };
             if (span === 2) newGrid[`${r + 1}-${c}`] = { merged: true, anchorKey: key };
@@ -339,7 +406,7 @@ export default function PlotLayoutEditorPage() {
             colSpan: isRoad && isAnchor ? cMax - cMin + 1 : 1,
             rowSpan: isRoad && isAnchor ? rMax - rMin + 1 : 1,
             display_name: isAnchor ? (type === 'TEXT' ? 'LABEL' : '') : '',
-            status: 'Nil Booking', rotation: 0,
+            bhk: '', status: 'Nil Booking', rotation: 0,
             color: type === 'TEXT' ? '#2563eb' : '#ffffff',
             font_size: type === 'TEXT' ? 14 : 10, font_weight: '900',
           };
@@ -436,6 +503,50 @@ export default function PlotLayoutEditorPage() {
                   </div>
                 );
               })()}
+              <div className="flex items-center gap-3 pt-1 border-t border-slate-100">
+                <span className="text-[10px] font-black text-slate-500 uppercase">Bulk BHK</span>
+                {viewMode === 'grid' && <span className="text-[9px] text-slate-400">(select plots first)</span>}
+                {[1,2,3,4].map(n => (
+                  <button key={n} onClick={() => applyBulkBhk(String(n))}
+                    className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg text-[10px] font-black uppercase border border-indigo-100 transition-all"
+                  >{n} BHK</button>
+                ))}
+                <input
+                  value={bulkBhk}
+                  onChange={e => setBulkBhk(e.target.value.replace(/\D/g, '').slice(0, 2))}
+                  placeholder="Custom"
+                  className="w-20 px-3 py-1.5 rounded-lg border text-[11px] font-semibold outline-none bg-indigo-50 border-indigo-200 focus:border-indigo-500"
+                />
+                <button onClick={() => applyBulkBhk(bulkBhk)}
+                  className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 rounded-lg text-[10px] font-black uppercase text-slate-600 transition-all"
+                >Apply</button>
+              </div>
+              {viewMode === 'svg' && (
+                <div className="flex items-center gap-3 pt-1 border-t border-slate-100">
+                  <span className="text-[10px] font-black text-slate-500 uppercase">BHK by Label</span>
+                  <span className="text-[9px] text-slate-400">(SVG mode)</span>
+                  <input
+                    value={svgBulkBhkLabels}
+                    onChange={e => setSvgBulkBhkLabels(e.target.value)}
+                    placeholder="e.g. 1,3,5-8"
+                    className="w-32 px-3 py-1.5 rounded-lg border text-[11px] font-semibold outline-none bg-indigo-50 border-indigo-200 focus:border-indigo-500"
+                  />
+                  {[1,2,3,4].map(n => (
+                    <button key={n} onClick={() => applyBulkBhkByLabel(String(n), svgBulkBhkLabels)}
+                      className="px-3 py-1.5 bg-violet-50 hover:bg-violet-100 text-violet-700 rounded-lg text-[10px] font-black uppercase border border-violet-100 transition-all"
+                    >{n}BHK</button>
+                  ))}
+                  <input
+                    value={svgBulkBhkValue}
+                    onChange={e => setSvgBulkBhkValue(e.target.value.replace(/\D/g, '').slice(0, 2))}
+                    placeholder="Custom"
+                    className="w-20 px-3 py-1.5 rounded-lg border text-[11px] font-semibold outline-none bg-violet-50 border-violet-200 focus:border-violet-500"
+                  />
+                  <button onClick={() => applyBulkBhkByLabel(svgBulkBhkValue, svgBulkBhkLabels)}
+                    className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 rounded-lg text-[10px] font-black uppercase text-slate-600 transition-all"
+                  >Apply</button>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -530,7 +641,10 @@ export default function PlotLayoutEditorPage() {
                     }}
                     className={cellClass}
                   >
-                    <span style={cellStyle} className="whitespace-nowrap pointer-events-none">{cell?.display_name || ''}</span>
+                    <span style={cellStyle} className="whitespace-nowrap pointer-events-none leading-none">{cell?.display_name || ''}</span>
+                    {cell?.type === 'PLOT' && cell?.bhk && (
+                      <span className="absolute bottom-0 left-0 right-0 text-center text-[7px] font-bold leading-none pb-[1px] pointer-events-none opacity-80">{cell.bhk}BHK</span>
+                    )}
                   </div>
                 );
               })
@@ -630,6 +744,16 @@ export default function PlotLayoutEditorPage() {
                         >{label} ({color})</button>
                       );
                     })}
+                  </div>
+                </div>
+                <div>
+                  <label className="text-[10px] font-black text-slate-400 uppercase mb-2 block">BHK</label>
+                  <div className="flex gap-2 flex-wrap">
+                    {['', '1', '2', '3', '4'].map(v => (
+                      <button key={v} onClick={() => setGridData(prev => ({ ...prev, [selectedCellKey]: { ...prev[selectedCellKey], bhk: v } }))}
+                        className={`px-3 py-2 rounded-xl text-[11px] font-bold border transition-all ${activeCell.bhk === v ? 'bg-indigo-600 text-white border-indigo-700' : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-indigo-50'}`}
+                      >{v || 'None'}{v ? ' BHK' : ''}</button>
+                    ))}
                   </div>
                 </div>
                 <div>

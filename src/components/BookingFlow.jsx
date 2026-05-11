@@ -248,7 +248,9 @@ const BookingFlow = ({
   };
 
   const completedOverviewIndexes = getCompletedOverviewIndexes();
-  const bookedPeopleCount = Number(bookedPeopleCountProp) || 0;
+  const bookedPeopleCount = isSalePlotOrFlat && selectedUnit
+    ? (Number(selectedUnit.booked_people_count) || Number(bookedPeopleCountProp) || 0)
+    : (Number(bookedPeopleCountProp) || 0);
 
   const getPrimaryCtaLabel = () => "Book Visit";
 

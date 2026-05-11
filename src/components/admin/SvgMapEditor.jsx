@@ -478,17 +478,32 @@ export default function SvgMapEditor({ shapes, backgroundImage, unitType = 'PLOT
                     onDoubleClick={e => handleShapeDblClick(shape.id, e)}
                   />
                   {bbox.w > 10 / scale && (
-                    <text
-                      x={centroid.cx} y={centroid.cy}
-                      textAnchor="middle" dominantBaseline="middle"
-                      fontSize={(shape.fontSize || 11) / scale}
-                      fontWeight="bold"
-                      fill={isMoving || isSelected ? '#1d4ed8' : '#1e293b'}
-                      pointerEvents="none"
-                      style={{ userSelect: 'none' }}
-                    >
-                      {shape.label}
-                    </text>
+                    <>
+                      <text
+                        x={centroid.cx} y={shape.bhk ? centroid.cy - (shape.fontSize || 11) * 0.4 / scale : centroid.cy}
+                        textAnchor="middle" dominantBaseline="middle"
+                        fontSize={(shape.fontSize || 11) / scale}
+                        fontWeight="bold"
+                        fill={isMoving || isSelected ? '#1d4ed8' : '#1e293b'}
+                        pointerEvents="none"
+                        style={{ userSelect: 'none' }}
+                      >
+                        {shape.label}
+                      </text>
+                      {shape.bhk && (
+                        <text
+                          x={centroid.cx} y={centroid.cy + (shape.fontSize || 11) * 0.7 / scale}
+                          textAnchor="middle" dominantBaseline="middle"
+                          fontSize={Math.max(7, (shape.fontSize || 11) * 0.7) / scale}
+                          fontWeight="600"
+                          fill={isMoving || isSelected ? '#4f46e5' : '#374151'}
+                          pointerEvents="none"
+                          style={{ userSelect: 'none' }}
+                        >
+                          {shape.bhk}BHK
+                        </text>
+                      )}
+                    </>
                   )}
                   {isSelected && !isMoving && shape.points.map((pt, i) => (
                     <circle key={i} cx={pt.x} cy={pt.y} r={6 / scale}
@@ -621,21 +636,37 @@ export default function SvgMapEditor({ shapes, backgroundImage, unitType = 'PLOT
           )}
 
           {selectedShape.type === 'plot' && (
-            <div>
-              <label className="text-[10px] font-black text-slate-400 uppercase block mb-2">Booking Status</label>
-              <div className="space-y-1.5">
-                {STATUS_OPTIONS.map(s => (
-                  <button
-                    key={s}
-                    onClick={() => updateShape(selectedShape.id, { status: s, color: STATUS_COLORS_SVG[s] })}
-                    className={`flex items-center gap-2 w-full px-3 py-2 rounded-lg border text-xs font-semibold transition-all ${selectedShape.status === s ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
-                  >
-                    <div className="w-2.5 h-2.5 rounded-full" style={{ background: STATUS_COLORS_SVG[s] }} />
-                    {s}
-                  </button>
-                ))}
+            <>
+              <div>
+                <label className="text-[10px] font-black text-slate-400 uppercase block mb-2">Booking Status</label>
+                <div className="space-y-1.5">
+                  {STATUS_OPTIONS.map(s => (
+                    <button
+                      key={s}
+                      onClick={() => updateShape(selectedShape.id, { status: s, color: STATUS_COLORS_SVG[s] })}
+                      className={`flex items-center gap-2 w-full px-3 py-2 rounded-lg border text-xs font-semibold transition-all ${selectedShape.status === s ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
+                    >
+                      <div className="w-2.5 h-2.5 rounded-full" style={{ background: STATUS_COLORS_SVG[s] }} />
+                      {s}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
+              <div>
+                <label className="text-[10px] font-black text-slate-400 uppercase block mb-2">BHK</label>
+                <div className="flex gap-2 flex-wrap">
+                  {['', '1', '2', '3', '4'].map(v => (
+                    <button
+                      key={v}
+                      onClick={() => updateShape(selectedShape.id, { bhk: v })}
+                      className={`px-3 py-2 rounded-xl text-[11px] font-bold border transition-all ${(selectedShape.bhk || '') === v ? 'bg-indigo-600 text-white border-indigo-700' : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-indigo-50'}`}
+                    >
+                      {v || 'None'}{v ? ' BHK' : ''}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </>
           )}
 
           <div className="flex gap-2">
