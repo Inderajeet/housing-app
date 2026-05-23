@@ -36,6 +36,7 @@ export const getAll = async () => {
       p.seller_id, p.contact_phone, p.address, p.status,
       COALESCE((SELECT COUNT(DISTINCT b.buyer_id)::INT FROM bookings b WHERE b.property_id = p.property_id AND b.unit_type = 'sale'), 0) AS booked_people_count,
       p.live_image, p.latitude, p.longitude, p.district_id, p.taluk_id, p.village_id, p.area_id,
+      p.area_speed, p.amenities_rating, p.utilities_rating, p.legal_rating,
       s.sale_type, s.price, s.rate_unit, s.area_size, s.extension, s.street_name_or_road_name, s.survey_number,
       s.boundary_north, s.boundary_south, s.boundary_east, s.boundary_west, s.sale_status,
       s.drawing_image, s.total_units_count, s.booked_units, s.open_units,
@@ -58,6 +59,7 @@ export const getById = async (propertyId) => {
       p.seller_id, p.contact_phone, p.address, p.status,
       COALESCE((SELECT COUNT(DISTINCT b.buyer_id)::INT FROM bookings b WHERE b.property_id = p.property_id AND b.unit_type = 'sale'), 0) AS booked_people_count,
       p.live_image, p.latitude, p.longitude, p.district_id, p.taluk_id, p.village_id, p.area_id,
+      p.area_speed, p.amenities_rating, p.utilities_rating, p.legal_rating,
       s.sale_type, s.price, s.rate_unit, s.area_size, s.extension, s.street_name_or_road_name, s.survey_number,
       s.boundary_north, s.boundary_south, s.boundary_east, s.boundary_west, s.sale_status,
       s.drawing_image, s.total_units_count, s.booked_units, s.open_units,
@@ -174,10 +176,12 @@ export const updateSaleProperty = async (propertyId, data, files = {}) => {
       await tx.$executeRawUnsafe('UPDATE properties SET formatted_id = $1 WHERE property_id = $2', newFormattedId, propertyId);
     }
     await tx.$executeRawUnsafe(
-      `UPDATE properties SET title=$1, description=$2, contact_phone=$3, address=$4, latitude=$5, longitude=$6, district_id=$7, taluk_id=$8, village_id=$9, area_id=$10, status=$11, live_image=$12 WHERE property_id=$13`,
+      `UPDATE properties SET title=$1, description=$2, contact_phone=$3, address=$4, latitude=$5, longitude=$6, district_id=$7, taluk_id=$8, village_id=$9, area_id=$10, status=$11, live_image=$12, area_speed=$13, amenities_rating=$14, utilities_rating=$15, legal_rating=$16 WHERE property_id=$17`,
       toStr(data.title), toStr(data.description), toStr(phone), toStr(data.address),
       toFloat(data.latitude), toFloat(data.longitude), toInt(data.district_id), toInt(data.taluk_id),
-      toInt(data.village_id), toInt(data.area_id), toStr(data.status), liveImageUrl, propertyId
+      toInt(data.village_id), toInt(data.area_id), toStr(data.status), liveImageUrl,
+      toFloat(data.area_speed), toFloat(data.amenities_rating), toFloat(data.utilities_rating), toFloat(data.legal_rating),
+      propertyId
     );
     await tx.$executeRawUnsafe(
       `UPDATE sale_properties SET sale_type=$1, price=$2, rate_unit=$3, area_size=$4, street_name_or_road_name=$5, survey_number=$6, boundary_north=$7, boundary_south=$8, boundary_east=$9, boundary_west=$10, sale_status=$11, total_units_count=$12, booked_units=$13, open_units=$14, drawing_image=$15, alternate_contact_phone=$16, alternate_seller_name=$17, layout_name=$18, dtcp=$19, parent_document=$20, sub_registrar_office=$21, gift_deed=$22, token_amount=$23, token_paid_to=$24, sold_rate=$25, sold_date=$26, advance_amount=$27, extension=$28 WHERE property_id=$29`,

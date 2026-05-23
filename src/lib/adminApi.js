@@ -161,6 +161,12 @@ export const bulkUpdatePlotStatuses = (propertyId, statusLabels) =>
 export const blurImageRegions = (assetId, blurRegions) =>
   adminApi.post('/property-assets/blur', { asset_id: assetId, blur_regions: blurRegions });
 
+// Site Content — Gallery
+export const getAdminGalleryImages = () => adminApi.get('/site-content/gallery');
+export const uploadGalleryImage = (formData) => adminApi.post('/site-content/gallery', formData);
+export const updateGalleryImageById = (id, data) => adminApi.patch(`/site-content/gallery/${id}`, data);
+export const deleteGalleryImageById = (id) => adminApi.delete(`/site-content/gallery/${id}`);
+
 // Contact Notes
 export const getContactNotes = (params) => adminApi.get('/contact-notes', { params });
 export const createContactNote = (data) => adminApi.post('/contact-notes', data);

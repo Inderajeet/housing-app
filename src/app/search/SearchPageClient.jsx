@@ -14,15 +14,6 @@ import { getKeywordString, getLocationLabel, getTransactionLabel } from '../../u
 import { useAppContext } from '../AppContext';
 import '../../styles/HomePage.css';
 
-const hasPremiumImage = (property) => {
-  const images = Array.isArray(property?.images) ? property.images : [];
-  if (images.length === 0) return false;
-  const first = images[0];
-  if (typeof first === 'string') return Boolean(first);
-  if (typeof first === 'object' && first?.url) return true;
-  return false;
-};
-
 
 export default function HomePage() {
   const router = useRouter();
@@ -159,10 +150,14 @@ export default function HomePage() {
   }, [filters.lookingTo, filters.type, filters.district, filters.taluk, filters.village, searchParams, router, pathname]);
 
   useEffect(() => {
-    endpoints.getPremium({ property_type: filters.lookingTo })
+    const params = { property_type: filters.lookingTo };
+    if (filters.district_id) params.district_id = filters.district_id;
+    if (filters.taluk_id) params.taluk_id = filters.taluk_id;
+    if (filters.village_id) params.village_id = filters.village_id;
+    endpoints.getPremium(params)
       .then(res => setDbPremiumProperties(res.data?.data || []))
       .catch(() => {});
-  }, [filters.lookingTo]);
+  }, [filters.lookingTo, filters.district_id, filters.taluk_id, filters.village_id]);
 
   useEffect(() => {
     if (!filters.district_id) { setTaluksList([]); setVillagesList([]); return; }
@@ -190,11 +185,7 @@ export default function HomePage() {
     });
   }, [filters, allProperties]);
 
-  const premiumProperties = useMemo(() => {
-    if (dbPremiumProperties.length > 0) return dbPremiumProperties;
-    const filteredPremium = filteredProperties.filter(hasPremiumImage);
-    return filteredPremium.length > 0 ? filteredPremium : allProperties.filter(hasPremiumImage);
-  }, [dbPremiumProperties, filteredProperties, allProperties]);
+  const premiumProperties = useMemo(() => dbPremiumProperties, [dbPremiumProperties]);
 
   // Map center logic — uses lat/lng from DB location lists
   useEffect(() => {

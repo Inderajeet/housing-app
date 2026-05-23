@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
-import { CheckCircle2, Info } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { CheckCircle2, Info, X, ChevronLeft as ChevLeft, ChevronRight } from 'lucide-react';
 import { ChevronLeft } from 'lucide-react';
 import '../styles/BookingFlow.css';
 import '../styles/OurServices.css';
@@ -19,6 +19,8 @@ const BookingFlow = ({
   const [offerPoints, setOfferPoints] = useState([]);
   const [headings, setHeadings] = useState({});
   const [advantagePoints, setAdvantagePoints] = useState({ sale_tick: [], sale_cross: [], rent_tick: [], rent_cross: [] });
+  const [galleryImages, setGalleryImages] = useState([]);
+  const [lightboxIndex, setLightboxIndex] = useState(null);
 
   const [steps, setSteps] = useState([]);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
@@ -38,6 +40,22 @@ const BookingFlow = ({
 
   const onStatusChangeRef = useRef(onStatusChange);
   useEffect(() => { onStatusChangeRef.current = onStatusChange; });
+
+  const openLightbox = useCallback((index) => setLightboxIndex(index), []);
+  const closeLightbox = useCallback(() => setLightboxIndex(null), []);
+  const prevLightbox = useCallback(() => setLightboxIndex(i => (i - 1 + galleryImages.length) % galleryImages.length), [galleryImages.length]);
+  const nextLightbox = useCallback(() => setLightboxIndex(i => (i + 1) % galleryImages.length), [galleryImages.length]);
+
+  useEffect(() => {
+    if (lightboxIndex === null) return;
+    const handleKey = (e) => {
+      if (e.key === 'Escape') closeLightbox();
+      else if (e.key === 'ArrowLeft') prevLightbox();
+      else if (e.key === 'ArrowRight') nextLightbox();
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [lightboxIndex, closeLightbox, prevLightbox, nextLightbox]);
 
   const normalizedSaleType = (saleType || '').toLowerCase();
   const normalizedTransactionType = (transactionType || '').toLowerCase();
@@ -86,7 +104,7 @@ const BookingFlow = ({
     const type = transactionType === 'rent' ? 'rent' : 'sale';
     endpoints.getSiteContent(type)
       .then(res => {
-        const { stages = [], services = {}, offerPoints: op = [], headings: h = {} } = res.data;
+        const { stages = [], services = {}, offerPoints: op = [], headings: h = {}, galleryImages: gi = [] } = res.data;
         setSteps(stages.map(s => ({
           id: s.stage_key,
           title: s.title,
@@ -104,6 +122,7 @@ const BookingFlow = ({
         setOfferPoints(op);
         setHeadings(h);
         setAdvantagePoints(res.data.advantagePoints || { sale_tick: [], sale_cross: [], rent_tick: [], rent_cross: [] });
+        setGalleryImages(gi);
       })
       .catch(() => {
         const flowFile = transactionType === 'rent' ? '/data/rentbookingFlow.json' : '/data/salebookingFlow.json';
@@ -260,8 +279,67 @@ const BookingFlow = ({
     return [];
   };
 
+  const galleryHeading = headings.gallery_heading || 'We Provide';
+  const hasGallery = galleryImages.length > 0;
+
+  const GalleryBlock = ({ className = '' }) => (
+    <div className={`gallery-block ${className}`}>
+      <p className="gallery-heading-text">{galleryHeading}</p>
+      <div className="gallery-thumbs-grid">
+        {galleryImages.map((img, idx) => (
+          <button
+            key={img.id}
+            type="button"
+            className={`gallery-thumb-btn${img.caption ? '' : ' no-caption'}`}
+            onClick={() => openLightbox(idx)}
+          >
+            <img src={img.image_url} alt={img.caption || `Gallery ${idx + 1}`} />
+            {img.caption && <span className="gallery-thumb-caption">{img.caption}</span>}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+
   return (
     <div className="booking-flow-container fade-in-up">
+      {lightboxIndex !== null && hasGallery && (
+        <div className="gallery-lightbox-overlay" onClick={closeLightbox}>
+          <div className="gallery-lightbox-inner" onClick={e => e.stopPropagation()}>
+            <button type="button" className="lightbox-close-btn" onClick={closeLightbox} aria-label="Close">
+              <X size={20} />
+            </button>
+            {galleryImages.length > 1 && (
+              <button type="button" className="lightbox-nav-btn lightbox-prev" onClick={prevLightbox} aria-label="Previous">
+                <ChevLeft size={28} />
+              </button>
+            )}
+            <img
+              src={galleryImages[lightboxIndex].image_url}
+              alt={`Gallery ${lightboxIndex + 1}`}
+              className="lightbox-image"
+            />
+            {galleryImages.length > 1 && (
+              <button type="button" className="lightbox-nav-btn lightbox-next" onClick={nextLightbox} aria-label="Next">
+                <ChevronRight size={28} />
+              </button>
+            )}
+            {galleryImages.length > 1 && (
+              <div className="lightbox-dots">
+                {galleryImages.map((_, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    className={`lightbox-dot ${i === lightboxIndex ? 'lightbox-dot-active' : ''}`}
+                    onClick={() => setLightboxIndex(i)}
+                    aria-label={`Go to image ${i + 1}`}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
       {(loadingStage || loadingUpdate) && (
         <div className="booking-loader-overlay">
           <div className="booking-spinner" />
@@ -325,28 +403,7 @@ const BookingFlow = ({
                     </button>
                   </div>
                   <div className="phone-cta-arrow-spacer" />
-                  {(() => {
-                    const isRent = transactionType === 'rent';
-                    const tickPts = isRent ? advantagePoints.rent_tick : advantagePoints.sale_tick;
-                    const crossPts = isRent ? advantagePoints.rent_cross : advantagePoints.sale_cross;
-                    if (!tickPts.length && !crossPts.length) return null;
-                    return (
-                      <div className={`advantage-box ${isRent ? 'advantage-rent' : 'advantage-sale'}`}>
-                        {tickPts.map((pt, i) => (
-                          <div key={i} className="advantage-row">
-                            <span className="adv-icon adv-tick">✓</span>
-                            <span className="adv-text">{pt}</span>
-                          </div>
-                        ))}
-                        {crossPts.map((pt, i) => (
-                          <div key={i} className="advantage-row">
-                            <span className="adv-icon adv-cross">✗</span>
-                            <span className="adv-text adv-text-muted">{pt}</span>
-                          </div>
-                        ))}
-                      </div>
-                    );
-                  })()}
+                  {hasGallery && <GalleryBlock className="gallery-inline" />}
                 </div>
               )}
 
@@ -419,6 +476,7 @@ const BookingFlow = ({
                   })}
                 </div>
               </div>
+              {hasGallery && <GalleryBlock className="gallery-below" />}
             </div>
           ) : (
             <div className="booking-slide animate-fade">

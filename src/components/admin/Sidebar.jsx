@@ -8,7 +8,7 @@ const Sidebar = ({ isOpen = true, onToggle }) => {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [openMenus, setOpenMenus] = useState({ rent: true, sale: true });
-  const isSaleSub = ['/admin/sale', '/admin/sellers', '/admin/buyers', '/admin/enquiries', '/admin/bookings', '/admin/plots', '/admin/flats'].some(p => pathname === p || pathname?.startsWith(p + '/'));
+  const isSaleSub = ['/admin/sale', '/admin/sellers', '/admin/buyers', '/admin/enquiries', '/admin/bookings', '/admin/plots', '/admin/flats', '/admin/sale-graph'].some(p => pathname === p || pathname?.startsWith(p + '/'));
   const toggleMenu = (menu) => setOpenMenus(prev => ({ ...prev, [menu]: !prev[menu] }));
 
   const navClass = (href) =>
@@ -83,6 +83,7 @@ const Sidebar = ({ isOpen = true, onToggle }) => {
                 <Link href="/admin/enquiries" className={subNavClass('/admin/enquiries')}><span className="w-1.5 h-1.5 rounded-full bg-slate-600"></span><span>Enquiries</span></Link>
                 <Link href="/admin/bookings" className={subNavClass('/admin/bookings')}><span className="w-1.5 h-1.5 rounded-full bg-slate-600"></span><span>Bookings</span></Link>
                 <Link href="/admin/premium?type=sale" className={subNavClass('/admin/premium?type=sale')}><span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span><span>Premium</span></Link>
+                <Link href="/admin/sale-graph" className={subNavClass('/admin/sale-graph')}><span className="w-1.5 h-1.5 rounded-full bg-purple-500"></span><span>Sale Graph</span></Link>
               </div>
             )}
           </div>

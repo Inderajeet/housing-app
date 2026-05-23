@@ -37,6 +37,7 @@ const EMPTY_FORM = {
   sale_status: SaleStatus.NIL_BOOKING, total_units_count: '', booked_units: '', open_units: '',
   description: '', dtcp: '', parent_document: '', sub_registrar_office: '', gift_deed: '',
   token_amount: '', token_paid_to: '', advance_amount: '', sold_rate: '', sold_date: '',
+  area_speed: '', amenities_rating: '', utilities_rating: '', legal_rating: '',
 };
 
 const FORM_TABS = [
@@ -44,6 +45,7 @@ const FORM_TABS = [
   { key: 'seller', label: 'Seller' },
   { key: 'property-info', label: 'Property Info' },
   { key: 'legal', label: 'Legal' },
+  { key: 'ratings', label: 'Ratings' },
   { key: 'images', label: 'Images' },
   { key: 'documents', label: 'Documents' },
 ];
@@ -88,6 +90,7 @@ export default function SalePropertiesPage() {
   const [inlineEditId, setInlineEditId] = useState(null);
   const [inlineEditDraft, setInlineEditDraft] = useState({});
   const [inlineSaving, setInlineSaving] = useState(false);
+  const [calcingAreaSpeed, setCalcingAreaSpeed] = useState(false);
 
   const handleInlineEdit = (p) => {
     setInlineEditId(p.property_id);
@@ -295,6 +298,19 @@ export default function SalePropertiesPage() {
       alert('Failed: ' + (err?.response?.data?.error || err.message));
     }
     finally { setSubmitting(false); }
+  };
+
+  const handleCalcAreaSpeed = async () => {
+    const lat = parseFloat(form.latitude), lng = parseFloat(form.longitude);
+    if (isNaN(lat) || isNaN(lng)) { alert('Enter valid latitude and longitude first.'); return; }
+    setCalcingAreaSpeed(true);
+    try {
+      const res = await adminApi.get('/sale/area-speed', { params: { lat, lng } });
+      const speed = res.data?.area_speed;
+      if (speed != null) setForm(prev => ({ ...prev, area_speed: String(speed) }));
+      else alert('No sold properties found within 1km over the past 2 years.');
+    } catch (err) { alert('Failed to calculate: ' + (err?.response?.data?.error || err.message)); }
+    finally { setCalcingAreaSpeed(false); }
   };
 
   const handleBulkDelete = async () => {
@@ -752,6 +768,42 @@ export default function SalePropertiesPage() {
                   </div>
                   <div className={fw}><label className={lbl}>Parent Document</label><input disabled={isReadOnly} value={form.parent_document} onChange={e => handleChange('parent_document', e.target.value)} className={inp()} /></div>
                   <div className={fw}><label className={lbl}>Gift Deed</label><input disabled={isReadOnly} value={form.gift_deed} onChange={e => handleChange('gift_deed', e.target.value)} className={inp()} /></div>
+                </div>
+              )}
+              {formTab === 'ratings' && (
+                <div className="space-y-6">
+                  <div className="bg-blue-50 border border-blue-100 rounded-2xl p-5">
+                    <p className="text-xs font-bold uppercase tracking-widest text-blue-600 mb-1">Area Speed</p>
+                    <p className="text-[11px] text-blue-500 mb-4">Auto-calculated: count of sold properties within 1km over the past 2 years ÷ 24 months. You can also edit it manually.</p>
+                    <div className="flex gap-3 items-end">
+                      <div className="flex-1">
+                        <label className={lbl}>Area Speed (sales/month)</label>
+                        <input type="number" step="0.01" disabled={isReadOnly} value={form.area_speed || ''} onChange={e => handleChange('area_speed', e.target.value)} placeholder="e.g. 5.00" className={inp()} />
+                      </div>
+                      {!isReadOnly && (
+                        <button onClick={handleCalcAreaSpeed} disabled={calcingAreaSpeed} className="px-5 py-2.5 bg-blue-600 text-white rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-blue-700 disabled:opacity-60 shrink-0">
+                          {calcingAreaSpeed ? 'Calculating…' : 'Recalculate'}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  <div className="bg-gray-50 border border-gray-100 rounded-2xl p-5">
+                    <p className="text-xs font-bold uppercase tracking-widest text-gray-600 mb-4">Manual Ratings (0–10)</p>
+                    <div className="grid grid-cols-3 gap-6">
+                      <div className={fw}>
+                        <label className={lbl}>Amenities Rating</label>
+                        <input type="number" step="0.1" min="0" max="10" disabled={isReadOnly} value={form.amenities_rating || ''} onChange={e => handleChange('amenities_rating', e.target.value)} placeholder="0–10" className={inp()} />
+                      </div>
+                      <div className={fw}>
+                        <label className={lbl}>Utilities Rating</label>
+                        <input type="number" step="0.1" min="0" max="10" disabled={isReadOnly} value={form.utilities_rating || ''} onChange={e => handleChange('utilities_rating', e.target.value)} placeholder="0–10" className={inp()} />
+                      </div>
+                      <div className={fw}>
+                        <label className={lbl}>Legal Rating</label>
+                        <input type="number" step="0.1" min="0" max="10" disabled={isReadOnly} value={form.legal_rating || ''} onChange={e => handleChange('legal_rating', e.target.value)} placeholder="0–10" className={inp()} />
+                      </div>
+                    </div>
+                  </div>
                 </div>
               )}
               {formTab === 'images' && (

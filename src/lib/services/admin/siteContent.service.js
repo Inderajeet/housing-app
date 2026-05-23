@@ -144,11 +144,56 @@ export const updateHeading = async (key, value) => {
   return rows[0];
 };
 
+export const getGalleryImages = async () => {
+  try {
+    return await prisma.$queryRawUnsafe(
+      `SELECT id, image_url, image_key, caption, sort_order FROM site_gallery ORDER BY sort_order ASC, id ASC`
+    );
+  } catch {
+    // caption column not yet migrated — return without it
+    const rows = await prisma.$queryRawUnsafe(
+      `SELECT id, image_url, image_key, '' AS caption, sort_order FROM site_gallery ORDER BY sort_order ASC, id ASC`
+    );
+    return rows.map(r => ({ ...r, caption: '' }));
+  }
+};
+
+export const addGalleryImage = async (imageUrl, imageKey, sortOrder = 0, caption = '') => {
+  const rows = await prisma.$queryRawUnsafe(
+    `INSERT INTO site_gallery (image_url, image_key, sort_order, caption) VALUES ($1, $2, $3, $4) RETURNING *`,
+    imageUrl, imageKey, Number(sortOrder), caption
+  );
+  return rows[0];
+};
+
+export const updateGalleryImage = async (id, { caption, sort_order } = {}) => {
+  const fields = [];
+  const values = [];
+  if (caption !== undefined) { fields.push(`caption=$${fields.length + 1}`); values.push(caption); }
+  if (sort_order !== undefined) { fields.push(`sort_order=$${fields.length + 1}`); values.push(Number(sort_order)); }
+  if (!fields.length) return null;
+  values.push(Number(id));
+  const rows = await prisma.$queryRawUnsafe(
+    `UPDATE site_gallery SET ${fields.join(', ')} WHERE id=$${values.length} RETURNING *`,
+    ...values
+  );
+  return rows[0];
+};
+
+export const deleteGalleryImage = async (id) => {
+  const rows = await prisma.$queryRawUnsafe(
+    `DELETE FROM site_gallery WHERE id=$1 RETURNING id, image_key, image_url`,
+    Number(id)
+  );
+  return rows[0];
+};
+
 export const getFrontendContent = async (flowType) => {
-  const [headings, stages, allServices] = await Promise.all([
+  const [headings, stages, allServices, galleryImages] = await Promise.all([
     getAllHeadings(),
     getBookingFlow(flowType),
     getServices(),
+    getGalleryImages(),
   ]);
 
   const headingsMap = Object.fromEntries(headings.map(h => [h.content_key, h.content_value]));
@@ -171,5 +216,5 @@ export const getFrontendContent = async (flowType) => {
     }
   }
 
-  return { headings: headingsMap, stages, services: servicesMap, offerPoints, advantagePoints };
+  return { headings: headingsMap, stages, services: servicesMap, offerPoints, advantagePoints, galleryImages };
 };

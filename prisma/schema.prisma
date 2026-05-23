@@ -265,6 +265,11 @@ model properties {
   rent_properties       rent_properties?
   sale_properties       sale_properties?
 
+  area_speed        Decimal? @db.Decimal(10, 2)
+  amenities_rating  Decimal? @db.Decimal(3, 1)
+  utilities_rating  Decimal? @db.Decimal(3, 1)
+  legal_rating      Decimal? @db.Decimal(3, 1)
+
   @@index([status, property_type], map: "idx_properties_status_type")
   @@index([district_id, status],   map: "idx_properties_district_status")
   @@index([taluk_id, status],      map: "idx_properties_taluk_status")
@@ -436,6 +441,14 @@ model site_content {
   content_key   String    @unique @db.VarChar(100)
   content_value String
   updated_at    DateTime? @default(now()) @db.Timestamptz(6)
+}
+
+model site_gallery {
+  id         Int       @id @default(autoincrement())
+  image_url  String
+  image_key  String    @default("")
+  sort_order Int       @default(0)
+  created_at DateTime? @default(now()) @db.Timestamptz(6)
 }
 
 model contact_notes {

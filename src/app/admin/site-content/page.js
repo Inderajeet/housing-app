@@ -7,6 +7,7 @@ import {
   addAdminSubtitle, updateAdminSubtitle, deleteAdminSubtitle,
   addAdminPoint, updateAdminPoint, deleteAdminPoint,
   getContentServices, addContentService, updateContentService, deleteContentService,
+  getAdminGalleryImages, uploadGalleryImage, updateGalleryImageById, deleteGalleryImageById,
 } from '@/lib/adminApi';
 
 const HEADING_LABELS = {
@@ -21,6 +22,7 @@ const HEADING_LABELS = {
   token_btn_owner_label:        'Token Button — Paid to Owner (right)',
   plot_confirm_msg:             'Plot Booking — Confirm within 2 weeks message',
   flat_confirm_msg:             'Flat Booking — Confirm within 2 weeks message',
+  gallery_heading:              'Gallery Heading (shown above booking page thumbnails)',
 };
 
 function Toast({ toast }) {
@@ -620,122 +622,223 @@ function HeadingsTab({ headings, setHeadings, showToast }) {
   );
 }
 
-function AdvantageTab({ services, setServices, showToast }) {
-  const getItems = (flowType) => services.filter(s => s.stage_key === 'ADVANTAGE' && s.flow_type === flowType);
-  const [editing, setEditing] = useState(null);
-  const [editVal, setEditVal] = useState('');
-  const [deleting, setDeleting] = useState(null);
-  const [adding, setAdding] = useState(null);
-  const [addVals, setAddVals] = useState({ sale_tick: '', sale_cross: '', rent_tick: '', rent_cross: '' });
+function GalleryImageCard({ img, index, total, onDelete, onMoveUp, onMoveDown, onCaptionSave, deletingId }) {
+  const [caption, setCaption] = useState(img.caption || '');
+  const [savingCaption, setSavingCaption] = useState(false);
+  const dirty = caption !== (img.caption || '');
 
-  const handleAdd = async (flowType) => {
-    const text = addVals[flowType];
-    if (!text.trim()) return;
-    setAdding(flowType);
-    try {
-      const { data } = await addContentService('ADVANTAGE', flowType, text.trim());
-      setServices(prev => [...prev, data]);
-      setAddVals(v => ({ ...v, [flowType]: '' }));
-      showToast('Added', 'success');
-    } catch { showToast('Failed to add', 'error'); }
-    finally { setAdding(null); }
+  const handleSaveCaption = async () => {
+    setSavingCaption(true);
+    try { await onCaptionSave(img.id, caption); } finally { setSavingCaption(false); }
   };
 
-  const handleUpdate = async (id) => {
-    if (!editVal.trim()) return;
+  return (
+    <div className="bg-gray-50 rounded-xl border border-gray-200 overflow-hidden">
+      <div className="relative group aspect-video bg-gray-100">
+        <img src={img.image_url} alt="Gallery" className="w-full h-full object-cover" />
+        <div className="absolute top-1.5 right-1.5 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <button
+            onClick={() => onDelete(img.id)}
+            disabled={deletingId === img.id}
+            className="bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold hover:bg-red-600 disabled:opacity-50"
+          >
+            {deletingId === img.id ? '…' : '✕'}
+          </button>
+        </div>
+        <div className="absolute bottom-1.5 left-1.5 flex gap-1">
+          <button
+            onClick={() => onMoveUp(index)}
+            disabled={index === 0}
+            className="bg-white/90 text-gray-600 rounded w-5 h-5 flex items-center justify-center text-xs font-bold hover:bg-white disabled:opacity-30 shadow"
+            title="Move up"
+          >↑</button>
+          <button
+            onClick={() => onMoveDown(index)}
+            disabled={index === total - 1}
+            className="bg-white/90 text-gray-600 rounded w-5 h-5 flex items-center justify-center text-xs font-bold hover:bg-white disabled:opacity-30 shadow"
+            title="Move down"
+          >↓</button>
+        </div>
+        <span className="absolute top-1.5 left-1.5 bg-black/50 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">
+          #{index + 1}
+        </span>
+      </div>
+      <div className="p-2 flex gap-1.5">
+        <input
+          value={caption}
+          onChange={e => setCaption(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') handleSaveCaption(); }}
+          placeholder="Caption text (shown below image)"
+          className="flex-1 px-2 py-1 border border-gray-200 rounded-lg text-xs outline-none focus:ring-1 focus:ring-blue-400"
+        />
+        <button
+          onClick={handleSaveCaption}
+          disabled={savingCaption || !dirty}
+          className="px-2 py-1 bg-blue-600 text-white text-[10px] rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-40 shrink-0"
+        >
+          {savingCaption ? '…' : 'Save'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function GalleryTab({ headings, setHeadings, showToast }) {
+  const [images, setImages] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
+  const [uploadCaption, setUploadCaption] = useState('');
+  const [deletingId, setDeletingId] = useState(null);
+  const [savingHeading, setSavingHeading] = useState(false);
+
+  const headingItem = headings.find(h => h.content_key === 'gallery_heading');
+  const headingValue = headingItem?.content_value ?? 'We Provide';
+
+  useEffect(() => {
+    getAdminGalleryImages()
+      .then(res => setImages(res.data))
+      .catch(() => showToast('Failed to load gallery images', 'error'))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const handleHeadingChange = (val) => {
+    setHeadings(prev => prev.map(h => h.content_key === 'gallery_heading' ? { ...h, content_value: val } : h));
+  };
+
+  const handleHeadingSave = async () => {
+    if (!headingItem) return;
+    setSavingHeading(true);
     try {
-      await updateContentService(id, editVal.trim());
-      setServices(prev => prev.map(s => s.id === id ? { ...s, service_text: editVal.trim() } : s));
-      setEditing(null);
-      showToast('Updated', 'success');
-    } catch { showToast('Failed to update', 'error'); }
+      await updateContentHeading('gallery_heading', headingItem.content_value);
+      showToast('Heading saved', 'success');
+    } catch { showToast('Failed to save heading', 'error'); }
+    finally { setSavingHeading(false); }
+  };
+
+  const handleUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (images.length >= 6) { showToast('Maximum 6 images allowed', 'error'); return; }
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('caption', uploadCaption.trim());
+      const { data } = await uploadGalleryImage(fd);
+      setImages(prev => [...prev, data]);
+      setUploadCaption('');
+      showToast('Image uploaded', 'success');
+    } catch (err) {
+      showToast(err?.response?.data?.error || 'Upload failed', 'error');
+    } finally {
+      setUploading(false);
+      e.target.value = '';
+    }
   };
 
   const handleDelete = async (id) => {
-    setDeleting(id);
+    setDeletingId(id);
     try {
-      await deleteContentService(id);
-      setServices(prev => prev.filter(s => s.id !== id));
-      showToast('Deleted', 'success');
-    } catch { showToast('Failed to delete', 'error'); }
-    finally { setDeleting(null); }
+      await deleteGalleryImageById(id);
+      setImages(prev => prev.filter(img => img.id !== id));
+      showToast('Image deleted', 'success');
+    } catch { showToast('Failed to delete image', 'error'); }
+    finally { setDeletingId(null); }
   };
 
-  const sections = [
-    { flowType: 'sale_tick', label: 'Sale — ✓ Tick Points', iconClass: 'text-green-600', icon: '✓' },
-    { flowType: 'sale_cross', label: 'Sale — ✗ Cross Points', iconClass: 'text-red-500', icon: '✗' },
-    { flowType: 'rent_tick', label: 'Rent — ✓ Tick Points', iconClass: 'text-green-600', icon: '✓' },
-    { flowType: 'rent_cross', label: 'Rent — ✗ Cross Points', iconClass: 'text-red-500', icon: '✗' },
-  ];
+  const handleCaptionSave = async (id, caption) => {
+    try {
+      await updateGalleryImageById(id, { caption });
+      setImages(prev => prev.map(img => img.id === id ? { ...img, caption } : img));
+      showToast('Caption saved', 'success');
+    } catch { showToast('Failed to save caption', 'error'); }
+  };
+
+  const handleMove = async (index, direction) => {
+    const newImages = [...images];
+    const swapIndex = index + direction;
+    if (swapIndex < 0 || swapIndex >= newImages.length) return;
+    [newImages[index], newImages[swapIndex]] = [newImages[swapIndex], newImages[index]];
+    const updated = newImages.map((img, i) => ({ ...img, sort_order: i }));
+    setImages(updated);
+    try {
+      await Promise.all([
+        updateGalleryImageById(updated[index].id, { sort_order: index }),
+        updateGalleryImageById(updated[swapIndex].id, { sort_order: swapIndex }),
+      ]);
+    } catch { showToast('Failed to reorder', 'error'); }
+  };
 
   return (
     <div className="space-y-6 max-w-3xl">
-      <p className="text-sm text-gray-500">
-        These points appear beside the phone/Book Contact section on the booking page, showing Mandi's commission advantage vs regular brokers.
-        Sale tick items show with a green ✓, sale cross items show with a red ✗ (competitors), rent tick shows ✓.
-      </p>
-      {sections.map(sec => (
-        <div key={sec.flowType} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-3">
-          <h3 className="text-sm font-bold text-gray-700 flex items-center gap-2">
-            <span className={`text-base font-black ${sec.iconClass}`}>{sec.icon}</span>
-            {sec.label}
-          </h3>
-          {getItems(sec.flowType).length === 0 && (
-            <p className="text-sm text-gray-400 italic">No items yet.</p>
-          )}
-          {getItems(sec.flowType).map(svc => (
-            <div key={svc.id} className="flex items-center gap-2">
-              <span className={`text-sm font-bold ${sec.iconClass}`}>{sec.icon}</span>
-              {editing === svc.id ? (
-                <>
-                  <input
-                    value={editVal}
-                    onChange={e => setEditVal(e.target.value)}
-                    onKeyDown={e => { if (e.key === 'Enter') handleUpdate(svc.id); if (e.key === 'Escape') setEditing(null); }}
-                    autoFocus
-                    className="flex-1 px-3 py-1.5 border border-blue-400 rounded-lg text-sm outline-none"
-                  />
-                  <button onClick={() => handleUpdate(svc.id)} className="px-3 py-1.5 bg-blue-600 text-white text-xs rounded-lg font-semibold hover:bg-blue-700">Save</button>
-                  <button onClick={() => setEditing(null)} className="px-2 py-1.5 text-gray-400 text-xs rounded-lg hover:bg-gray-100">Cancel</button>
-                </>
-              ) : (
-                <>
-                  <span
-                    className="flex-1 text-sm text-gray-700 bg-gray-50 px-3 py-1.5 rounded-lg cursor-pointer hover:bg-blue-50 hover:text-blue-700 transition-colors"
-                    onClick={() => { setEditing(svc.id); setEditVal(svc.service_text); }}
-                  >
-                    {svc.service_text}
-                  </span>
-                  <button onClick={() => { setEditing(svc.id); setEditVal(svc.service_text); }} className="text-xs text-blue-500 hover:text-blue-700 px-2 py-1 rounded hover:bg-blue-50">Edit</button>
-                  <button
-                    onClick={() => handleDelete(svc.id)}
-                    disabled={deleting === svc.id}
-                    className="text-xs text-red-400 hover:text-red-600 px-2 py-1 rounded hover:bg-red-50 disabled:opacity-50"
-                  >
-                    {deleting === svc.id ? '...' : 'Del'}
-                  </button>
-                </>
-              )}
-            </div>
-          ))}
-          <div className="flex gap-2 mt-2">
-            <input
-              value={addVals[sec.flowType]}
-              onChange={e => setAddVals(v => ({ ...v, [sec.flowType]: e.target.value }))}
-              onKeyDown={e => { if (e.key === 'Enter') handleAdd(sec.flowType); }}
-              placeholder="Add text..."
-              className="flex-1 px-3 py-1.5 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
-            />
-            <button
-              onClick={() => handleAdd(sec.flowType)}
-              disabled={adding === sec.flowType || !addVals[sec.flowType].trim()}
-              className="px-3 py-1.5 bg-green-600 text-white text-xs rounded-lg font-semibold hover:bg-green-700 disabled:opacity-50"
-            >
-              {adding === sec.flowType ? '...' : '+ Add'}
-            </button>
-          </div>
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">
+          Gallery Heading (shown above thumbnails on booking page)
+        </label>
+        <div className="flex gap-3">
+          <input
+            value={headingValue}
+            onChange={e => handleHeadingChange(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') handleHeadingSave(); }}
+            className="flex-1 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 outline-none"
+            placeholder="e.g. We Provide"
+          />
+          <button
+            onClick={handleHeadingSave}
+            disabled={savingHeading}
+            className="px-4 py-2 bg-blue-600 text-white text-sm rounded-xl font-semibold hover:bg-blue-700 disabled:opacity-50 transition-all"
+          >
+            {savingHeading ? 'Saving...' : 'Save'}
+          </button>
         </div>
-      ))}
+      </div>
+
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-bold text-gray-700">
+            Gallery Images <span className="text-gray-400 font-normal">({images.length}/6)</span>
+          </h3>
+        </div>
+
+        {images.length < 6 && (
+          <div className="flex gap-2 items-center p-3 bg-green-50 rounded-xl border border-green-100">
+            <input
+              value={uploadCaption}
+              onChange={e => setUploadCaption(e.target.value)}
+              placeholder="Caption for this image (optional)"
+              className="flex-1 px-3 py-1.5 border border-gray-200 rounded-lg text-sm outline-none focus:ring-1 focus:ring-green-400 bg-white"
+            />
+            <label className={`px-4 py-1.5 bg-green-600 text-white text-xs rounded-xl font-semibold cursor-pointer hover:bg-green-700 transition-all shrink-0 ${uploading ? 'opacity-50 pointer-events-none' : ''}`}>
+              {uploading ? 'Uploading...' : '+ Add Image'}
+              <input type="file" accept="image/*" className="hidden" onChange={handleUpload} disabled={uploading} />
+            </label>
+          </div>
+        )}
+
+        {loading ? (
+          <Loader />
+        ) : images.length === 0 ? (
+          <p className="text-sm text-gray-400 italic text-center py-6">No images yet. Upload up to 6 images.</p>
+        ) : (
+          <div className="grid grid-cols-3 gap-3">
+            {images.map((img, index) => (
+              <GalleryImageCard
+                key={img.id}
+                img={img}
+                index={index}
+                total={images.length}
+                onDelete={handleDelete}
+                onMoveUp={(i) => handleMove(i, -1)}
+                onMoveDown={(i) => handleMove(i, 1)}
+                onCaptionSave={handleCaptionSave}
+                deletingId={deletingId}
+              />
+            ))}
+          </div>
+        )}
+
+        <p className="text-xs text-gray-400">Captions appear below each image on the booking page. Use ↑↓ to reorder.</p>
+      </div>
     </div>
   );
 }
@@ -791,7 +894,7 @@ export default function SiteContentPage() {
     { key: 'sale',       label: 'Sale Flow' },
     { key: 'rent',       label: 'Rent Flow' },
     { key: 'services',   label: 'Our Services' },
-    { key: 'advantage',  label: 'Commission Box' },
+    { key: 'gallery',    label: 'Gallery' },
   ];
 
   return (
@@ -824,8 +927,8 @@ export default function SiteContentPage() {
           {tab === 'services' && (
             <ServicesTab services={services} setServices={setServices} stageOptions={stageOptions} showToast={showToast} />
           )}
-          {tab === 'advantage' && (
-            <AdvantageTab services={services} setServices={setServices} showToast={showToast} />
+          {tab === 'gallery' && (
+            <GalleryTab headings={headings} setHeadings={setHeadings} showToast={showToast} />
           )}
         </div>
       )}

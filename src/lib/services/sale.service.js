@@ -12,6 +12,7 @@ export async function getAll(type) {
       COALESCE((SELECT COUNT(DISTINCT b.buyer_id)::INT FROM bookings b
         WHERE b.property_id = p.property_id AND b.unit_type IN ('sale', 'plot', 'flat')), 0) AS booked_people_count,
       p.latitude, p.longitude,
+      p.area_speed, p.amenities_rating, p.utilities_rating, p.legal_rating,
       d.district_id, d.district_name, t.taluk_id, t.taluk_name, v.village_id, v.village_name,
       s.sale_type, s.price AS sale_price, s.rate_unit, s.area_size, s.extension,
       s.street_name_or_road_name, s.layout_name,

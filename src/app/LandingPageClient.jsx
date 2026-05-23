@@ -12,14 +12,6 @@ import { endpoints } from '../api/api';
 import tnmap from '../assets/tnmap.png';
 import '../styles/LandingPage.css';
 
-const hasPremiumImage = (property) => {
-  const images = Array.isArray(property?.images) ? property.images : [];
-  if (images.length === 0) return false;
-  const first = images[0];
-  if (typeof first === 'string') return Boolean(first);
-  if (typeof first === 'object' && first?.url) return true;
-  return false;
-};
 
 export default function LandingPageClient() {
   const searchParams = useSearchParams();
@@ -36,24 +28,9 @@ export default function LandingPageClient() {
     let cancelled = false;
     const fetchPremium = async () => {
       try {
-        // Fetch paid premium (no filter → all types)
         const premiumRes = await endpoints.getPremium();
         if (cancelled) return;
-        const paid = premiumRes?.data?.data || [];
-        if (paid.length > 0) { setLocalPremium(paid); return; }
-
-        // Fallback: use regular properties with images from both rent and sale
-        const [rentRes, saleRes] = await Promise.all([
-          endpoints.getProperties('rent'),
-          endpoints.getProperties('sale'),
-        ]);
-        if (cancelled) return;
-        const allProps = [
-          ...(rentRes?.data?.data || []),
-          ...(saleRes?.data?.data || []),
-        ];
-        const withImg = allProps.filter(hasPremiumImage);
-        setLocalPremium((withImg.length > 0 ? withImg : allProps).slice(0, 20));
+        setLocalPremium(premiumRes?.data?.data || []);
       } catch {}
     };
     fetchPremium();

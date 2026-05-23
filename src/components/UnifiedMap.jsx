@@ -184,6 +184,35 @@ const UnifiedMap = ({ properties = [], mapCenter, mapZoom }) => {
           <span>{locationStr}</span>
         </div>
 
+        {(property.area_speed != null || property.amenities_rating != null || property.utilities_rating != null || property.legal_rating != null) && (
+          <div className="popup-ratings-grid">
+            {property.area_speed != null && (
+              <div className="popup-rating-item">
+                <span className="popup-rating-label">Area Speed</span>
+                <span className="popup-rating-value">{Number(property.area_speed).toFixed(1)}/mo</span>
+              </div>
+            )}
+            {property.amenities_rating != null && (
+              <div className="popup-rating-item">
+                <span className="popup-rating-label">Amenities</span>
+                <span className="popup-rating-value">{Number(property.amenities_rating).toFixed(1)}</span>
+              </div>
+            )}
+            {property.utilities_rating != null && (
+              <div className="popup-rating-item">
+                <span className="popup-rating-label">Utilities</span>
+                <span className="popup-rating-value">{Number(property.utilities_rating).toFixed(1)}</span>
+              </div>
+            )}
+            {property.legal_rating != null && (
+              <div className="popup-rating-item">
+                <span className="popup-rating-label">Legal</span>
+                <span className="popup-rating-value">{Number(property.legal_rating).toFixed(1)}</span>
+              </div>
+            )}
+          </div>
+        )}
+
         <div className="popup-view-link">View Details →</div>
       </div>
     );
