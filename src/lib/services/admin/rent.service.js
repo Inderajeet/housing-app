@@ -42,6 +42,7 @@ export const getAll = async () => {
       r.landmark, r.street_name, r.extent_area, r.extent_unit,
       r.alternate_contact_phone, r.alternate_seller_name,
       r.token_amount, r.token_paid_to, r.rent_out_rate, r.rent_out_date,
+      r.legal_value, r.area_sales_speed, r.facing, r.road_width,
       s.name as seller_name, s.phone_number as seller_phone
     FROM properties p
     JOIN rent_properties r ON r.property_id = p.property_id
@@ -63,6 +64,7 @@ export const getById = async (propertyId) => {
       r.landmark, r.street_name, r.extent_area, r.extent_unit,
       r.alternate_contact_phone, r.alternate_seller_name,
       r.token_amount, r.token_paid_to, r.rent_out_rate, r.rent_out_date,
+      r.legal_value, r.area_sales_speed, r.facing, r.road_width,
       s.name as seller_name, s.phone_number as seller_phone
     FROM properties p
     JOIN rent_properties r ON r.property_id = p.property_id
@@ -100,12 +102,14 @@ export const createRentProperty = async (data, files = {}) => {
     );
     const propertyId = prop[0].property_id;
     await tx.$executeRawUnsafe(
-      `INSERT INTO rent_properties (property_id, bhk, rent_amount, advance_amount, property_use, furnished_status, rent_status, landmark, street_name, extent_area, extent_unit, alternate_contact_phone, alternate_seller_name, description)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
+      `INSERT INTO rent_properties (property_id, bhk, rent_amount, advance_amount, property_use, furnished_status, rent_status, landmark, street_name, extent_area, extent_unit, alternate_contact_phone, alternate_seller_name, description, legal_value, area_sales_speed, facing, road_width)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)`,
       propertyId, toInt(data.bhk), toInt(data.rent_amount) || 0, toInt(data.advance_amount) || 0,
       toStr(data.property_use), toStr(data.furnished_status), toStr(data.rent_status),
       toStr(data.landmark), toStr(data.street_name), extentArea, toStr(data.extent_unit),
-      toStr(data.alternate_contact_phone), toStr(data.alternate_seller_name), toStr(data.description)
+      toStr(data.alternate_contact_phone), toStr(data.alternate_seller_name), toStr(data.description),
+      toStr(data.legal_value) || 'A+', toFloat(data.area_sales_speed),
+      toStr(data.facing), toStr(data.road_width)
     );
     return { propertyId, sellerId };
   });
@@ -159,13 +163,15 @@ export const updateRentProperty = async (propertyId, data, files = {}) => {
       toStr(data.status), toFloat(data.latitude), toFloat(data.longitude), liveImageUrl, propertyId
     );
     await tx.$executeRawUnsafe(
-      `UPDATE rent_properties SET bhk=$1, rent_amount=$2, advance_amount=$3, property_use=$4, furnished_status=$5, rent_status=$6, landmark=$7, street_name=$8, extent_area=$9, extent_unit=$10, alternate_contact_phone=$11, alternate_seller_name=$12, description=$13, token_amount=$14, token_paid_to=$15, rent_out_rate=$16, rent_out_date=$17 WHERE property_id=$18`,
+      `UPDATE rent_properties SET bhk=$1, rent_amount=$2, advance_amount=$3, property_use=$4, furnished_status=$5, rent_status=$6, landmark=$7, street_name=$8, extent_area=$9, extent_unit=$10, alternate_contact_phone=$11, alternate_seller_name=$12, description=$13, token_amount=$14, token_paid_to=$15, rent_out_rate=$16, rent_out_date=$17, legal_value=$18, area_sales_speed=$19, facing=$20, road_width=$21 WHERE property_id=$22`,
       toInt(data.bhk), toFloat(data.rent_amount) || 0, toFloat(data.advance_amount) || 0,
       toStr(data.property_use), toStr(data.furnished_status), toStr(data.rent_status),
       toStr(data.landmark), toStr(data.street_name), extentArea, toStr(data.extent_unit),
       toStr(data.alternate_contact_phone), toStr(data.alternate_seller_name), toStr(data.description),
       toFloat(data.token_amount), toStr(data.token_paid_to), toFloat(data.rent_out_rate),
-      data.rent_out_date && data.rent_out_date !== '' ? new Date(data.rent_out_date) : null, propertyId
+      data.rent_out_date && data.rent_out_date !== '' ? new Date(data.rent_out_date) : null,
+      toStr(data.legal_value) || 'A+', toFloat(data.area_sales_speed),
+      toStr(data.facing), toStr(data.road_width), propertyId
     );
   });
 

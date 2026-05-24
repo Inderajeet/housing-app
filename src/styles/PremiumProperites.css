@@ -63,6 +63,32 @@
     background: #f2f2f2;
 }
 
+.premium-ads-placeholder {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    background: #f0f4f8;
+    color: #94a3b8;
+}
+
+.premium-ads-placeholder svg {
+    width: 36px;
+    height: 36px;
+    opacity: 0.5;
+}
+
+.premium-ads-placeholder span {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    opacity: 0.6;
+}
+
 .premium-ads-nav {
     position: absolute;
     top: 50%;
@@ -192,12 +218,16 @@
         left: 10px;
         top: 78px;
         bottom: auto;
+        height: 70px;
+        width: 165px;
     }
 
     .premium-ads-bottom {
         left: 10px;
-        top: 181px;
+        top: 156px;
         bottom: auto;
+        height: 70px;
+        width: 165px;
     }
 
     .premium-ads-right-top {
@@ -223,10 +253,14 @@
 
     .premium-ads-top {
         top: 59px;
+        height: 62px;
+        width: 150px;
     }
 
     .premium-ads-bottom {
-        top: 148px;
+        top: 129px;
+        height: 62px;
+        width: 150px;
     }
 
     .premium-ads-right-top,

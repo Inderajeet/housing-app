@@ -314,6 +314,10 @@ model rent_properties {
   token_paid_to           String?    @db.VarChar(50)
   rent_out_rate           Decimal?   @db.Decimal(15, 2)
   rent_out_date           DateTime?  @db.Date
+  legal_value             String?    @default("A+") @db.VarChar(5)
+  area_sales_speed        Decimal?   @db.Decimal(10, 2)
+  facing                  String?    @db.VarChar(20)
+  road_width              String?    @db.VarChar(50)
   properties              properties @relation(fields: [property_id], references: [property_id], onDelete: Cascade, onUpdate: NoAction)
 }
 
@@ -354,6 +358,10 @@ model sale_properties {
   advance_amount           Decimal?   @db.Decimal(15, 2)
   layout_view_mode         String?    @default("grid") @db.VarChar(10)
   rate_unit                String?    @db.VarChar(50)
+  legal_value              String?    @default("A+") @db.VarChar(5)
+  area_sales_speed         Decimal?   @db.Decimal(10, 2)
+  facing                   String?    @db.VarChar(20)
+  road_width               String?    @db.VarChar(50)
   properties               properties @relation(fields: [property_id], references: [property_id], onDelete: Cascade, onUpdate: NoAction)
 }
 

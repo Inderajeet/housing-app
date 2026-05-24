@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import PropertyCard from './PropertyCard';
 import ListingFilterBar from './ListingFilterBar';
 import '../styles/PropertyListings.css';
@@ -15,18 +15,7 @@ const PropertyListings = ({
   const locationDisplayName =
     [filters.village, filters.taluk, filters.district].filter(Boolean).join(', ') || 'Tamil Nadu';
 
-  const getSellerName = (p) => p.developer_name || p.seller_name || p.posted_by;
-  const [selectedSeller, setSelectedSeller] = useState('ALL');
-
-  const sellerOptions = useMemo(() => {
-    const names = properties.map(getSellerName).filter(Boolean);
-    return Array.from(new Set(names));
-  }, [properties]);
-
-  const displayedProperties = useMemo(() => {
-    if (!isSidePanel || selectedSeller === 'ALL') return properties;
-    return properties.filter((p) => getSellerName(p) === selectedSeller);
-  }, [properties, isSidePanel, selectedSeller]);
+  const displayedProperties = useMemo(() => properties, [properties]);
 
   if (displayedProperties.length === 0) {
     return (
@@ -63,21 +52,6 @@ const PropertyListings = ({
           totalCount={totalCount}
           locationDisplayName={locationDisplayName}
         />
-      )}
-
-      {isSidePanel && sellerOptions.length > 0 && (
-        <div className="seller-filter-row compact">
-          <select
-            className="seller-filter-select"
-            value={selectedSeller}
-            onChange={(e) => setSelectedSeller(e.target.value)}
-          >
-            <option value="ALL">All sellers</option>
-            {sellerOptions.map((name) => (
-              <option key={name} value={name}>{name}</option>
-            ))}
-          </select>
-        </div>
       )}
 
       <div className="listings-grid-wrapper">

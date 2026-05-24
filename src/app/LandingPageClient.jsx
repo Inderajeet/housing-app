@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useSearchParams } from 'next/navigation';
@@ -37,7 +37,12 @@ export default function LandingPageClient() {
     return () => { cancelled = true; };
   }, []);
 
-  const landingPremiumProperties = localPremium.length > 0 ? localPremium : contextPremium;
+  const targetType = activeTab === 'BUY' ? 'sale' : 'rent';
+  const allPremium = localPremium.length > 0 ? localPremium : contextPremium;
+  const landingPremiumProperties = useMemo(
+    () => allPremium.filter(p => p.property_type === targetType),
+    [allPremium, targetType]
+  );
 
   const renderPremiumAds = () => (
     <>

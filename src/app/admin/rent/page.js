@@ -31,15 +31,20 @@ const EMPTY_FORM = {
   property_use: PropertyType.RESIDENTIAL, rent_status: BookingStatus.NIL_BOOKING,
   landmark: '', extent_area: '', extent_unit: '', description: '',
   token_amount: '', token_paid_to: '', rent_out_rate: '', rent_out_date: '',
+  legal_value: 'A+', area_sales_speed: '', facing: '', road_width: '',
 };
 
 const FORM_TABS = [
   { key: 'details', label: 'Details' },
   { key: 'seller', label: 'Seller' },
   { key: 'property-info', label: 'Property Info' },
+  { key: 'custom-fields', label: 'Custom Fields' },
   { key: 'images', label: 'Images' },
   { key: 'documents', label: 'Documents' },
 ];
+
+const LEGAL_VALUE_OPTIONS = ['A+', 'A', 'B', 'C'];
+const FACING_OPTIONS = ['', 'North', 'South', 'East', 'West', 'North-East', 'North-West', 'South-East', 'South-West'];
 
 const lbl = 'text-[10px] font-bold uppercase tracking-widest text-gray-500';
 const fw = 'flex flex-col space-y-2';
@@ -86,6 +91,8 @@ export default function RentPropertiesPage() {
     const locked = isNewProperty && key !== 'details';
     return `py-3 px-1 text-[10px] font-bold uppercase tracking-widest transition-all whitespace-nowrap ${locked ? 'text-gray-300 cursor-not-allowed' : isActive ? 'border-b-2 border-emerald-600 text-emerald-600' : 'text-gray-400 hover:text-gray-600'}`;
   };
+
+  const isCustomFieldsTab = formTab === 'custom-fields';
 
   const fetchRent = async () => {
     setLoading(true);
@@ -533,6 +540,37 @@ export default function RentPropertiesPage() {
                     <textarea disabled={isReadOnly} value={form.description || ''} onChange={e => handleChange('description', e.target.value)} className="w-full px-4 py-2.5 rounded-xl border border-gray-300 font-semibold text-sm min-h-[80px]" /></div>
                 </div>
               )}
+              {formTab === 'custom-fields' && (
+                <div className="space-y-6">
+                  <div className="bg-violet-50 border border-violet-100 rounded-2xl p-5">
+                    <p className="text-xs font-bold uppercase tracking-widest text-violet-700 mb-4">Property Custom Fields</p>
+                    <div className="grid grid-cols-2 gap-6">
+                      <div className={fw}>
+                        <label className={lbl}>Legal Value</label>
+                        <select disabled={isReadOnly} value={form.legal_value || 'A+'} onChange={e => handleChange('legal_value', e.target.value)}
+                          className="w-full px-4 py-2.5 rounded-xl border border-gray-300 font-semibold text-sm">
+                          {LEGAL_VALUE_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
+                        </select>
+                      </div>
+                      <div className={fw}>
+                        <label className={lbl}>Area Sales Speed (rentals/month)</label>
+                        <input type="number" step="0.01" disabled={isReadOnly} value={form.area_sales_speed || ''} onChange={e => handleChange('area_sales_speed', e.target.value)} placeholder="Auto-calculated or manual" className={inp} />
+                      </div>
+                      <div className={fw}>
+                        <label className={lbl}>Facing</label>
+                        <select disabled={isReadOnly} value={form.facing || ''} onChange={e => handleChange('facing', e.target.value)}
+                          className="w-full px-4 py-2.5 rounded-xl border border-gray-300 font-semibold text-sm">
+                          {FACING_OPTIONS.map(o => <option key={o} value={o}>{o || '— Select —'}</option>)}
+                        </select>
+                      </div>
+                      <div className={fw}>
+                        <label className={lbl}>Road Width</label>
+                        <input type="text" disabled={isReadOnly} value={form.road_width || ''} onChange={e => handleChange('road_width', e.target.value)} placeholder="e.g. 30 ft, 9 m" className={inp} />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
               {formTab === 'images' && (
                 assetLoading ? <Loader /> :
                   <PropertyAssetsTabs propertyId={selected?.property_id || null} assets={assets} setAssets={setAssets}
@@ -551,11 +589,11 @@ export default function RentPropertiesPage() {
                   <button onClick={handleCreate} disabled={submitting} className="bg-emerald-600 text-white px-8 py-2 rounded-xl font-bold text-xs uppercase shadow-lg hover:bg-emerald-700 disabled:opacity-70">
                     {submitting ? 'Creating…' : 'Create Property'}
                   </button>
-                ) : (
+                ) : formTab !== 'details' || selected?.property_id ? (
                   <button onClick={handleUpdate} disabled={submitting} className="bg-emerald-600 text-white px-8 py-2 rounded-xl font-bold text-xs uppercase shadow-lg hover:bg-emerald-700 disabled:opacity-70">
                     {submitting ? 'Saving…' : 'Update'}
                   </button>
-                )
+                ) : null
               )}
             </div>
           </div>

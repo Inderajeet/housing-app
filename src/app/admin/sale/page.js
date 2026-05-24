@@ -38,7 +38,11 @@ const EMPTY_FORM = {
   description: '', dtcp: '', parent_document: '', sub_registrar_office: '', gift_deed: '',
   token_amount: '', token_paid_to: '', advance_amount: '', sold_rate: '', sold_date: '',
   area_speed: '', amenities_rating: '', utilities_rating: '', legal_rating: '',
+  legal_value: 'A+', area_sales_speed: '', facing: '', road_width: '',
 };
+
+const LEGAL_VALUE_OPTIONS = ['A+', 'A', 'B', 'C'];
+const FACING_OPTIONS = ['', 'North', 'South', 'East', 'West', 'North-East', 'North-West', 'South-East', 'South-West'];
 
 const FORM_TABS = [
   { key: 'details', label: 'Details' },
@@ -307,7 +311,7 @@ export default function SalePropertiesPage() {
     try {
       const res = await adminApi.get('/sale/area-speed', { params: { lat, lng } });
       const speed = res.data?.area_speed;
-      if (speed != null) setForm(prev => ({ ...prev, area_speed: String(speed) }));
+      if (speed != null) setForm(prev => ({ ...prev, area_sales_speed: String(speed) }));
       else alert('No sold properties found within 1km over the past 2 years.');
     } catch (err) { alert('Failed to calculate: ' + (err?.response?.data?.error || err.message)); }
     finally { setCalcingAreaSpeed(false); }
@@ -354,6 +358,23 @@ export default function SalePropertiesPage() {
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Sale_Inventory');
     XLSX.writeFile(wb, `Sale_Inventory_${new Date().toLocaleDateString()}.xlsx`);
+  };
+
+  const handleDownloadTemplate = () => {
+    const headers = [
+      'contact_phone', 'seller_name', 'alternate_contact_phone', 'alternate_seller_name',
+      'latitude', 'longitude', 'address', 'district_id', 'taluk_id', 'village_id',
+      'status', 'sale_type', 'price', 'rate_unit', 'extension', 'area_size',
+      'survey_number', 'street_name_or_road_name', 'layout_name', 'sale_status',
+      'boundary_north', 'boundary_south', 'boundary_east', 'boundary_west',
+      'description', 'dtcp', 'parent_document', 'sub_registrar_office', 'gift_deed',
+      'token_amount', 'token_paid_to', 'advance_amount', 'sold_rate', 'sold_date',
+      'legal_value', 'area_sales_speed', 'amenities_rating', 'utilities_rating',
+    ];
+    const ws = XLSX.utils.aoa_to_sheet([headers]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Template');
+    XLSX.writeFile(wb, 'Sale_Import_Template.xlsx');
   };
 
   const handleImportFile = async (e) => {
@@ -461,6 +482,9 @@ export default function SalePropertiesPage() {
         </div>
         <div className="flex gap-3 flex-wrap justify-end">
           <input ref={importFileRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleImportFile} />
+          <button onClick={handleDownloadTemplate} className="bg-white border border-purple-300 text-purple-700 px-5 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-purple-50">
+            Import Template
+          </button>
           <button onClick={() => importFileRef.current.click()} disabled={importing} className="bg-white border border-blue-300 text-blue-700 px-5 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-blue-50 disabled:opacity-60">
             {importing ? 'Importing…' : 'Import Excel'}
           </button>
@@ -598,6 +622,10 @@ export default function SalePropertiesPage() {
             { header: 'Longitude', accessor: 'longitude', filterable: true, filterKey: 'longitude' },
             { header: 'Address', accessor: 'address', editable: true, editType: 'textarea', filterable: true, filterKey: 'address' },
             { header: 'Description', accessor: 'description', editable: true, editType: 'textarea', filterable: true, filterKey: 'description' },
+            { header: 'Legal Value', accessor: p => p.legal_value || '—', editable: true, editType: 'select', editField: 'legal_value', editOptions: LEGAL_VALUE_OPTIONS.map(v => ({ value: v, label: v })), filterable: true, filterKey: 'legal_value' },
+            { header: 'Area Speed', accessor: p => p.area_sales_speed != null ? `${Number(p.area_sales_speed).toFixed(1)}/mo` : (p.area_speed != null ? `${Number(p.area_speed).toFixed(1)}/mo` : '—'), editable: true, editType: 'number', editField: 'area_sales_speed', filterable: true, filterKey: 'area_sales_speed' },
+            { header: 'Amenities', accessor: p => p.amenities_rating != null ? Number(p.amenities_rating).toFixed(1) : '—', editable: true, editType: 'number', editField: 'amenities_rating', filterable: true, filterKey: 'amenities_rating' },
+            { header: 'Utilities', accessor: p => p.utilities_rating != null ? Number(p.utilities_rating).toFixed(1) : '—', editable: true, editType: 'number', editField: 'utilities_rating', filterable: true, filterKey: 'utilities_rating' },
           ]}
           data={filteredProperties}
           columnFilters={columnFilters}
@@ -772,35 +800,34 @@ export default function SalePropertiesPage() {
               )}
               {formTab === 'ratings' && (
                 <div className="space-y-6">
-                  <div className="bg-blue-50 border border-blue-100 rounded-2xl p-5">
-                    <p className="text-xs font-bold uppercase tracking-widest text-blue-600 mb-1">Area Speed</p>
-                    <p className="text-[11px] text-blue-500 mb-4">Auto-calculated: count of sold properties within 1km over the past 2 years ÷ 24 months. You can also edit it manually.</p>
-                    <div className="flex gap-3 items-end">
-                      <div className="flex-1">
-                        <label className={lbl}>Area Speed (sales/month)</label>
-                        <input type="number" step="0.01" disabled={isReadOnly} value={form.area_speed || ''} onChange={e => handleChange('area_speed', e.target.value)} placeholder="e.g. 5.00" className={inp()} />
-                      </div>
-                      {!isReadOnly && (
-                        <button onClick={handleCalcAreaSpeed} disabled={calcingAreaSpeed} className="px-5 py-2.5 bg-blue-600 text-white rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-blue-700 disabled:opacity-60 shrink-0">
-                          {calcingAreaSpeed ? 'Calculating…' : 'Recalculate'}
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                  <div className="bg-gray-50 border border-gray-100 rounded-2xl p-5">
-                    <p className="text-xs font-bold uppercase tracking-widest text-gray-600 mb-4">Manual Ratings (0–10)</p>
-                    <div className="grid grid-cols-3 gap-6">
+                  <div className="bg-violet-50 border border-violet-100 rounded-2xl p-5">
+                    <p className="text-xs font-bold uppercase tracking-widest text-violet-700 mb-4">Property Ratings</p>
+                    <div className="grid grid-cols-2 gap-6">
                       <div className={fw}>
-                        <label className={lbl}>Amenities Rating</label>
+                        <label className={lbl}>Legal Value</label>
+                        <select disabled={isReadOnly} value={form.legal_value || 'A+'} onChange={e => handleChange('legal_value', e.target.value)}
+                          className="w-full px-4 py-2.5 rounded-xl border border-gray-300 font-semibold text-sm">
+                          {LEGAL_VALUE_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
+                        </select>
+                      </div>
+                      <div className={fw}>
+                        <div className="flex items-center justify-between mb-0">
+                          <label className={lbl}>Area Sales Speed (sales/month)</label>
+                          {!isReadOnly && (
+                            <button onClick={handleCalcAreaSpeed} disabled={calcingAreaSpeed} className="px-3 py-1 bg-blue-600 text-white rounded-lg font-bold text-[10px] uppercase tracking-widest hover:bg-blue-700 disabled:opacity-60 shrink-0">
+                              {calcingAreaSpeed ? '…' : 'Recalculate'}
+                            </button>
+                          )}
+                        </div>
+                        <input type="number" step="0.01" disabled={isReadOnly} value={form.area_sales_speed || ''} onChange={e => handleChange('area_sales_speed', e.target.value)} placeholder="Auto-calculated or manual" className={inp()} />
+                      </div>
+                      <div className={fw}>
+                        <label className={lbl}>Amenities Rating (0–10)</label>
                         <input type="number" step="0.1" min="0" max="10" disabled={isReadOnly} value={form.amenities_rating || ''} onChange={e => handleChange('amenities_rating', e.target.value)} placeholder="0–10" className={inp()} />
                       </div>
                       <div className={fw}>
-                        <label className={lbl}>Utilities Rating</label>
+                        <label className={lbl}>Utilities Rating (0–10)</label>
                         <input type="number" step="0.1" min="0" max="10" disabled={isReadOnly} value={form.utilities_rating || ''} onChange={e => handleChange('utilities_rating', e.target.value)} placeholder="0–10" className={inp()} />
-                      </div>
-                      <div className={fw}>
-                        <label className={lbl}>Legal Rating</label>
-                        <input type="number" step="0.1" min="0" max="10" disabled={isReadOnly} value={form.legal_rating || ''} onChange={e => handleChange('legal_rating', e.target.value)} placeholder="0–10" className={inp()} />
                       </div>
                     </div>
                   </div>

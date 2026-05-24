@@ -17,7 +17,7 @@ export async function getAll(type) {
       s.sale_type, s.price AS sale_price, s.rate_unit, s.area_size, s.extension,
       s.street_name_or_road_name, s.layout_name,
       s.survey_number, s.boundary_north, s.boundary_south, s.boundary_east, s.boundary_west,
-      s.sale_status,
+      s.sale_status, s.legal_value, s.area_sales_speed, s.facing, s.road_width,
       CASE WHEN LOWER(COALESCE(s.sale_type, '')) IN ('plot', 'flat') THEN s.drawing_image ELSE NULL END AS drawing_image,
       s.total_units_count, s.booked_units, s.open_units,
       sel.name AS seller_name,

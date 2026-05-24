@@ -25,7 +25,7 @@ const PremiumProperties = ({
   className = '',
 }) => {
   const adProperties = useMemo(
-    () => properties.filter((property) => !!getPrimaryImage(property)),
+    () => properties.filter((p) => p && p.property_id),
     [properties]
   );
 
@@ -62,9 +62,9 @@ const PremiumProperties = ({
 
   const safeIndex = activeIndex >= 0 && activeIndex < adProperties.length ? activeIndex : 0;
   const activeProperty = adProperties[safeIndex];
-  const imageUrl = getPrimaryImage(activeProperty);
-  if (!activeProperty || !imageUrl) return null;
+  if (!activeProperty) return null;
 
+  const imageUrl = getPrimaryImage(activeProperty);
   const propertyHref = getPropertyHref(activeProperty);
   const isInteractive = !!activeProperty.property_id;
 
@@ -86,17 +86,30 @@ const PremiumProperties = ({
 
   const imageAlt = activeProperty.formatted_id || activeProperty.title || 'Property Ad';
 
+  const ImageContent = () => imageUrl ? (
+    <img src={imageUrl} alt={imageAlt} className="premium-ads-image" />
+  ) : (
+    <div className="premium-ads-placeholder">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+        <circle cx="8.5" cy="8.5" r="1.5" />
+        <polyline points="21 15 16 10 5 21" />
+      </svg>
+      <span>{activeProperty.formatted_id || 'Sponsored'}</span>
+    </div>
+  );
+
   return (
     <div className={`premium-ads-floating premium-ads-${position} ${layoutClass} ${className}`.trim()}>
       {isInteractive ? (
         <Link className="premium-ads-link" href={propertyHref}>
           <div className="premium-ads-label">Sponsored</div>
-          <img src={imageUrl} alt={imageAlt} className="premium-ads-image" />
+          <ImageContent />
         </Link>
       ) : (
         <>
           <div className="premium-ads-label">Sponsored</div>
-          <img src={imageUrl} alt={imageAlt} className="premium-ads-image" />
+          <ImageContent />
         </>
       )}
 

@@ -119,6 +119,12 @@
     overflow-y: hidden;
 }
 
+.floating-listings-panel.listings-panel-wide {
+    width: 460px;
+    height: 58%;
+    max-height: 580px;
+}
+
 /* Panel Header (for listing count and close button) */
 .panel-header {
     display: flex;

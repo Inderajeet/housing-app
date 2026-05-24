@@ -12,6 +12,7 @@ export async function getAll(type) {
       d.district_id, d.district_name, t.taluk_id, t.taluk_name, v.village_id, v.village_name,
       r.bhk, r.rent_amount, r.advance_amount, r.property_use, r.furnished_status, r.rent_status,
       r.landmark, r.street_name, r.extent_area, r.extent_unit,
+      r.legal_value, r.area_sales_speed, r.facing, r.road_width,
       s.name AS seller_name,
       (SELECT JSON_AGG(JSON_BUILD_OBJECT('url', file_url)) FROM property_assets
        WHERE property_id = p.property_id AND asset_type = 'image') AS images

@@ -1,7 +1,6 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState } from 'react';
-import { endpoints } from '../api/api';
+import { createContext, useContext, useState } from 'react';
 
 const AppContext = createContext(null);
 
@@ -14,19 +13,8 @@ export function AppProvider({ children }) {
   const [postModalTransactionType, setPostModalTransactionType] = useState('rent');
   const [menuPremiumProperties, setMenuPremiumProperties] = useState([]);
 
-  useEffect(() => {
-    let isMounted = true;
-    const fetchInitialPremiumProperties = async () => {
-      try {
-        const response = await endpoints.getPremium();
-        const properties = response?.data?.data || [];
-        if (isMounted) setMenuPremiumProperties(properties);
-      } catch {
-      }
-    };
-    fetchInitialPremiumProperties();
-    return () => { isMounted = false; };
-  }, []);
+  // menuPremiumProperties is set by SearchPageClient with the correct type-filtered list.
+  // Do not prefetch here — an unfiltered prefetch would overwrite the filtered data.
 
   const handlePostPropertyClick = (transactionType) => {
     setPostModalTransactionType(transactionType);

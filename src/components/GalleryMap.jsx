@@ -136,10 +136,17 @@ const GalleryMap = ({ location, status, title, propertyData = null }) => {
     });
 
     if (isStreetViewMode && position) {
-      streetView.setPosition(position);
-      streetView.setPov({ heading: 100, pitch: 0, zoom: 1 });
-      streetView.setVisible(true);
-      setShowInfo(false);
+      const sv = new window.google.maps.StreetViewService();
+      sv.getPanorama({ location: position, radius: 50 }, (data, svStatus) => {
+        if (svStatus === window.google.maps.StreetViewStatus.OK) {
+          streetView.setPosition(position);
+          streetView.setPov({ heading: 100, pitch: 0, zoom: 1 });
+          streetView.setVisible(true);
+          setShowInfo(false);
+        } else {
+          setIsStreetViewMode(false);
+        }
+      });
     }
   };
 
@@ -161,10 +168,18 @@ const GalleryMap = ({ location, status, title, propertyData = null }) => {
     if (!mapRef.current || !position) return;
     const streetView = mapRef.current.getStreetView();
     if (isStreetViewMode) {
-      streetView.setPosition(position);
-      streetView.setPov({ heading: 100, pitch: 0, zoom: 1 });
-      streetView.setVisible(true);
-      setShowInfo(false);
+      const sv = new window.google.maps.StreetViewService();
+      sv.getPanorama({ location: position, radius: 50 }, (data, svStatus) => {
+        if (svStatus === window.google.maps.StreetViewStatus.OK) {
+          streetView.setPosition(position);
+          streetView.setPov({ heading: 100, pitch: 0, zoom: 1 });
+          streetView.setVisible(true);
+          setShowInfo(false);
+        } else {
+          setIsStreetViewMode(false);
+          streetView.setVisible(false);
+        }
+      });
       return;
     }
     streetView.setVisible(false);

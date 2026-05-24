@@ -184,34 +184,34 @@ const UnifiedMap = ({ properties = [], mapCenter, mapZoom }) => {
           <span>{locationStr}</span>
         </div>
 
-        {(property.area_speed != null || property.amenities_rating != null || property.utilities_rating != null || property.legal_rating != null) && (
-          <div className="popup-ratings-grid">
-            {property.area_speed != null && (
-              <div className="popup-rating-item">
-                <span className="popup-rating-label">Area Speed</span>
-                <span className="popup-rating-value">{Number(property.area_speed).toFixed(1)}/mo</span>
-              </div>
-            )}
-            {property.amenities_rating != null && (
-              <div className="popup-rating-item">
-                <span className="popup-rating-label">Amenities</span>
-                <span className="popup-rating-value">{Number(property.amenities_rating).toFixed(1)}</span>
-              </div>
-            )}
-            {property.utilities_rating != null && (
-              <div className="popup-rating-item">
-                <span className="popup-rating-label">Utilities</span>
-                <span className="popup-rating-value">{Number(property.utilities_rating).toFixed(1)}</span>
-              </div>
-            )}
-            {property.legal_rating != null && (
-              <div className="popup-rating-item">
-                <span className="popup-rating-label">Legal</span>
-                <span className="popup-rating-value">{Number(property.legal_rating).toFixed(1)}</span>
-              </div>
-            )}
+        <div className="popup-ratings-grid">
+          <div className="popup-rating-item">
+            <span className="popup-rating-label">Legal Value</span>
+            <span className="popup-rating-value">{property.legal_value ?? '—'}</span>
           </div>
-        )}
+          <div className="popup-rating-item">
+            <span className="popup-rating-label">Area Speed</span>
+            <span className="popup-rating-value">
+              {property.area_sales_speed != null
+                ? `${Number(property.area_sales_speed).toFixed(1)}/mo`
+                : property.area_speed != null
+                  ? `${Number(property.area_speed).toFixed(1)}/mo`
+                  : '—'}
+            </span>
+          </div>
+          <div className="popup-rating-item">
+            <span className="popup-rating-label">Amenities</span>
+            <span className="popup-rating-value">
+              {property.amenities_rating != null ? Number(property.amenities_rating).toFixed(1) : '—'}
+            </span>
+          </div>
+          <div className="popup-rating-item">
+            <span className="popup-rating-label">Utilities</span>
+            <span className="popup-rating-value">
+              {property.utilities_rating != null ? Number(property.utilities_rating).toFixed(1) : '—'}
+            </span>
+          </div>
+        </div>
 
         <div className="popup-view-link">View Details →</div>
       </div>

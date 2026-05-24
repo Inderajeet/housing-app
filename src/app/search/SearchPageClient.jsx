@@ -54,6 +54,7 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const [showFilterPanel, setShowFilterPanel] = useState(true);
   const [showListingsPanel, setShowListingsPanel] = useState(true);
+  const [listingsPanelWide, setListingsPanelWide] = useState(false);
 
   // Sync URL type/category → filters
   useEffect(() => {
@@ -151,13 +152,24 @@ export default function HomePage() {
 
   useEffect(() => {
     const params = { property_type: filters.lookingTo };
+    if (filters.type) {
+      if (filters.lookingTo === 'sale') {
+        params.sale_type = filters.type;
+      } else {
+        if (filters.type === 'commercial') {
+          params.property_use = 'commercial';
+        } else if (['1', '2', '3'].includes(String(filters.type))) {
+          params.bhk = filters.type;
+        }
+      }
+    }
     if (filters.district_id) params.district_id = filters.district_id;
     if (filters.taluk_id) params.taluk_id = filters.taluk_id;
     if (filters.village_id) params.village_id = filters.village_id;
     endpoints.getPremium(params)
       .then(res => setDbPremiumProperties(res.data?.data || []))
       .catch(() => {});
-  }, [filters.lookingTo, filters.district_id, filters.taluk_id, filters.village_id]);
+  }, [filters.lookingTo, filters.type, filters.district_id, filters.taluk_id, filters.village_id]);
 
   useEffect(() => {
     if (!filters.district_id) { setTaluksList([]); setVillagesList([]); return; }
@@ -323,12 +335,32 @@ export default function HomePage() {
           />
         </div>
 
-        <div className={`floating-listings-panel ${showListingsPanel ? 'expanded' : 'minimized'}`}>
+        <div className={`floating-listings-panel ${showListingsPanel ? 'expanded' : 'minimized'}${listingsPanelWide ? ' listings-panel-wide' : ''}`}>
           {showListingsPanel ? (
             <>
               <div className="panel-header">
                 <span className="listing-count-header">{filteredProperties.length}+ Properties found</span>
-                <button className="close-btn" onClick={() => setShowListingsPanel(false)}>✕</button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+                  <button
+                    className="close-btn"
+                    title={listingsPanelWide ? 'Shrink panel' : 'Expand panel'}
+                    onClick={() => setListingsPanelWide(w => !w)}
+                    style={{ fontSize: '14px' }}
+                  >
+                    {listingsPanelWide ? (
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="4 14 10 14 10 20" /><polyline points="20 10 14 10 14 4" />
+                        <line x1="10" y1="14" x2="3" y2="21" /><line x1="21" y1="3" x2="14" y2="10" />
+                      </svg>
+                    ) : (
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="15 3 21 3 21 9" /><polyline points="9 21 3 21 3 15" />
+                        <line x1="21" y1="3" x2="14" y2="10" /><line x1="3" y1="21" x2="10" y2="14" />
+                      </svg>
+                    )}
+                  </button>
+                  <button className="close-btn" onClick={() => setShowListingsPanel(false)}>✕</button>
+                </div>
               </div>
               <PropertyListings
                 properties={filteredProperties}
