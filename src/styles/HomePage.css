@@ -293,6 +293,15 @@
         max-height: 198px;
     }
 
+    .floating-listings-panel.listings-panel-wide {
+        left: 8px;
+        right: 8px;
+        width: calc(100% - 16px);
+        height: 58%;
+        max-height: 58vh;
+        bottom: 8px;
+    }
+
     .floating-listings-panel.expanded {
         padding: 6px;
     }
@@ -365,6 +374,15 @@
         max-height: 175px;
     }
 
+    .floating-listings-panel.listings-panel-wide {
+        left: 6px;
+        right: 6px;
+        width: calc(100% - 12px);
+        height: 58%;
+        max-height: 58vh;
+        bottom: 6px;
+    }
+
     .floating-listings-panel.expanded {
         padding: 6px;
         margin-bottom: 4px;
@@ -403,6 +421,15 @@
         bottom: 100px;
         height: 145px;
         max-height: 178px;
+    }
+
+    .floating-listings-panel.listings-panel-wide {
+        left: 4px;
+        right: 4px;
+        width: calc(100% - 8px);
+        height: 58%;
+        max-height: 58vh;
+        bottom: 4px;
     }
 
     /* Basic filter section - Extra compact 2x2 grid */
