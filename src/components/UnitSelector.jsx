@@ -32,6 +32,17 @@ const UnitSelector = ({ propertyId, onSelectUnit, saleType, onNoPlots, refreshKe
     const getUnitId = (item) => item?.[preferredUnitIdField] ?? item?.[fallbackUnitIdField] ?? null;
     const getUnitNumber = (item) => item?.[preferredUnitNumberField] ?? item?.[fallbackUnitNumberField] ?? null;
 
+    const renderBhkDots = (bhk, cx, cy, fontSize) => {
+        const n = parseInt(bhk) || 0;
+        if (!n) return null;
+        const r = Math.max(1.5, (fontSize || 11) * 0.18);
+        const gap = r * 3;
+        const startX = cx - ((n - 1) * gap) / 2;
+        return Array.from({ length: n }, (_, i) => (
+            <circle key={i} cx={startX + i * gap} cy={cy} r={r} fill="white" style={{ pointerEvents: 'none' }} />
+        ));
+    };
+
     const stripBhk = (raw) => {
         if (!raw) return { label: '', bhk: '' };
         const str = raw.toString();
@@ -395,23 +406,20 @@ const UnitSelector = ({ propertyId, onSelectUnit, saleType, onNoPlots, refreshKe
                                     />
                                     {bbox.w > 8 && (
                                         <>
-                                        <text x={bbox.cx} y={cell.bhk ? bbox.cy - (cell.fontSize || cell.font_size || 11) * 0.6 : bbox.cy}
+                                        <text x={bbox.cx} y={cell.bhk ? bbox.cy - (cell.fontSize || cell.font_size || 11) * 0.35 : bbox.cy}
                                             textAnchor="middle" dominantBaseline="middle"
-                                            fontSize={cell.fontSize || cell.font_size || 11} fontWeight="bold"
+                                            fontSize={cell.fontSize || cell.font_size || 11}
+                                            fontWeight={cell.font_weight || '900'}
                                             fill="#1e293b"
                                             style={{ pointerEvents: 'none', userSelect: 'none' }}
                                         >
                                             {cell.display_name}
                                         </text>
-                                        {cell.bhk && (
-                                            <text x={bbox.cx} y={bbox.cy + (cell.fontSize || cell.font_size || 11) * 0.7}
-                                                textAnchor="middle" dominantBaseline="middle"
-                                                fontSize={(cell.fontSize || cell.font_size || 11) * 0.75} fontWeight="600"
-                                                fill="#1e293b"
-                                                style={{ pointerEvents: 'none', userSelect: 'none' }}
-                                            >
-                                                {cell.bhk}BHK
-                                            </text>
+                                        {cell.bhk && renderBhkDots(
+                                            cell.bhk,
+                                            bbox.cx,
+                                            bbox.cy + (cell.fontSize || cell.font_size || 11) * 0.75,
+                                            cell.fontSize || cell.font_size || 11
                                         )}
                                         </>
                                     )}
@@ -434,6 +442,7 @@ const UnitSelector = ({ propertyId, onSelectUnit, saleType, onNoPlots, refreshKe
                     <div className="legend-item"><div className="legend-dot legend-available"></div> Available</div>
                     <div className="legend-item"><div className="legend-dot legend-on-booking"></div> On Booking</div>
                     <div className="legend-item"><div className="legend-dot legend-booked"></div> Confirmed/Sold</div>
+                    <div className="legend-item"><div className="legend-dot legend-bhk"></div> BHK</div>
                 </div>
             </div>
         );
@@ -521,7 +530,11 @@ const UnitSelector = ({ propertyId, onSelectUnit, saleType, onNoPlots, refreshKe
                                         <span style={cellStyle} className="unit-label">{cell.display_name}</span>
                                     )}
                                     {cell?.type === unitTypeName && cell?.bhk && (
-                                        <span className="unit-bhk-label">{cell.bhk}BHK</span>
+                                        <span className="unit-bhk-dots">
+                                            {Array.from({ length: parseInt(cell.bhk) || 0 }, (_, i) => (
+                                                <span key={i} className="unit-bhk-dot" />
+                                            ))}
+                                        </span>
                                     )}
                                 </div>
                             );

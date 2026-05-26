@@ -43,10 +43,14 @@ export const getAll = async () => {
       r.alternate_contact_phone, r.alternate_seller_name,
       r.token_amount, r.token_paid_to, r.rent_out_rate, r.rent_out_date,
       r.legal_value, r.area_sales_speed, r.facing, r.road_width,
-      s.name as seller_name, s.phone_number as seller_phone
+      s.name as seller_name, s.phone_number as seller_phone,
+      d.district_name, t.taluk_name, v.village_name
     FROM properties p
     JOIN rent_properties r ON r.property_id = p.property_id
     LEFT JOIN sellers s ON s.seller_id = p.seller_id
+    LEFT JOIN districts d ON d.district_id = p.district_id
+    LEFT JOIN taluks t ON t.taluk_id = p.taluk_id
+    LEFT JOIN villages v ON v.village_id = p.village_id
     ORDER BY p.created_at DESC
   `);
   return rows;

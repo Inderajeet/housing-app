@@ -44,10 +44,14 @@ export const getAll = async () => {
       s.parent_document, s.sub_registrar_office, s.gift_deed,
       s.token_amount, s.token_paid_to, s.sold_rate, s.sold_date, s.advance_amount,
       s.legal_value, s.area_sales_speed, s.facing, s.road_width,
-      seller.name AS seller_name, seller.phone_number AS seller_phone
+      seller.name AS seller_name, seller.phone_number AS seller_phone,
+      d.district_name, t.taluk_name, v.village_name
     FROM properties p
     INNER JOIN sale_properties s ON s.property_id = p.property_id
     LEFT JOIN sellers seller ON seller.seller_id = p.seller_id
+    LEFT JOIN districts d ON d.district_id = p.district_id
+    LEFT JOIN taluks t ON t.taluk_id = p.taluk_id
+    LEFT JOIN villages v ON v.village_id = p.village_id
     WHERE p.property_type = 'sale'
     ORDER BY p.formatted_id ASC NULLS LAST
   `);

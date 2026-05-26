@@ -114,18 +114,25 @@
 .unit-label {
     pointer-events: none;
     white-space: nowrap;
-    font-size: 12px !important;
-    font-weight: 700 !important;
 }
 
-.unit-bhk-label {
+.unit-bhk-dots {
     pointer-events: none;
-    white-space: nowrap;
-    font-size: 9px !important;
-    font-weight: 600 !important;
-    opacity: 0.85;
-    display: block;
-    line-height: 1.1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 2px;
+    margin-top: 1px;
+}
+
+.unit-bhk-dot {
+    display: inline-block;
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background-color: white;
+    border: 1px solid rgba(0, 0, 0, 0.25);
+    flex-shrink: 0;
 }
 
 .unit-legend {
@@ -159,4 +166,9 @@
 
 .legend-booked {
     background: #ef4444;
+}
+
+.legend-bhk {
+    background: white;
+    border: 1.5px solid #aaa;
 }

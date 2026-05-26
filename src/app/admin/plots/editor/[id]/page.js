@@ -643,7 +643,11 @@ export default function PlotLayoutEditorPage() {
                   >
                     <span style={cellStyle} className="whitespace-nowrap pointer-events-none leading-none">{cell?.display_name || ''}</span>
                     {cell?.type === 'PLOT' && cell?.bhk && (
-                      <span className="absolute bottom-0 left-0 right-0 text-center text-[7px] font-bold leading-none pb-[1px] pointer-events-none opacity-80">{cell.bhk}BHK</span>
+                      <span className="absolute bottom-0 left-0 right-0 flex justify-center gap-[2px] pb-[2px] pointer-events-none">
+                        {Array.from({ length: parseInt(cell.bhk) || 0 }, (_, i) => (
+                          <span key={i} style={{ width: 3, height: 3, borderRadius: '50%', backgroundColor: 'white', display: 'inline-block', flexShrink: 0 }} />
+                        ))}
+                      </span>
                     )}
                   </div>
                 );

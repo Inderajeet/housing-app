@@ -153,7 +153,10 @@ export default function SalePropertiesPage() {
         (p.formatted_id || '').toLowerCase().includes(q) ||
         (p.contact_phone || '').includes(q) ||
         (p.sale_type || '').toLowerCase().includes(q) ||
-        String(p.price || '').includes(q)
+        String(p.price || '').includes(q) ||
+        (p.district_name || '').toLowerCase().includes(q) ||
+        (p.taluk_name || '').toLowerCase().includes(q) ||
+        (p.village_name || '').toLowerCase().includes(q)
       );
     }
     if (filters.sale_type !== 'all') result = result.filter(p => p.sale_type === filters.sale_type);
@@ -341,18 +344,23 @@ export default function SalePropertiesPage() {
 
   const handleExport = () => {
     const rows = filteredProperties.map(p => ({
-      'contact_phone': p.contact_phone, 'seller_name': p.seller_name || '',
-      'alternate_contact_phone': p.alternate_contact_phone || '', 'alternate_seller_name': p.alternate_seller_name || '',
-      'latitude': p.latitude, 'longitude': p.longitude, 'address': p.address,
-      'district_id': p.district_id, 'taluk_id': p.taluk_id, 'village_id': p.village_id,
-      'status': p.status, 'sale_type': p.sale_type, 'price': p.price,
-      'area_size': p.area_size, 'survey_number': p.survey_number,
-      'street_name_or_road_name': p.street_name_or_road_name, 'layout_name': p.layout_name || '',
-      'sale_status': p.sale_status,
-      'boundary_north': p.boundary_north, 'boundary_south': p.boundary_south,
-      'boundary_east': p.boundary_east, 'boundary_west': p.boundary_west,
-      'description': p.description, 'dtcp': p.dtcp || '', 'parent_document': p.parent_document || '',
-      'sub_registrar_office': p.sub_registrar_office || '', 'gift_deed': p.gift_deed || '',
+      'Contact Phone': p.contact_phone, 'Seller Name': p.seller_name || '',
+      'Alternate Contact Phone': p.alternate_contact_phone || '', 'Alternate Seller Name': p.alternate_seller_name || '',
+      'Latitude': p.latitude, 'Longitude': p.longitude, 'Address': p.address,
+      'District Name': p.district_name || '', 'Taluk Name': p.taluk_name || '', 'Village Name': p.village_name || '',
+      'Status': p.status, 'Property Type': p.sale_type, 'Price': p.price,
+      'Rate Unit': p.rate_unit || '', 'Extent Area': p.extension || '', 'Extension Unit': p.area_size || '',
+      'Survey Number': p.survey_number, 'Landmark': p.street_name_or_road_name || '', 'Layout Name': p.layout_name || '',
+      'Booking Status': p.sale_status,
+      'Total Units Count': p.total_units_count || '', 'Booked Units': p.booked_units || '', 'Open Units': p.open_units || '',
+      'Boundary North': p.boundary_north || '', 'Boundary South': p.boundary_south || '',
+      'Boundary East': p.boundary_east || '', 'Boundary West': p.boundary_west || '',
+      'Description': p.description || '', 'DTCP': p.dtcp || '', 'Parent Document': p.parent_document || '',
+      'Sub Registrar Office': p.sub_registrar_office || '', 'Gift Deed': p.gift_deed || '',
+      'Token Amount': p.token_amount || '', 'Token Paid To': p.token_paid_to || '',
+      'Advance Amount': p.advance_amount || '', 'Sold Rate': p.sold_rate || '', 'Sold Date': p.sold_date ? String(p.sold_date).slice(0, 10) : '',
+      'Legal Value': p.legal_value || '', 'Area Sales Speed': p.area_sales_speed || '',
+      'Amenities Rating': p.amenities_rating || '', 'Utilities Rating': p.utilities_rating || '',
     }));
     const ws = XLSX.utils.json_to_sheet(rows);
     const wb = XLSX.utils.book_new();
@@ -362,19 +370,20 @@ export default function SalePropertiesPage() {
 
   const handleDownloadTemplate = () => {
     const headers = [
-      'contact_phone', 'seller_name', 'alternate_contact_phone', 'alternate_seller_name',
-      'latitude', 'longitude', 'address', 'district_id', 'taluk_id', 'village_id',
-      'status', 'sale_type', 'price', 'rate_unit', 'extension', 'area_size',
-      'survey_number', 'street_name_or_road_name', 'layout_name', 'sale_status',
-      'boundary_north', 'boundary_south', 'boundary_east', 'boundary_west',
-      'description', 'dtcp', 'parent_document', 'sub_registrar_office', 'gift_deed',
-      'token_amount', 'token_paid_to', 'advance_amount', 'sold_rate', 'sold_date',
-      'legal_value', 'area_sales_speed', 'amenities_rating', 'utilities_rating',
+      'Contact Phone', 'Seller Name', 'Alternate Contact Phone', 'Alternate Seller Name',
+      'Latitude', 'Longitude', 'Address', 'District Name', 'Taluk Name', 'Village Name',
+      'Status', 'Property Type', 'Price', 'Rate Unit', 'Extent Area', 'Extension Unit',
+      'Survey Number', 'Landmark', 'Layout Name', 'Booking Status',
+      'Total Units Count', 'Booked Units', 'Open Units',
+      'Boundary North', 'Boundary South', 'Boundary East', 'Boundary West',
+      'Description', 'DTCP', 'Parent Document', 'Sub Registrar Office', 'Gift Deed',
+      'Token Amount', 'Token Paid To', 'Advance Amount', 'Sold Rate', 'Sold Date',
+      'Legal Value', 'Area Sales Speed', 'Amenities Rating', 'Utilities Rating',
     ];
     const ws = XLSX.utils.aoa_to_sheet([headers]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Template');
-    XLSX.writeFile(wb, 'Sale_Import_Template.xlsx');
+    XLSX.writeFile(wb, 'Sale_Export_Template.xlsx');
   };
 
   const handleImportFile = async (e) => {
@@ -393,45 +402,88 @@ export default function SalePropertiesPage() {
         return normalized;
       });
 
+      let updated = 0;
       for (const row of rows) {
         const lat = parseFloat(row.latitude);
         const lng = parseFloat(row.longitude);
         if (isNaN(lat) || isNaN(lng)) { skipped++; continue; }
 
-        const duplicate = allProperties.some(p => {
+        const existingProperty = allProperties.find(p => {
           const pLat = parseFloat(p.latitude); const pLng = parseFloat(p.longitude);
           return !isNaN(pLat) && !isNaN(pLng) && Math.abs(pLat - lat) < 0.0001 && Math.abs(pLng - lng) < 0.0001;
         });
-        if (duplicate) { skipped++; continue; }
 
         try {
-          let address = row.address || '', district_id = row.district_id || null, taluk_id = row.taluk_id || null, village_id = row.village_id || null;
-          const geo = await reverseGeocodeDetailed(lat, lng);
-          if (geo) {
-            if (!address) address = geo.address || '';
-            if (!district_id && geo.district && districts.length) {
-              const matchedDistrict = districts.find(d =>
-                d.district_name.toLowerCase().includes(geo.district.toLowerCase()) ||
-                geo.district.toLowerCase().includes(d.district_name.toLowerCase())
-              );
-              if (matchedDistrict) {
-                district_id = matchedDistrict.district_id;
-                if (!taluk_id && geo.taluk) {
-                  try {
-                    const taluks = (await getTaluksByDistrict(district_id)).data || [];
-                    const matchedTaluk = taluks.find(t => t.taluk_name.toLowerCase().includes(geo.taluk.toLowerCase()) || geo.taluk.toLowerCase().includes(t.taluk_name.toLowerCase()));
-                    if (matchedTaluk) {
-                      taluk_id = matchedTaluk.taluk_id;
-                      const villageSearch = geo.village || row.village || '';
-                      if (!village_id && villageSearch) {
-                        try {
-                          const villages = (await getVillagesByTaluk(taluk_id)).data || [];
-                          const matchedVillage = villages.find(v => v.village_name.toLowerCase().includes(villageSearch.toLowerCase()) || villageSearch.toLowerCase().includes(v.village_name.toLowerCase()));
-                          if (matchedVillage) village_id = matchedVillage.village_id;
-                        } catch {}
-                      }
+          let address = row.address || '', district_id = null, taluk_id = null, village_id = null;
+          const hasDistrictName = String(row.district_name || '').trim().length > 0;
+
+          // Resolve from explicit name columns
+          if (hasDistrictName && districts.length) {
+            const districtSearch = String(row.district_name).trim().toLowerCase();
+            const matchedDistrict = districts.find(d =>
+              d.district_name.toLowerCase() === districtSearch ||
+              d.district_name.toLowerCase().includes(districtSearch) ||
+              districtSearch.includes(d.district_name.toLowerCase())
+            );
+            if (matchedDistrict) {
+              district_id = matchedDistrict.district_id;
+              const talukSearch = String(row.taluk_name || '').trim().toLowerCase();
+              if (talukSearch) {
+                try {
+                  const taluks = (await getTaluksByDistrict(district_id)).data || [];
+                  const matchedTaluk = taluks.find(t =>
+                    t.taluk_name.toLowerCase() === talukSearch ||
+                    t.taluk_name.toLowerCase().includes(talukSearch) ||
+                    talukSearch.includes(t.taluk_name.toLowerCase())
+                  );
+                  if (matchedTaluk) {
+                    taluk_id = matchedTaluk.taluk_id;
+                    const villageSearch = String(row.village_name || '').trim().toLowerCase();
+                    if (villageSearch) {
+                      try {
+                        const villages = (await getVillagesByTaluk(taluk_id)).data || [];
+                        const matchedVillage = villages.find(v =>
+                          v.village_name.toLowerCase() === villageSearch ||
+                          v.village_name.toLowerCase().includes(villageSearch) ||
+                          villageSearch.includes(v.village_name.toLowerCase())
+                        );
+                        if (matchedVillage) village_id = matchedVillage.village_id;
+                      } catch {}
                     }
-                  } catch {}
+                  }
+                } catch {}
+              }
+            }
+          }
+
+          // Only geocode if district name was not specified
+          if (!hasDistrictName) {
+            const geo = await reverseGeocodeDetailed(lat, lng);
+            if (geo) {
+              if (!address) address = geo.address || '';
+              if (!district_id && geo.district && districts.length) {
+                const matchedDistrict = districts.find(d =>
+                  d.district_name.toLowerCase().includes(geo.district.toLowerCase()) ||
+                  geo.district.toLowerCase().includes(d.district_name.toLowerCase())
+                );
+                if (matchedDistrict) {
+                  district_id = matchedDistrict.district_id;
+                  if (!taluk_id && geo.taluk) {
+                    try {
+                      const taluks = (await getTaluksByDistrict(district_id)).data || [];
+                      const matchedTaluk = taluks.find(t => t.taluk_name.toLowerCase().includes(geo.taluk.toLowerCase()) || geo.taluk.toLowerCase().includes(t.taluk_name.toLowerCase()));
+                      if (matchedTaluk) {
+                        taluk_id = matchedTaluk.taluk_id;
+                        if (!village_id && geo.village) {
+                          try {
+                            const villages = (await getVillagesByTaluk(taluk_id)).data || [];
+                            const matchedVillage = villages.find(v => v.village_name.toLowerCase().includes(geo.village.toLowerCase()) || geo.village.toLowerCase().includes(v.village_name.toLowerCase()));
+                            if (matchedVillage) village_id = matchedVillage.village_id;
+                          } catch {}
+                        }
+                      }
+                    } catch {}
+                  }
                 }
               }
             }
@@ -439,25 +491,40 @@ export default function SalePropertiesPage() {
 
           const splitField = (val) => String(val || '').split(',').map(s => s.trim()).filter(Boolean);
           const phones = splitField(row.contact_phone); const names = splitField(row.seller_name);
-          await createSaleProperty({
+          const payload = {
             contact_phone: phones[0] || '', seller_name: names[0] || '',
             alternate_contact_phone: row.alternate_contact_phone ? String(row.alternate_contact_phone).trim() : (phones[1] || ''),
             alternate_seller_name: row.alternate_seller_name ? String(row.alternate_seller_name).trim() : (names[1] || ''),
             latitude: lat, longitude: lng, address, district_id, taluk_id, village_id,
-            status: row.status || 'pending', sale_type: row.sale_type || SaleType.LAND,
-            price: row.price || '', area_size: row.area_size || '',
-            survey_number: String(row.survey_number || ''), street_name_or_road_name: row.street_name_or_road_name || '',
-            layout_name: row.layout_name || '', sale_status: row.sale_status || SaleStatus.NIL_BOOKING,
+            status: row.status || 'pending', sale_type: row.property_type || row.sale_type || SaleType.LAND,
+            price: row.price || '',
+            extension: row.extent_area || row.extension || '',
+            area_size: row.extension_unit || row.area_size || '',
+            survey_number: String(row.survey_number || ''), street_name_or_road_name: row.landmark || row.street_name_or_road_name || '',
+            layout_name: row.layout_name || '', sale_status: row.booking_status || row.sale_status || SaleStatus.NIL_BOOKING,
+            total_units_count: row.total_units_count || '', booked_units: row.booked_units || '', open_units: row.open_units || '',
             boundary_north: row.boundary_north || '', boundary_south: row.boundary_south || '',
             boundary_east: row.boundary_east || '', boundary_west: row.boundary_west || '',
             description: row.description || '', dtcp: String(row.dtcp || ''),
             parent_document: String(row.parent_document || ''), sub_registrar_office: row.sub_registrar_office || '',
-            gift_deed: String(row.gift_deed || ''), property_use: 'sale',
-          });
-          created++;
+            gift_deed: String(row.gift_deed || ''),
+            token_amount: row.token_amount || '', token_paid_to: row.token_paid_to || '',
+            advance_amount: row.advance_amount || '', sold_rate: row.sold_rate || '', sold_date: row.sold_date || '',
+            legal_value: row.legal_value || '', area_sales_speed: row.area_sales_speed || '',
+            amenities_rating: row.amenities_rating || '', utilities_rating: row.utilities_rating || '',
+            rate_unit: row.rate_unit || '',
+          };
+
+          if (existingProperty) {
+            await updateSaleProperty(existingProperty.property_id, payload);
+            updated++;
+          } else {
+            await createSaleProperty({ ...payload, property_use: 'sale' });
+            created++;
+          }
         } catch { failed++; }
       }
-      alert(`Import complete: ${created} created, ${skipped} skipped, ${failed} failed.`);
+      alert(`Import complete: ${created} created, ${updated} updated, ${skipped} skipped, ${failed} failed.`);
       await fetchSale();
     } catch (err) { alert('Failed to read file: ' + err.message); }
     finally { setImporting(false); if (importFileRef.current) importFileRef.current.value = ''; }
@@ -483,7 +550,7 @@ export default function SalePropertiesPage() {
         <div className="flex gap-3 flex-wrap justify-end">
           <input ref={importFileRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleImportFile} />
           <button onClick={handleDownloadTemplate} className="bg-white border border-purple-300 text-purple-700 px-5 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-purple-50">
-            Import Template
+            Export Template
           </button>
           <button onClick={() => importFileRef.current.click()} disabled={importing} className="bg-white border border-blue-300 text-blue-700 px-5 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-blue-50 disabled:opacity-60">
             {importing ? 'Importing…' : 'Import Excel'}
@@ -618,6 +685,9 @@ export default function SalePropertiesPage() {
             { header: 'Sub Reg. Office', accessor: 'sub_registrar_office', editable: true, filterable: true, filterKey: 'sub_registrar_office' },
             { header: 'Gift Deed', accessor: 'gift_deed', editable: true, filterable: true, filterKey: 'gift_deed' },
             { header: 'Parent Doc', accessor: 'parent_document', editable: true, filterable: true, filterKey: 'parent_document' },
+            { header: 'District', accessor: p => p.district_name || '—', filterable: true, filterKey: 'district_name' },
+            { header: 'Taluk', accessor: p => p.taluk_name || '—', filterable: true, filterKey: 'taluk_name' },
+            { header: 'Village', accessor: p => p.village_name || '—', filterable: true, filterKey: 'village_name' },
             { header: 'Latitude', accessor: 'latitude', filterable: true, filterKey: 'latitude' },
             { header: 'Longitude', accessor: 'longitude', filterable: true, filterKey: 'longitude' },
             { header: 'Address', accessor: 'address', editable: true, editType: 'textarea', filterable: true, filterKey: 'address' },
@@ -898,6 +968,18 @@ export default function SalePropertiesPage() {
               <button onClick={handleBulkDelete} disabled={bulkDeleting} className="flex-1 px-4 py-2.5 rounded-xl bg-red-600 text-white font-bold text-xs uppercase hover:bg-red-700 disabled:opacity-70">
                 {bulkDeleting ? 'Deleting…' : 'Yes, Delete All'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {importing && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl p-8 max-w-xs w-full shadow-2xl flex flex-col items-center gap-5">
+            <div className="w-14 h-14 rounded-full border-4 border-emerald-100 border-t-emerald-600 animate-spin" />
+            <div className="text-center">
+              <p className="text-sm font-bold uppercase tracking-widest text-gray-800">Importing…</p>
+              <p className="text-xs text-gray-400 mt-1">Please wait, do not close this page</p>
             </div>
           </div>
         </div>

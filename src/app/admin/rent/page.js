@@ -124,7 +124,10 @@ export default function RentPropertiesPage() {
         (p.formatted_id || '').toLowerCase().includes(q) ||
         (p.contact_phone || '').includes(q) ||
         (p.property_use || '').toLowerCase().includes(q) ||
-        String(p.rent_amount || '').includes(q)
+        String(p.rent_amount || '').includes(q) ||
+        (p.district_name || '').toLowerCase().includes(q) ||
+        (p.taluk_name || '').toLowerCase().includes(q) ||
+        (p.village_name || '').toLowerCase().includes(q)
       );
     }
     if (filters.property_use !== 'all') result = result.filter(p => p.property_use === filters.property_use);
@@ -398,6 +401,9 @@ export default function RentPropertiesPage() {
             { header: 'Token Paid To', accessor: 'token_paid_to', editable: true, editType: 'select', editOptions: TOKEN_PAID_TO_OPTIONS.map(v => ({ value: v, label: v || '— None —' })), filterable: true, filterKey: 'token_paid_to' },
             { header: 'Rent Out Rate', accessor: p => p.rent_out_rate ? `₹${Number(p.rent_out_rate).toLocaleString()}` : '-', editable: true, editType: 'number', editField: 'rent_out_rate', filterable: true, filterKey: 'rent_out_rate' },
             { header: 'Rent Out Date', accessor: p => p.rent_out_date ? String(p.rent_out_date).slice(0, 10) : '-', editable: true, editType: 'date', editField: 'rent_out_date', filterable: true, filterKey: 'rent_out_date' },
+            { header: 'District', accessor: p => p.district_name || '—', filterable: true, filterKey: 'district_name' },
+            { header: 'Taluk', accessor: p => p.taluk_name || '—', filterable: true, filterKey: 'taluk_name' },
+            { header: 'Village', accessor: p => p.village_name || '—', filterable: true, filterKey: 'village_name' },
             { header: 'Latitude', accessor: 'latitude', filterable: true, filterKey: 'latitude' },
             { header: 'Longitude', accessor: 'longitude', filterable: true, filterKey: 'longitude' },
             { header: 'Address', accessor: 'address', editable: true, editType: 'textarea', filterable: true, filterKey: 'address' },

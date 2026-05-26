@@ -330,6 +330,22 @@
     margin: 0;
 }
 
+.bhk-dots-row {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    margin-top: 2px;
+}
+
+.bhk-dot {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background-color: #555;
+    flex-shrink: 0;
+}
+
 .property-price-text {
     font-size: 0.85rem;
     font-weight: 700;

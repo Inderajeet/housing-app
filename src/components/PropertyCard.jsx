@@ -38,8 +38,16 @@ const PropertyCard = ({ property }) => {
     primaryLabel = landmark || null;
   }
 
-  // BHK badge for rent
-  const bhkLabel = isRent && property.bhk ? `${property.bhk} BHK` : null;
+  const bhkCount = property.bhk ? parseInt(property.bhk) || 0 : 0;
+  const showBhkDots = bhkCount > 0;
+
+  const BhkDots = () => (
+    <span className="bhk-dots-row">
+      {Array.from({ length: bhkCount }, (_, i) => (
+        <span key={i} className="bhk-dot" />
+      ))}
+    </span>
+  );
 
   return (
     <Link className="compact-property-card" href={getPropertyHref(property)}>
@@ -52,7 +60,7 @@ const PropertyCard = ({ property }) => {
               </>
             : <p className="property-title">{secondaryLabel}</p>
           }
-          {bhkLabel && <p className="bhk-details-text">{bhkLabel}</p>}
+          {showBhkDots && <BhkDots />}
         </div>
         {priceStr && <p className="property-price-text">{priceStr}</p>}
       </div>

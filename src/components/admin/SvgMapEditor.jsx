@@ -296,6 +296,65 @@ export default function SvgMapEditor({ shapes, backgroundImage, unitType = 'PLOT
     return () => el.removeEventListener('wheel', onWheel);
   }, []);
 
+  const autoAlign = () => {
+    const plotItems = shapes.filter(s => s.type === 'plot');
+    if (plotItems.length < 2) return;
+    const THRESHOLD = 30;
+    let aligned = shapes.map(s => ({ ...s, points: s.points.map(p => ({ ...p })) }));
+
+    const getBox = (s) => getBBox(s.points);
+
+    // Row alignment: group by similar cy → align bottom edge to first (leftmost) shape's bottom
+    const withCy = plotItems.map(s => {
+      const bb = getBox(s);
+      return { id: s.id, cx: bb.cx, cy: bb.cy, bottom: bb.y + bb.h };
+    });
+    const sortedByY = [...withCy].sort((a, b) => a.cy - b.cy);
+    const rows = [];
+    sortedByY.forEach(item => {
+      const row = rows.find(r => Math.abs(r.cy - item.cy) < THRESHOLD);
+      if (row) row.items.push(item);
+      else rows.push({ cy: item.cy, items: [item] });
+    });
+    rows.forEach(row => {
+      if (row.items.length < 2) return;
+      const sorted = [...row.items].sort((a, b) => a.cx - b.cx); // leftmost first
+      const refBottom = sorted[0].bottom;
+      sorted.slice(1).forEach(item => {
+        const dy = refBottom - item.bottom;
+        if (Math.abs(dy) < 0.5) return;
+        const idx = aligned.findIndex(s => s.id === item.id);
+        if (idx >= 0) aligned[idx] = { ...aligned[idx], points: aligned[idx].points.map(p => ({ ...p, y: p.y + dy })) };
+      });
+    });
+
+    // Column alignment: recompute after row pass → align left edge to first (topmost) shape's left
+    const withCx = aligned.filter(s => s.type === 'plot').map(s => {
+      const bb = getBox(s);
+      return { id: s.id, cx: bb.cx, cy: bb.cy, left: bb.x };
+    });
+    const sortedByX = [...withCx].sort((a, b) => a.cx - b.cx);
+    const cols = [];
+    sortedByX.forEach(item => {
+      const col = cols.find(c => Math.abs(c.cx - item.cx) < THRESHOLD);
+      if (col) col.items.push(item);
+      else cols.push({ cx: item.cx, items: [item] });
+    });
+    cols.forEach(col => {
+      if (col.items.length < 2) return;
+      const sorted = [...col.items].sort((a, b) => a.cy - b.cy); // topmost first
+      const refLeft = sorted[0].left;
+      sorted.slice(1).forEach(item => {
+        const dx = refLeft - item.left;
+        if (Math.abs(dx) < 0.5) return;
+        const idx = aligned.findIndex(s => s.id === item.id);
+        if (idx >= 0) aligned[idx] = { ...aligned[idx], points: aligned[idx].points.map(p => ({ ...p, x: p.x + dx })) };
+      });
+    });
+
+    onChangeWithUndo(aligned);
+  };
+
   const updateShape = (id, updates) => onChangeWithUndo(shapes.map(s => s.id === id ? { ...s, ...updates } : s));
 
   const deleteShape = (id) => {
@@ -357,6 +416,7 @@ export default function SvgMapEditor({ shapes, backgroundImage, unitType = 'PLOT
               onChange(prev);
               setSelectedId(null); setEditPanel(false); setMovingId(null); setMovingStart(null);
             }} label="Undo" icon="↩" color="slate" />
+            <ToolBtn active={false} onClick={autoAlign} label="Align" icon="⊞" color="slate" />
           </div>
           <div className="flex items-center justify-between mt-2 px-0.5">
             <button onClick={() => setScale(s => Math.max(0.2, s / 1.2))} className="w-7 h-7 text-slate-600 hover:bg-slate-100 rounded-lg text-sm font-black">−</button>
@@ -477,34 +537,44 @@ export default function SvgMapEditor({ shapes, backgroundImage, unitType = 'PLOT
                     onClick={e => { e.stopPropagation(); if (!movingId) { setSelectedId(shape.id); setEditPanel(true); } }}
                     onDoubleClick={e => handleShapeDblClick(shape.id, e)}
                   />
-                  {bbox.w > 10 / scale && (
-                    <>
-                      <text
-                        x={centroid.cx} y={shape.bhk ? centroid.cy - (shape.fontSize || 11) * 0.4 / scale : centroid.cy}
-                        textAnchor="middle" dominantBaseline="middle"
-                        fontSize={(shape.fontSize || 11) / scale}
-                        fontWeight="bold"
-                        fill={isMoving || isSelected ? '#1d4ed8' : '#1e293b'}
-                        pointerEvents="none"
-                        style={{ userSelect: 'none' }}
-                      >
-                        {shape.label}
-                      </text>
-                      {shape.bhk && (
+                  {bbox.w > 10 / scale && (() => {
+                    const baseFontSize = shape.fontSize || 11;
+                    const labelLen = (shape.label || '').length || 1;
+                    const maxByWidth = (bbox.w * 0.8) / (labelLen * 0.6);
+                    const maxByHeight = bbox.h * 0.45;
+                    const autoFont = Math.max(5, Math.min(baseFontSize, maxByWidth, maxByHeight));
+                    const bhkN = parseInt(shape.bhk) || 0;
+                    const dotR = Math.max(1.5, autoFont * 0.22);
+                    const dotGap = dotR * 3;
+                    const dotsY = centroid.cy + autoFont * 0.7 / scale;
+                    const dotsStartX = centroid.cx - ((bhkN - 1) * dotGap) / 2;
+                    return (
+                      <>
                         <text
-                          x={centroid.cx} y={centroid.cy + (shape.fontSize || 11) * 0.7 / scale}
+                          x={centroid.cx}
+                          y={bhkN > 0 ? centroid.cy - autoFont * 0.35 / scale : centroid.cy}
                           textAnchor="middle" dominantBaseline="middle"
-                          fontSize={Math.max(7, (shape.fontSize || 11) * 0.7) / scale}
-                          fontWeight="600"
-                          fill={isMoving || isSelected ? '#4f46e5' : '#374151'}
+                          fontSize={autoFont / scale}
+                          fontWeight="bold"
+                          fill={isMoving || isSelected ? '#1d4ed8' : '#1e293b'}
                           pointerEvents="none"
                           style={{ userSelect: 'none' }}
                         >
-                          {shape.bhk}BHK
+                          {shape.label}
                         </text>
-                      )}
-                    </>
-                  )}
+                        {bhkN > 0 && Array.from({ length: bhkN }, (_, i) => (
+                          <circle
+                            key={i}
+                            cx={dotsStartX + i * dotGap}
+                            cy={dotsY}
+                            r={dotR / scale}
+                            fill="white"
+                            pointerEvents="none"
+                          />
+                        ))}
+                      </>
+                    );
+                  })()}
                   {isSelected && !isMoving && shape.points.map((pt, i) => (
                     <circle key={i} cx={pt.x} cy={pt.y} r={6 / scale}
                       fill={draggingPoint?.shapeId === shape.id && draggingPoint?.pointIdx === i ? '#3b82f6' : 'white'}
