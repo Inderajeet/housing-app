@@ -85,6 +85,11 @@ const PremiumProperties = ({
     layout === 'landing' ? 'premium-ads-landing' : '';
 
   const imageAlt = activeProperty.formatted_id || activeProperty.title || 'Property Ad';
+  const sponsoredLabel =
+    activeProperty.layout_name ||
+    activeProperty.landmark ||
+    activeProperty.formatted_id ||
+    'Sponsored';
 
   const ImageContent = () => imageUrl ? (
     <img src={imageUrl} alt={imageAlt} className="premium-ads-image" />
@@ -95,7 +100,7 @@ const PremiumProperties = ({
         <circle cx="8.5" cy="8.5" r="1.5" />
         <polyline points="21 15 16 10 5 21" />
       </svg>
-      <span>{activeProperty.formatted_id || 'Sponsored'}</span>
+      <span>{sponsoredLabel}</span>
     </div>
   );
 
@@ -103,12 +108,12 @@ const PremiumProperties = ({
     <div className={`premium-ads-floating premium-ads-${position} ${layoutClass} ${className}`.trim()}>
       {isInteractive ? (
         <Link className="premium-ads-link" href={propertyHref}>
-          <div className="premium-ads-label">Sponsored</div>
+          <div className="premium-ads-label">{sponsoredLabel}</div>
           <ImageContent />
         </Link>
       ) : (
         <>
-          <div className="premium-ads-label">Sponsored</div>
+          <div className="premium-ads-label">{sponsoredLabel}</div>
           <ImageContent />
         </>
       )}
