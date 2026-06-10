@@ -17,6 +17,7 @@ const GalleryMap = ({ location, status, title, propertyData = null }) => {
 
   const mapRef = useRef(null);
   const [showInfo, setShowInfo] = useState(false);
+  const [showOverlayCard, setShowOverlayCard] = useState(false);
   const [isStreetViewMode, setIsStreetViewMode] = useState(true);
   const hidePopupTimeoutRef = useRef(null);
 
@@ -52,11 +53,6 @@ const GalleryMap = ({ location, status, title, propertyData = null }) => {
     return `₹${n.toLocaleString('en-IN')}`;
   };
 
-  const capitalizeFirst = (value) => {
-    if (!value || typeof value !== 'string') return '';
-    return value.charAt(0).toUpperCase() + value.slice(1);
-  };
-
   const popupData = useMemo(() => {
     if (propertyData && typeof propertyData === 'object') return propertyData;
     return { formatted_id: title, title, taluk_name: location?.taluk_name, village_name: location?.village_name };
@@ -66,65 +62,100 @@ const GalleryMap = ({ location, status, title, propertyData = null }) => {
   const saleType = (popupData?.sale_type || '').toLowerCase();
   const isPlotOrFlat = ['plot', 'flat'].includes(saleType);
   const detailsId = popupData?.formatted_id || popupData?.title || title || 'Property';
-  const saleTitle = !isRent && popupData?.title ? popupData.title : '';
-
+  const saleTitle = !isRent && (popupData?.title || popupData?.layout_name) ? (popupData.title || popupData.layout_name) : '';
   const formatRate = () => {
     const price = formatPrice(popupData?.sale_price || popupData?.price);
     if (!price) return null;
-    const unit = popupData?.rate_unit;
-    return unit ? `${price}/${unit}` : price;
+    return popupData?.rate_unit ? `${price}/${popupData.rate_unit}` : price;
   };
+  const landmark = popupData?.street_name_or_road_name || popupData?.landmark || popupData?.street_name || '';
+  const layoutName = popupData?.title || popupData?.layout_name || '';
+  const layoutOrLandmark = layoutName || landmark || '';
+
+  const locationStr = layoutName
+    ? (landmark || [popupData?.village_name, popupData?.taluk_name].filter(Boolean).join(', ') || popupData?.district_name || '')
+    : ([popupData?.village_name, popupData?.taluk_name].filter(Boolean).join(', ') || popupData?.district_name || '');
+
+  const idPart = popupData?.formatted_id || '';
+  const typePart = isRent
+    ? ((popupData?.property_use || '').toLowerCase() === 'commercial' ? 'commercial' : popupData?.bhk ? `${popupData.bhk}BHK` : 'residential')
+    : (saleType || 'property');
+  const ratePart = isRent ? formatPrice(popupData?.rent_amount) : formatPrice(popupData?.sale_price || popupData?.price);
+  const rateWithUnit = isRent
+    ? (ratePart ? `${ratePart}/mo` : '')
+    : (popupData?.rate_unit && ratePart ? `${ratePart}/${popupData.rate_unit}` : ratePart || '');
+  const extentPart = [popupData?.extension, popupData?.area_size].filter(Boolean).join(' ')
+    || [popupData?.extent_area, popupData?.extent_unit].filter(Boolean).join(' ');
+  const thirdLine = [idPart, typePart, rateWithUnit, extentPart].filter(Boolean).join(' / ');
+
+  const areaSalesSpeed = popupData?.area_sales_speed != null
+    ? `${Number(popupData.area_sales_speed).toFixed(1)}/mo`
+    : popupData?.area_speed != null
+      ? `${Number(popupData.area_speed).toFixed(1)}/mo`
+      : '—';
 
   const infoWindowOptions = { pixelOffset: { width: 0, height: -30 }, maxWidth: 280, disableAutoPan: true };
 
-  const renderPopupContent = () => (
-    <div className="property-popup">
-      <div className="popup-content" style={{ position: 'relative' }}>
-        <button
-          className="popup-close-btn"
-          onClick={(e) => { e.stopPropagation(); setShowInfo(false); }}
-          aria-label="Close"
-        >✕</button>
-        <div className="popup-header">{popupData?.formatted_id || popupData?.title || title || 'Property'}</div>
-        {(isRent ? formatPrice(popupData?.rent_amount) : formatPrice(popupData?.sale_price)) && (
-          <div className="popup-price">
-            {isRent ? formatPrice(popupData?.rent_amount) : formatPrice(popupData?.sale_price)}
-            {isRent && <span className="price-period">/mo</span>}
-            {!isRent && isPlotOrFlat && popupData?.rate_unit && (
-              <span className="price-period">/{popupData.rate_unit}</span>
-            )}
-          </div>
-        )}
-        <div className="popup-details-grid">
-          <div className="detail-item">
-            <span className="detail-label">Type</span>
-            <span className="detail-value">
-              {isRent
-                ? ((popupData?.property_use || '').toLowerCase() === 'commercial' ? 'Commercial' : `${popupData?.bhk || ''} BHK`.trim() || 'Rental')
-                : (capitalizeFirst(popupData?.sale_type) || 'Property')}
-            </span>
-          </div>
-          {popupData?.extent_area && popupData?.extent_unit && (
-            <div className="detail-item">
-              <span className="detail-label">Area</span>
-              <span className="detail-value">{[popupData.extent_area, popupData.extent_unit].filter(Boolean).join(' ').trim()}</span>
-            </div>
-          )}
-          {isRent && popupData?.advance_amount && (
-            <div className="detail-item">
-              <span className="detail-label">Advance</span>
-              <span className="detail-value">{formatPrice(popupData.advance_amount)}</span>
-            </div>
-          )}
-        </div>
+  const renderCardBody = (onClose) => (
+    <>
+      {onClose && (
+        <button className="popup-close-btn" onClick={(e) => { e.stopPropagation(); onClose(); }} aria-label="Close">✕</button>
+      )}
+
+      {locationStr && (
         <div className="popup-location">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
             <circle cx="12" cy="10" r="3" />
           </svg>
-          <span>{popupData?.landmark || popupData?.street_name || popupData?.street_name_or_road_name || popupData?.village_name || popupData?.taluk_name || 'Location available'}</span>
+          <span>{locationStr}</span>
+        </div>
+      )}
+
+      {layoutOrLandmark && (
+        <div className="popup-layout-name">{layoutOrLandmark}</div>
+      )}
+
+      {thirdLine && (
+        <div className="popup-info-line">{thirdLine}</div>
+      )}
+
+      <div className={`popup-ratings-grid${isRent ? ' popup-ratings-grid-2col' : ''}`}>
+        {!isRent && (
+          <>
+            <div className="popup-rating-item">
+              <span className="popup-rating-label">Legal</span>
+              <span className="popup-rating-sublabel">rating</span>
+              <span className="popup-rating-value">{popupData?.legal_value ?? '—'}</span>
+            </div>
+            <div className="popup-rating-item">
+              <span className="popup-rating-label">Area Sales</span>
+              <span className="popup-rating-sublabel">speed</span>
+              <span className="popup-rating-value">{areaSalesSpeed}</span>
+            </div>
+          </>
+        )}
+        <div className="popup-rating-item">
+          <span className="popup-rating-label">Amenities</span>
+          <span className="popup-rating-sublabel">rating</span>
+          <span className="popup-rating-value">
+            {popupData?.amenities_rating != null ? Number(popupData.amenities_rating).toFixed(1) : '—'}
+          </span>
+        </div>
+        <div className="popup-rating-item">
+          <span className="popup-rating-label">Utilities</span>
+          <span className="popup-rating-sublabel">rating</span>
+          <span className="popup-rating-value">
+            {popupData?.utilities_rating != null ? Number(popupData.utilities_rating).toFixed(1) : '—'}
+          </span>
         </div>
       </div>
+    </>
+  );
+
+  const renderPopupContent = () => (
+    <div className="popup-content" style={{ position: 'relative' }}>
+      {renderCardBody(() => setShowInfo(false))}
     </div>
   );
 
@@ -199,7 +230,38 @@ const GalleryMap = ({ location, status, title, propertyData = null }) => {
       className={`gallery-map-container status-${statusClass}`}
       style={{ height: '400px', width: '100%', borderRadius: '12px', overflow: 'hidden' }}
     >
-      <aside className="gallery-map-details-panel" aria-label="Property details">
+      {/* Mobile info button — visible only on mobile */}
+      <button
+        className="gallery-map-info-btn"
+        onClick={() => setShowOverlayCard(v => !v)}
+        aria-label="Property details"
+      >
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="10" />
+          <line x1="12" y1="8" x2="12" y2="8" strokeWidth="3" />
+          <line x1="12" y1="12" x2="12" y2="16" />
+        </svg>
+        Details
+      </button>
+
+      {/* Overlay card — shown on mobile when info btn clicked */}
+      {showOverlayCard && (
+        <div className="gallery-map-overlay-card">
+          <div className="popup-content" style={{ position: 'relative', padding: '8px 0 0' }}>
+            {renderCardBody(() => setShowOverlayCard(false))}
+          </div>
+        </div>
+      )}
+
+      {/* Desktop panel — new full layout */}
+      <aside className="gallery-map-details-panel gallery-map-panel-desktop" aria-label="Property details">
+        <div className="popup-content" style={{ position: 'relative', padding: '8px 0 0' }}>
+          {renderCardBody(null)}
+        </div>
+      </aside>
+
+      {/* Mobile panel — compact label/value layout */}
+      <aside className="gallery-map-details-panel gallery-map-panel-mobile" aria-label="Property details">
         <div className="gallery-map-details-head">
           <h3 className="gallery-map-details-title">{detailsId}</h3>
         </div>
@@ -219,10 +281,10 @@ const GalleryMap = ({ location, status, title, propertyData = null }) => {
                   <span className="value">{formatPrice(popupData.advance_amount)}</span>
                 </div>
               )}
-              {popupData?.landmark && (
+              {landmark && (
                 <div className="gallery-map-details-row">
                   <span className="label">Landmark</span>
-                  <span className="value">{popupData.landmark}</span>
+                  <span className="value">{landmark}</span>
                 </div>
               )}
             </>
@@ -234,10 +296,13 @@ const GalleryMap = ({ location, status, title, propertyData = null }) => {
                   <span className="value">{formatRate()}</span>
                 </div>
               )}
-              {popupData?.layout_name && (
+              {(popupData?.extension || popupData?.area_size || popupData?.extent_area) && (
                 <div className="gallery-map-details-row">
-                  <span className="label">Layout</span>
-                  <span className="value">{popupData.layout_name}</span>
+                  <span className="label">Extent</span>
+                  <span className="value">
+                    {[popupData.extension, popupData.area_size].filter(Boolean).join(' ') ||
+                     [popupData.extent_area, popupData.extent_unit].filter(Boolean).join(' ')}
+                  </span>
                 </div>
               )}
             </>
@@ -258,10 +323,10 @@ const GalleryMap = ({ location, status, title, propertyData = null }) => {
                   </span>
                 </div>
               )}
-              {popupData?.landmark && (
+              {landmark && (
                 <div className="gallery-map-details-row">
                   <span className="label">Landmark</span>
-                  <span className="value">{popupData.landmark}</span>
+                  <span className="value">{landmark}</span>
                 </div>
               )}
             </>
@@ -291,7 +356,7 @@ const GalleryMap = ({ location, status, title, propertyData = null }) => {
               onMouseOut={scheduleHidePopup}
               onClick={() => setShowInfo((prev) => !prev)}
             />
-            {showInfo && !isStreetViewMode && (
+            {showInfo && (
               <InfoWindow position={position} onCloseClick={() => setShowInfo(false)} options={infoWindowOptions}>
                 <div onMouseEnter={clearHidePopupTimer} onMouseLeave={scheduleHidePopup}>
                   {renderPopupContent()}

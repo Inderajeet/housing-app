@@ -34,7 +34,7 @@
 
 .popup-content {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  padding: 12px 14px 14px;
+  padding: 8px 14px 14px;
   min-width: 220px;
 }
 
@@ -50,31 +50,18 @@
   font-size: 13px;
   font-weight: 700;
   color: #0f172a;
-  margin-bottom: 4px;
+  margin-bottom: 3px;
   letter-spacing: -0.01em;
 }
 
-.popup-id-badge {
-  display: inline-block;
+.popup-info-line {
   font-size: 11px;
-  font-weight: 700;
-  color: #0ea5e9;
-  background: #e0f2fe;
-  border-radius: 6px;
-  padding: 2px 8px;
-  margin-bottom: 8px;
-  letter-spacing: 0.02em;
+  color: #475569;
+  margin-bottom: 10px;
+  letter-spacing: 0.01em;
+  word-break: break-all;
 }
 
-.popup-header {
-  font-size: 15px;
-  font-weight: 700;
-  color: #0f172a;
-  margin-bottom: 8px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid #e2e8f0;
-  letter-spacing: -0.01em;
-}
 
 .popup-view-link {
   margin-top: 10px;
@@ -85,49 +72,6 @@
   transition: color 0.15s;
 }
 
-.popup-price {
-  font-size: 20px;
-  font-weight: 700;
-  color: #0f172a;
-  margin-bottom: 12px;
-  line-height: 1.2;
-}
-
-.price-period {
-  font-size: 13px;
-  font-weight: 400;
-  color: #64748b;
-  margin-left: 4px;
-}
-
-.popup-details-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  margin-bottom: 16px;
-  background-color: #f8fafc;
-  padding: 12px;
-  border-radius: 8px;
-}
-
-.detail-item {
-  display: flex;
-  flex-direction: column;
-}
-
-.detail-label {
-  font-size: 11px;
-  color: #64748b;
-  margin-bottom: 2px;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-}
-
-.detail-value {
-  font-size: 14px;
-  font-weight: 600;
-  color: #0f172a;
-}
 
 .popup-location {
   font-size: 12px;
@@ -135,8 +79,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  padding-top: 12px;
-  border-top: 1px solid #e2e8f0;
+  margin-bottom: 6px;
 }
 
 .popup-location svg {
@@ -171,30 +114,42 @@
   color: #fff;
 }
 
-/* Hide Google Maps InfoWindow close button */
-.gm-ui-hover-effect {
+/* Strip all Google Maps InfoWindow chrome */
+.gm-ui-hover-effect,
+.gm-style-iw-chr {
   display: none !important;
+  height: 0 !important;
 }
 
-/* Optional: Adjust padding since close button is hidden */
 .gm-style .gm-style-iw-c {
   padding: 0 !important;
+  border-radius: 12px !important;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.15) !important;
 }
 
 .gm-style .gm-style-iw-d {
   overflow: auto !important;
   padding: 0 !important;
+  max-height: none !important;
+}
+
+.gm-style .gm-style-iw-t::after {
+  top: -1px;
 }
 
 .popup-ratings-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
+  grid-template-columns: 1fr 1fr 1fr 1fr;
+  gap: 6px;
   margin-top: 10px;
-  padding: 10px;
+  padding: 8px;
   background: #f0fdf4;
   border-radius: 8px;
   border: 1px solid #bbf7d0;
+}
+
+.popup-ratings-grid-2col {
+  grid-template-columns: 1fr 1fr;
 }
 
 .popup-rating-item {
@@ -204,15 +159,25 @@
 }
 
 .popup-rating-label {
-  font-size: 10px;
-  color: #64748b;
+  font-size: 9px;
+  color: #334155;
+  font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.03em;
-  margin-bottom: 2px;
+  letter-spacing: 0.02em;
+  text-align: center;
+  line-height: 1.2;
+}
+
+.popup-rating-sublabel {
+  font-size: 9px;
+  color: #94a3b8;
+  text-align: center;
+  margin-bottom: 3px;
+  line-height: 1.1;
 }
 
 .popup-rating-value {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
   color: #166534;
 }

@@ -95,10 +95,32 @@ const UnifiedMap = ({ properties = [], mapCenter, mapZoom }) => {
   const renderPopupContent = (property) => {
     const isRent = !!property.rent_amount;
     const saleType = (property.sale_type || '').toLowerCase();
-    const isPlotOrFlat = ['plot', 'flat'].includes(saleType);
     const landmark = property.street_name_or_road_name || property.landmark || property.street_name || '';
-    const locationStr = landmark || [property.village_name, property.taluk_name].filter(Boolean).join(', ') || 'Location available';
     const layoutName = property.title || property.layout_name || '';
+    const layoutOrLandmark = layoutName || landmark || '';
+
+    // If layout name is in line 2, location shows landmark → village → taluk → district
+    // If landmark is in line 2 (no layout name), location shows broader area only
+    const locationStr = layoutName
+      ? (landmark || [property.village_name, property.taluk_name].filter(Boolean).join(', ') || property.district_name || '')
+      : ([property.village_name, property.taluk_name].filter(Boolean).join(', ') || property.district_name || '');
+
+    const idPart = property.formatted_id || '';
+    const typePart = isRent
+      ? ((property.property_use || '').toLowerCase() === 'commercial' ? 'commercial' : property.bhk ? `${property.bhk}BHK` : 'residential')
+      : (saleType || 'property');
+    const ratePart = isRent ? formatPrice(property.rent_amount) : formatPrice(property.sale_price || property.price);
+    const rateWithUnit = isRent
+      ? (ratePart ? `${ratePart}/mo` : '')
+      : (property.rate_unit && ratePart ? `${ratePart}/${property.rate_unit}` : ratePart || '');
+    const extentPart = [property.extension, property.area_size].filter(Boolean).join(' ');
+    const thirdLine = [idPart, typePart, rateWithUnit, extentPart].filter(Boolean).join(' / ');
+
+    const areaSalesSpeed = property.area_sales_speed != null
+      ? `${Number(property.area_sales_speed).toFixed(1)}/mo`
+      : property.area_speed != null
+        ? `${Number(property.area_speed).toFixed(1)}/mo`
+        : '—';
 
     return (
       <div
@@ -112,70 +134,6 @@ const UnifiedMap = ({ properties = [], mapCenter, mapZoom }) => {
           aria-label="Close"
         >✕</button>
 
-        {isPlotOrFlat && layoutName && (
-          <div className="popup-layout-name">{layoutName}</div>
-        )}
-
-        <div className="popup-id-badge">{property.formatted_id || 'Property'}</div>
-
-        {(isRent ? formatPrice(property.rent_amount) : formatPrice(property.sale_price || property.price)) && (
-          <div className="popup-price">
-            {isRent
-              ? <>{formatPrice(property.rent_amount)}<span className="price-period">/mo</span></>
-              : property.rate_unit
-                ? <>{formatPrice(property.sale_price || property.price)}<span className="price-period">/{property.rate_unit}</span></>
-                : formatPrice(property.sale_price || property.price)
-            }
-          </div>
-        )}
-
-        <div className="popup-details-grid">
-          {isRent ? (
-            <>
-              {property.advance_amount && (
-                <div className="detail-item">
-                  <span className="detail-label">Advance</span>
-                  <span className="detail-value">{formatPrice(property.advance_amount)}</span>
-                </div>
-              )}
-              <div className="detail-item">
-                <span className="detail-label">Type</span>
-                <span className="detail-value">
-                  {(property.property_use || '').toLowerCase() === 'commercial'
-                    ? 'Commercial'
-                    : property.bhk ? `${property.bhk} BHK` : 'Residential'}
-                </span>
-              </div>
-            </>
-          ) : isPlotOrFlat ? (
-            <>
-              {(property.extension || property.area_size) && (
-                <div className="detail-item">
-                  <span className="detail-label">Extent</span>
-                  <span className="detail-value">{[property.extension, property.area_size].filter(Boolean).join(' ')}</span>
-                </div>
-              )}
-              <div className="detail-item">
-                <span className="detail-label">Type</span>
-                <span className="detail-value">{capitalizeFirst(saleType)}</span>
-              </div>
-            </>
-          ) : (
-            <>
-              {(property.extension || property.area_size) && (
-                <div className="detail-item">
-                  <span className="detail-label">Extent</span>
-                  <span className="detail-value">{[property.extension, property.area_size].filter(Boolean).join(' ')}</span>
-                </div>
-              )}
-              <div className="detail-item">
-                <span className="detail-label">Type</span>
-                <span className="detail-value">{capitalizeFirst(saleType) || 'Property'}</span>
-              </div>
-            </>
-          )}
-        </div>
-
         <div className="popup-location">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
@@ -184,29 +142,39 @@ const UnifiedMap = ({ properties = [], mapCenter, mapZoom }) => {
           <span>{locationStr}</span>
         </div>
 
-        <div className="popup-ratings-grid">
-          <div className="popup-rating-item">
-            <span className="popup-rating-label">Legal Value</span>
-            <span className="popup-rating-value">{property.legal_value ?? '—'}</span>
-          </div>
-          <div className="popup-rating-item">
-            <span className="popup-rating-label">Area Speed</span>
-            <span className="popup-rating-value">
-              {property.area_sales_speed != null
-                ? `${Number(property.area_sales_speed).toFixed(1)}/mo`
-                : property.area_speed != null
-                  ? `${Number(property.area_speed).toFixed(1)}/mo`
-                  : '—'}
-            </span>
-          </div>
+        {layoutOrLandmark && (
+          <div className="popup-layout-name">{layoutOrLandmark}</div>
+        )}
+
+        {thirdLine && (
+          <div className="popup-info-line">{thirdLine}</div>
+        )}
+
+        <div className={`popup-ratings-grid${isRent ? ' popup-ratings-grid-2col' : ''}`}>
+          {!isRent && (
+            <>
+              <div className="popup-rating-item">
+                <span className="popup-rating-label">Legal</span>
+                <span className="popup-rating-sublabel">rating</span>
+                <span className="popup-rating-value">{property.legal_value ?? '—'}</span>
+              </div>
+              <div className="popup-rating-item">
+                <span className="popup-rating-label">Area Sales</span>
+                <span className="popup-rating-sublabel">speed</span>
+                <span className="popup-rating-value">{areaSalesSpeed}</span>
+              </div>
+            </>
+          )}
           <div className="popup-rating-item">
             <span className="popup-rating-label">Amenities</span>
+            <span className="popup-rating-sublabel">rating</span>
             <span className="popup-rating-value">
               {property.amenities_rating != null ? Number(property.amenities_rating).toFixed(1) : '—'}
             </span>
           </div>
           <div className="popup-rating-item">
             <span className="popup-rating-label">Utilities</span>
+            <span className="popup-rating-sublabel">rating</span>
             <span className="popup-rating-value">
               {property.utilities_rating != null ? Number(property.utilities_rating).toFixed(1) : '—'}
             </span>

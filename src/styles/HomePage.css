@@ -246,6 +246,14 @@
     }
 }
 
+/* Hide top/bottom sponsored ads on mobile only on the search/home page */
+@media (max-width: 768px) {
+    .home-container .premium-ads-top,
+    .home-container .premium-ads-bottom {
+        display: none !important;
+    }
+}
+
 /* Tablets */
 @media (max-width: 768px) {
     .home-container {
