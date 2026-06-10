@@ -146,7 +146,7 @@ export default function LandingPageClient() {
 
       <a
         className="whatsapp-float"
-        href={`https://wa.me/${process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || '91820008733'}`}
+        href={`https://wa.me/${process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || '918220008733'}`}
         target="_blank"
         rel="noopener noreferrer"
         aria-label="Chat on WhatsApp"
