@@ -81,8 +81,8 @@ const PropertyCard = ({ property }) => {
             </span>
           </div>
           <div className="card-rating-item">
-            <span className="card-rating-label">Utilities</span>
-            <span className="card-rating-sublabel">rating</span>
+            <span className="card-rating-label">Location</span>
+            <span className="card-rating-sublabel">score</span>
             <span className="card-rating-value">
               {property.utilities_rating != null ? Number(property.utilities_rating).toFixed(1) : '—'}
             </span>

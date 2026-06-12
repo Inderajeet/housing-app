@@ -55,6 +55,7 @@ export default function DashboardPage() {
   const [enquiries, setEnquiries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const fetchedRef = React.useRef(false);
 
   const fetchData = async () => {
     try {
@@ -70,7 +71,11 @@ export default function DashboardPage() {
     }
   };
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => {
+    if (fetchedRef.current) return;
+    fetchedRef.current = true;
+    fetchData();
+  }, []);
 
   const saleTopStats = stats ? [
     { label: 'Total Properties', count: stats.total_sale, color: 'bg-slate-500', icon: ICONS.properties },

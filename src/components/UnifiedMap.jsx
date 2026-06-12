@@ -173,8 +173,8 @@ const UnifiedMap = ({ properties = [], mapCenter, mapZoom }) => {
             </span>
           </div>
           <div className="popup-rating-item">
-            <span className="popup-rating-label">Utilities</span>
-            <span className="popup-rating-sublabel">rating</span>
+            <span className="popup-rating-label">Location</span>
+            <span className="popup-rating-sublabel">score</span>
             <span className="popup-rating-value">
               {property.utilities_rating != null ? Number(property.utilities_rating).toFixed(1) : '—'}
             </span>

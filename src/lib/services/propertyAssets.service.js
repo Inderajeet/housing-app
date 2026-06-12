@@ -1,11 +1,8 @@
 import prisma from '../prisma.js';
 import { uploadToCloudflare } from '../uploadToCloudflare';
 
-const MAX_FILE_SIZE = 5 * 1024 * 1024;
-
 export async function uploadAsset(propertyId, assetType, file) {
   if (!file) throw new Error('No file received');
-  if (file.size > MAX_FILE_SIZE) throw new Error(`File too large: ${file.size} bytes`);
 
   const cfResult = await uploadToCloudflare(propertyId, assetType, file);
 
@@ -31,5 +28,20 @@ export async function deleteAsset(assetId) {
     'DELETE FROM property_assets WHERE asset_id = $1 RETURNING *',
     assetId
   );
-  return rows[0] || null;
+  const deleted = rows[0] || null;
+
+  // When a drawing is deleted, clear drawing_image on the owning property
+  if (deleted?.asset_type === 'drawing' && deleted?.property_id) {
+    const pid = deleted.property_id;
+    await Promise.allSettled([
+      prisma.$executeRawUnsafe(
+        `UPDATE sale_properties SET drawing_image = NULL WHERE property_id = $1`, pid
+      ),
+      prisma.$executeRawUnsafe(
+        `UPDATE rent_properties SET drawing_image = NULL WHERE property_id = $1`, pid
+      ),
+    ]);
+  }
+
+  return deleted;
 }

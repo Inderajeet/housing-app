@@ -54,7 +54,8 @@ export async function generateMetadata({ params }) {
     const property = await getPropertyMeta(identifier);
     if (!property) return { title: 'Property | TN Property Mandi' };
 
-    const { title, description, imageUrl, lat, lng, districtName } = buildPropertyMeta(property);
+    const { title, description, lat, lng, districtName } = buildPropertyMeta(property);
+    const ogImageUrl = `${SITE_URL}/api/og/property?id=${encodeURIComponent(identifier)}`;
 
     return {
       title,
@@ -63,7 +64,7 @@ export async function generateMetadata({ params }) {
         title,
         description,
         siteName: 'TN Property Mandi',
-        images: [{ url: imageUrl, width: 1200, height: 630, alt: title }],
+        images: [{ url: ogImageUrl, width: 1200, height: 630, alt: title }],
         locale: 'en_IN',
         type: 'website',
       },
@@ -71,7 +72,7 @@ export async function generateMetadata({ params }) {
         card: 'summary_large_image',
         title,
         description,
-        images: [imageUrl],
+        images: [ogImageUrl],
       },
       other: {
         'geo.region': 'IN-TN',

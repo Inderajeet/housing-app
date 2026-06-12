@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Map as MapIcon, CalendarCheck, Image as ImageIcon } from 'lucide-react';
 import { endpoints } from '../api/api';
 import dynamic from 'next/dynamic';
@@ -9,6 +9,8 @@ import BookingFlow from './BookingFlow';
 import SeoHelmet from './SeoHelmet';
 import { getKeywordString, getLocationLabel, getPriceLabel, getPropertyDisplayName, getPropertyTypeLabel, getTransactionLabel } from '../utils/seo';
 import '../styles/ProjectDetailsPage.css';
+import '../styles/UnifiedMap.css';
+import '../styles/GalleryMap.css';
 
 export default function ProjectDetailsView({ routeIdentifier = '', routeMode = null, routeCategory = null }) {
   const [project, setProject] = useState(null);
@@ -19,6 +21,7 @@ export default function ProjectDetailsView({ routeIdentifier = '', routeMode = n
   const [generalStatus, setGeneralStatus] = useState({ totalBooked: 0, confirmedCount: 0, isFinalized: false });
   const [isBlocked, setIsBlocked] = useState(false);
   const [propertyStatus, setPropertyStatus] = useState(null);
+  const [showImageDetails, setShowImageDetails] = useState(false);
 
   useEffect(() => {
     const fetchProperty = async () => {
@@ -65,16 +68,6 @@ export default function ProjectDetailsView({ routeIdentifier = '', routeMode = n
     project?.boundary_north || project?.boundary_south || project?.boundary_east || project?.boundary_west
   );
 
-  const rawImages = Array.isArray(project?.images) ? project.images : [];
-  const imageMedia = rawImages.map(toMediaObject).filter(Boolean);
-  const drawingByType = imageMedia.filter((img) => img.type === 'drawing');
-  const nonDrawingImages = imageMedia.filter((img) => img.type !== 'drawing');
-
-  const drawingSources = [
-    ...(Array.isArray(project?.drawings) ? project.drawings : []),
-    project?.drawing_image,
-  ].map(toMediaObject).filter(Boolean);
-
   const dedupeBySrc = (items) => {
     const seen = new Set();
     return items.filter((item) => {
@@ -84,28 +77,43 @@ export default function ProjectDetailsView({ routeIdentifier = '', routeMode = n
     });
   };
 
-  const drawingImages = isPlotOrFlat ? dedupeBySrc([...drawingByType, ...drawingSources]) : [];
-  const normalImages = dedupeBySrc(nonDrawingImages);
+  const rawImages = useMemo(() => Array.isArray(project?.images) ? project.images : [], [project?.images]);
+  const imageMedia = useMemo(() => rawImages.map(toMediaObject).filter(Boolean), [rawImages]);
+  const drawingByType = useMemo(() => imageMedia.filter((img) => img.type === 'drawing'), [imageMedia]);
+  const nonDrawingImages = useMemo(() => imageMedia.filter((img) => img.type !== 'drawing'), [imageMedia]);
+
+  const drawingSources = useMemo(() => [
+    ...(Array.isArray(project?.drawings) ? project.drawings : []),
+    project?.drawing_image,
+  ].map(toMediaObject).filter(Boolean), [project?.drawings, project?.drawing_image]);
+
+  const drawingImages = useMemo(
+    () => isPlotOrFlat ? dedupeBySrc([...drawingByType, ...drawingSources]) : [],
+    [isPlotOrFlat, drawingByType, drawingSources]
+  );
+  const normalImages = useMemo(() => dedupeBySrc(nonDrawingImages), [nonDrawingImages]);
 
   // Drawing gets its own dedicated panel block for plots/flats
   const hasDrawing = drawingImages.length > 0;
 
-  const mediaTabs = [];
-  normalImages.forEach((img, idx) => {
-    mediaTabs.push({
-      id: `image-${idx + 1}`,
-      label: normalImages.length === 1 ? 'Images' : `Image ${idx + 1}`,
-      src: img.src,
-    });
-  });
+  const mediaTabs = useMemo(() => normalImages.map((img, idx) => ({
+    id: `image-${idx + 1}`,
+    label: normalImages.length === 1 ? 'Images' : `Image ${idx + 1}`,
+    src: img.src,
+  })), [normalImages]);
 
   const hasMediaTabs = mediaTabs.length > 0;
-  const activeMediaTab = mediaTabs.find((tab) => `media:${tab.id}` === activePanel);
+  const activeMediaTab = useMemo(
+    () => mediaTabs.find((tab) => `media:${tab.id}` === activePanel),
+    [mediaTabs, activePanel]
+  );
 
   useEffect(() => {
     if (activePanel.startsWith('media:') && !activeMediaTab) {
       setActivePanel('map');
+      return;
     }
+    setShowImageDetails(activePanel.startsWith('media:'));
   }, [activePanel, activeMediaTab]);
 
   const handleStatusChange = (newStatus) => {
@@ -160,6 +168,36 @@ export default function ProjectDetailsView({ routeIdentifier = '', routeMode = n
     ? (typeof project.images[0] === 'string' ? project.images[0] : project.images[0]?.url)
     : '';
 
+  const formatPrice = (price) => {
+    if (price == null || price === '' || Number.isNaN(Number(price)) || Number(price) === 0) return null;
+    const n = Number(price);
+    if (n >= 10000000) return `₹${(n / 10000000).toFixed(2)} Cr`;
+    if (n >= 100000) return `₹${(n / 100000).toFixed(2)} L`;
+    return `₹${n.toLocaleString('en-IN')}`;
+  };
+
+  const cardLandmark = project ? (project.street_name_or_road_name || project.landmark || project.street_name || '') : '';
+  const cardLayoutName = project ? (project.title || project.layout_name || '') : '';
+  const cardLayoutOrLandmark = cardLayoutName || cardLandmark || '';
+  const cardLocationStr = project ? (cardLayoutName
+    ? (cardLandmark || [project.village_name, project.taluk_name].filter(Boolean).join(', ') || project.district_name || '')
+    : ([project.village_name, project.taluk_name].filter(Boolean).join(', ') || project.district_name || '')) : '';
+  const cardIdPart = project?.formatted_id || '';
+  const cardSaleType = (project?.sale_type || '').toLowerCase();
+  const cardTypePart = isRent
+    ? ((project?.property_use || '').toLowerCase() === 'commercial' ? 'commercial' : project?.bhk ? `${project.bhk}BHK` : 'residential')
+    : (cardSaleType || 'property');
+  const cardRatePart = isRent ? formatPrice(project?.rent_amount) : formatPrice(project?.sale_price || project?.price);
+  const cardRateWithUnit = isRent
+    ? (cardRatePart ? `${cardRatePart}/mo` : '')
+    : (project?.rate_unit && cardRatePart ? `${cardRatePart}/${project.rate_unit}` : cardRatePart || '');
+  const cardExtentPart = [project?.extension, project?.area_size].filter(Boolean).join(' ')
+    || [project?.extent_area, project?.extent_unit].filter(Boolean).join(' ');
+  const cardThirdLine = [cardIdPart, cardTypePart, cardRateWithUnit, cardExtentPart].filter(Boolean).join(' / ');
+  const cardAreaSpeed = project?.area_sales_speed != null
+    ? `${Number(project.area_sales_speed).toFixed(1)}/mo`
+    : project?.area_speed != null ? `${Number(project.area_speed).toFixed(1)}/mo` : '—';
+
   const mapThumbSrc = (
     Number.isFinite(parseFloat(project.latitude)) &&
     Number.isFinite(parseFloat(project.longitude)) &&
@@ -207,10 +245,41 @@ export default function ProjectDetailsView({ routeIdentifier = '', routeMode = n
 
               {activeMediaTab && (
                 <div className="panel-content single-image-panel-content">
-                  <h2 className="section-title">{activeMediaTab.label}</h2>
+                  <div className="single-image-title-row">
+                    <h2 className="section-title">{activeMediaTab.label}</h2>
+                    {!showImageDetails && (
+                      <button type="button" className="image-details-btn" onClick={() => setShowImageDetails(true)}>
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="8" strokeWidth="3"/><line x1="12" y1="12" x2="12" y2="16"/></svg>
+                        Details
+                      </button>
+                    )}
+                  </div>
                   <div className="single-image-frame">
                     <img src={activeMediaTab.src} alt={activeMediaTab.label} />
                   </div>
+                  {showImageDetails && (
+                    <div className="gallery-map-overlay-card image-panel-card">
+                      <button className="popup-close-btn" onClick={() => setShowImageDetails(false)} aria-label="Close">✕</button>
+                      {cardLocationStr && (
+                        <div className="popup-location">
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                          <span>{cardLocationStr}</span>
+                        </div>
+                      )}
+                      {cardLayoutOrLandmark && <div className="popup-layout-name">{cardLayoutOrLandmark}</div>}
+                      {cardThirdLine && <div className="popup-info-line">{cardThirdLine}</div>}
+                      <div className={`popup-ratings-grid${isRent ? ' popup-ratings-grid-2col' : ''}`}>
+                        {!isRent && (
+                          <>
+                            <div className="popup-rating-item"><span className="popup-rating-label">Legal</span><span className="popup-rating-sublabel">rating</span><span className="popup-rating-value">{project?.legal_value ?? '—'}</span></div>
+                            <div className="popup-rating-item"><span className="popup-rating-label">Area Sales</span><span className="popup-rating-sublabel">speed</span><span className="popup-rating-value">{cardAreaSpeed}</span></div>
+                          </>
+                        )}
+                        <div className="popup-rating-item"><span className="popup-rating-label">Amenities</span><span className="popup-rating-sublabel">rating</span><span className="popup-rating-value">{project?.amenities_rating != null ? Number(project.amenities_rating).toFixed(1) : '—'}</span></div>
+                        <div className="popup-rating-item"><span className="popup-rating-label">Location</span><span className="popup-rating-sublabel">score</span><span className="popup-rating-value">{project?.utilities_rating != null ? Number(project.utilities_rating).toFixed(1) : '—'}</span></div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 

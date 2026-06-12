@@ -13,8 +13,10 @@ export async function getPropertyMeta(identifier) {
        p.formatted_id, p.title, p.description,
        p.latitude, p.longitude,
        d.district_name, t.taluk_name, v.village_name,
-       sp.sale_type, sp.price AS sale_price, sp.area_size,
+       sp.sale_type, sp.layout_name, sp.price AS sale_price, sp.area_size,
+       sp.rate_unit, sp.street_name_or_road_name,
        rp.bhk, rp.rent_amount, rp.property_use, rp.extent_area, rp.extent_unit,
+       rp.landmark, rp.street_name,
        (SELECT file_url FROM property_assets
         WHERE property_id = p.property_id AND asset_type = 'image' LIMIT 1) AS primary_image
      FROM properties p

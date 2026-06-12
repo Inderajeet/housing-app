@@ -27,7 +27,7 @@ export async function getPremiumListings({ property_type, sale_type, property_us
       d.district_id, d.district_name, t.taluk_id, t.taluk_name, v.village_id, v.village_name,
       pp.start_date, pp.end_date, pp.priority_order,
       sel.name AS seller_name, p.contact_phone AS seller_phone,
-      sp.sale_type, sp.price AS sale_price, sp.area_size, sp.sale_status, sp.survey_number, sp.street_name_or_road_name,
+      sp.sale_type, sp.layout_name, sp.price AS sale_price, sp.area_size, sp.sale_status, sp.survey_number, sp.street_name_or_road_name,
       rp.bhk, rp.rent_amount, rp.advance_amount, rp.property_use, rp.furnished_status,
       rp.rent_status, rp.landmark, rp.street_name, rp.extent_area, rp.extent_unit,
       (SELECT JSON_AGG(JSON_BUILD_OBJECT('url', file_url)) FROM property_assets

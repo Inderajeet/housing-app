@@ -36,6 +36,10 @@ export default function PropertyAssetsTabs({ propertyId, assets, setAssets, isRe
     setAssets(res.data || []);
   };
 
+  const uploadErrorMessage = (err, fileName) => {
+    return `Failed to upload "${fileName}": ${err?.response?.data?.error || err?.message || 'Unknown error'}`;
+  };
+
   const uploadFiles = async (files, type) => {
     setUploading(true);
     for (const file of files) {
@@ -45,7 +49,7 @@ export default function PropertyAssetsTabs({ propertyId, assets, setAssets, isRe
       try {
         await adminApi.post(`/property-assets/${propertyId}`, fd);
       } catch (err) {
-        alert(`Failed to upload "${file.name}": ${err?.message || 'Unknown error'}`);
+        alert(uploadErrorMessage(err, file.name));
         break;
       }
     }
@@ -78,9 +82,24 @@ export default function PropertyAssetsTabs({ propertyId, assets, setAssets, isRe
         setDrawingUrl(uploadedUrl);
       }
     } catch (err) {
-      alert(`Failed to upload drawing: ${err?.message || 'Unknown error'}`);
+      alert(uploadErrorMessage(err, file.name));
     } finally {
       setUploadingDrawing(false);
+    }
+  };
+
+  const handleDrawingDelete = async () => {
+    if (!confirm('Delete this drawing?')) return;
+    try {
+      const drawingAsset = assets.find(a => a.asset_type === 'drawing');
+      if (drawingAsset) {
+        await adminApi.delete(`/property-assets/${drawingAsset.asset_id}`);
+      }
+      if (onDrawingImageUpload) await onDrawingImageUpload('');
+      setDrawingUrl('');
+      await refreshAssets();
+    } catch (err) {
+      alert(`Failed to delete drawing: ${err?.response?.data?.error || err?.message || 'Unknown error'}`);
     }
   };
 
@@ -95,20 +114,8 @@ export default function PropertyAssetsTabs({ propertyId, assets, setAssets, isRe
     return <div className="text-center py-12 text-sm text-gray-400 font-bold uppercase tracking-widest">Save property first to add media</div>;
   }
 
-  const DrawingUploadBtn = ({ small = false }) => {
-    const baseClass = small
-      ? 'flex items-center gap-2 px-3 py-2 font-bold text-xs uppercase rounded-xl cursor-pointer border'
-      : 'flex items-center gap-2 px-4 py-2 font-bold text-xs uppercase rounded-xl cursor-pointer border w-fit';
-    const activeClass = uploadingDrawing
-      ? 'bg-gray-100 text-gray-400 border-gray-200 opacity-60 cursor-not-allowed'
-      : 'bg-amber-100 hover:bg-amber-200 text-amber-700 border-amber-200';
-    return (
-      <label className={`${baseClass} ${activeClass}`}>
-        {uploadingDrawing ? <><Spinner /> Uploading…</> : (drawingUrl ? 'Replace Drawing' : <><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" /></svg> Upload Drawing</>)}
-        <input type="file" accept="image/*" className="hidden" disabled={uploadingDrawing} onChange={e => { if (e.target.files?.[0] && !uploadingDrawing) handleDrawingUpload(e.target.files[0]); }} />
-      </label>
-    );
-  };
+  const drawingBtnClass = `flex items-center gap-2 px-4 py-2 font-bold text-xs uppercase rounded-xl cursor-pointer border w-fit ${uploadingDrawing ? 'bg-gray-100 text-gray-400 border-gray-200 opacity-60 cursor-not-allowed' : 'bg-amber-100 hover:bg-amber-200 text-amber-700 border-amber-200'}`;
+  const drawingBtnClassSmall = `flex items-center gap-2 px-3 py-2 font-bold text-xs uppercase rounded-xl cursor-pointer border ${uploadingDrawing ? 'bg-gray-100 text-gray-400 border-gray-200 opacity-60 cursor-not-allowed' : 'bg-amber-100 hover:bg-amber-200 text-amber-700 border-amber-200'}`;
 
   const renderGrid = (items, type) => (
     <div>
@@ -191,7 +198,24 @@ export default function PropertyAssetsTabs({ propertyId, assets, setAssets, isRe
       {activeTab === 'drawing' && (
         <div className="flex flex-col items-center gap-4">
           {drawingUrl && <img src={drawingUrl} alt="Drawing" className="w-full max-w-md rounded-xl border" />}
-          {!isReadOnly && <DrawingUploadBtn />}
+          {!isReadOnly && (
+            <div className="flex items-center gap-3">
+              <label className={drawingBtnClass}>
+                {uploadingDrawing ? <><Spinner /> Uploading…</> : (drawingUrl ? 'Replace Drawing' : <><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" /></svg> Upload Drawing</>)}
+                <input type="file" accept="image/*" className="hidden" disabled={uploadingDrawing} onChange={e => { if (e.target.files?.[0] && !uploadingDrawing) handleDrawingUpload(e.target.files[0]); }} />
+              </label>
+              {drawingUrl && (
+                <button
+                  type="button"
+                  onClick={handleDrawingDelete}
+                  className="flex items-center gap-2 px-4 py-2 font-bold text-xs uppercase rounded-xl border bg-red-50 hover:bg-red-100 text-red-600 border-red-200"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                  Delete
+                </button>
+              )}
+            </div>
+          )}
         </div>
       )}
 
@@ -202,12 +226,32 @@ export default function PropertyAssetsTabs({ propertyId, assets, setAssets, isRe
               <p className="text-[10px] font-bold uppercase tracking-widest text-amber-600 mb-3">Drawing Image (Plot/Flat Layout)</p>
               {drawingUrl ? (
                 <div className="flex items-start gap-4">
-                  <img src={drawingUrl} alt="Drawing" className="h-32 rounded-xl border border-amber-200 object-contain bg-white" />
-                  {!isReadOnly && <DrawingUploadBtn small />}
+                  <div className="relative group">
+                    <img src={drawingUrl} alt="Drawing" className="h-32 rounded-xl border border-amber-200 object-contain bg-white" />
+                    {!isReadOnly && (
+                      <button
+                        type="button"
+                        onClick={handleDrawingDelete}
+                        className="absolute top-2 right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                        title="Delete drawing"
+                      >✕</button>
+                    )}
+                  </div>
+                  {!isReadOnly && (
+                    <label className={drawingBtnClassSmall}>
+                      {uploadingDrawing ? <><Spinner /> Uploading…</> : (drawingUrl ? 'Replace Drawing' : <><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" /></svg> Upload Drawing</>)}
+                      <input type="file" accept="image/*" className="hidden" disabled={uploadingDrawing} onChange={e => { if (e.target.files?.[0] && !uploadingDrawing) handleDrawingUpload(e.target.files[0]); }} />
+                    </label>
+                  )}
                 </div>
               ) : (
                 !isReadOnly
-                  ? <DrawingUploadBtn />
+                  ? (
+                    <label className={drawingBtnClass}>
+                      {uploadingDrawing ? <><Spinner /> Uploading…</> : <><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" /></svg> Upload Drawing</>}
+                      <input type="file" accept="image/*" className="hidden" disabled={uploadingDrawing} onChange={e => { if (e.target.files?.[0] && !uploadingDrawing) handleDrawingUpload(e.target.files[0]); }} />
+                    </label>
+                  )
                   : <p className="text-xs text-amber-400 font-bold uppercase">No drawing uploaded</p>
               )}
             </div>

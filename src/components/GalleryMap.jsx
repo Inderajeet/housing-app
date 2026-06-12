@@ -17,7 +17,7 @@ const GalleryMap = ({ location, status, title, propertyData = null }) => {
 
   const mapRef = useRef(null);
   const [showInfo, setShowInfo] = useState(false);
-  const [showOverlayCard, setShowOverlayCard] = useState(false);
+  const [showOverlayCard, setShowOverlayCard] = useState(true);
   const [isStreetViewMode, setIsStreetViewMode] = useState(true);
   const hidePopupTimeoutRef = useRef(null);
 
@@ -101,6 +101,12 @@ const GalleryMap = ({ location, status, title, propertyData = null }) => {
       {onClose && (
         <button className="popup-close-btn" onClick={(e) => { e.stopPropagation(); onClose(); }} aria-label="Close">✕</button>
       )}
+      {googleMapsUrl && (
+        <a href={googleMapsUrl} target="_blank" rel="noopener noreferrer" className="gallery-map-gmaps-link" onClick={e => e.stopPropagation()}>
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+          Open in Maps
+        </a>
+      )}
 
       {locationStr && (
         <div className="popup-location">
@@ -143,8 +149,8 @@ const GalleryMap = ({ location, status, title, propertyData = null }) => {
           </span>
         </div>
         <div className="popup-rating-item">
-          <span className="popup-rating-label">Utilities</span>
-          <span className="popup-rating-sublabel">rating</span>
+          <span className="popup-rating-label">Location</span>
+          <span className="popup-rating-sublabel">score</span>
           <span className="popup-rating-value">
             {popupData?.utilities_rating != null ? Number(popupData.utilities_rating).toFixed(1) : '—'}
           </span>
@@ -225,26 +231,31 @@ const GalleryMap = ({ location, status, title, propertyData = null }) => {
   const markerColor = getMarkerColor();
   const statusClass = String(status || '').toLowerCase().replace(/[\s_-]/g, '');
 
+  const googleMapsUrl = position ? `https://www.google.com/maps?q=${position.lat},${position.lng}` : null;
+
   return (
     <div
       className={`gallery-map-container status-${statusClass}`}
+      data-streetview={isStreetViewMode ? 'true' : 'false'}
       style={{ height: '400px', width: '100%', borderRadius: '12px', overflow: 'hidden' }}
     >
-      {/* Mobile info button — visible only on mobile */}
-      <button
-        className="gallery-map-info-btn"
-        onClick={() => setShowOverlayCard(v => !v)}
-        aria-label="Property details"
-      >
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-          <circle cx="12" cy="12" r="10" />
-          <line x1="12" y1="8" x2="12" y2="8" strokeWidth="3" />
-          <line x1="12" y1="12" x2="12" y2="16" />
-        </svg>
-        Details
-      </button>
+      {/* Mobile info button — visible only when overlay card is closed */}
+      {!showOverlayCard && (
+        <button
+          className="gallery-map-info-btn"
+          onClick={() => setShowOverlayCard(true)}
+          aria-label="Property details"
+        >
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="8" x2="12" y2="8" strokeWidth="3" />
+            <line x1="12" y1="12" x2="12" y2="16" />
+          </svg>
+          Details
+        </button>
+      )}
 
-      {/* Overlay card — shown on mobile when info btn clicked */}
+      {/* Overlay card — shown by default, hidden when closed */}
       {showOverlayCard && (
         <div className="gallery-map-overlay-card">
           <div className="popup-content" style={{ position: 'relative', padding: '8px 0 0' }}>
@@ -253,14 +264,17 @@ const GalleryMap = ({ location, status, title, propertyData = null }) => {
         </div>
       )}
 
-      {/* Desktop panel — new full layout */}
-      <aside className="gallery-map-details-panel gallery-map-panel-desktop" aria-label="Property details">
-        <div className="popup-content" style={{ position: 'relative', padding: '8px 0 0' }}>
-          {renderCardBody(null)}
-        </div>
-      </aside>
+      {/* Desktop panel — only shown when overlay card is closed */}
+      {!showOverlayCard && (
+        <aside className="gallery-map-details-panel gallery-map-panel-desktop" aria-label="Property details">
+          <div className="popup-content" style={{ position: 'relative', padding: '8px 0 0' }}>
+            {renderCardBody(null)}
+          </div>
+        </aside>
+      )}
 
-      {/* Mobile panel — compact label/value layout */}
+      {/* Mobile panel — compact label/value layout, only shown when overlay card is closed */}
+      {!showOverlayCard && (
       <aside className="gallery-map-details-panel gallery-map-panel-mobile" aria-label="Property details">
         <div className="gallery-map-details-head">
           <h3 className="gallery-map-details-title">{detailsId}</h3>
@@ -333,6 +347,7 @@ const GalleryMap = ({ location, status, title, propertyData = null }) => {
           )}
         </div>
       </aside>
+      )}
 
       <GoogleMap
         mapContainerStyle={{ width: "100%", height: "100%" }}

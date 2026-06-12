@@ -85,11 +85,8 @@ const PremiumProperties = ({
     layout === 'landing' ? 'premium-ads-landing' : '';
 
   const imageAlt = activeProperty.formatted_id || activeProperty.title || 'Property Ad';
-  const sponsoredLabel =
-    activeProperty.layout_name ||
-    activeProperty.landmark ||
-    activeProperty.formatted_id ||
-    'Sponsored';
+  const _landmark = activeProperty.street_name_or_road_name || activeProperty.landmark || activeProperty.street_name || '';
+  const sponsoredLabel = activeProperty.layout_name || activeProperty.title || _landmark || activeProperty.formatted_id || 'Sponsored';
 
   const ImageContent = () => imageUrl ? (
     <img src={imageUrl} alt={imageAlt} className="premium-ads-image" />

@@ -179,10 +179,10 @@
   background: #f1f5f9;
 }
 
-/* Overlay card — shown on all screen sizes when Details btn clicked */
+/* Overlay card — street view: below map controls; map view: top */
 .gallery-map-overlay-card {
   position: absolute;
-  top: 97px;
+  top: 55px;
   right: 10px;
   z-index: 20;
   width: min(280px, calc(100% - 20px));
@@ -193,6 +193,24 @@
   box-shadow: 0 8px 20px rgba(15, 23, 42, 0.22);
   backdrop-filter: blur(2px);
 }
+
+/* Map view: push card and Details button to top */
+.gallery-map-container[data-streetview="false"] .gallery-map-overlay-card,
+.gallery-map-container[data-streetview="false"] .gallery-map-info-btn {
+  top: 12px;
+}
+
+.gallery-map-gmaps-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  color: #2563eb;
+  text-decoration: none;
+  margin-top: 6px;
+}
+.gallery-map-gmaps-link:hover { text-decoration: underline; }
 
 @media (max-width: 760px) {
 
