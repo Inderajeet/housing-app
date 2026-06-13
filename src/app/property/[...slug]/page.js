@@ -98,6 +98,11 @@ export async function generateMetadata({ params }) {
         images: [ogImageUrl],
       },
       other: {
+        // Explicit og:image size tags — WhatsApp needs these to show large preview
+        'og:image:width': '1200',
+        'og:image:height': '630',
+        'og:image:type': 'image/png',
+        'og:image:secure_url': ogImageUrl,
         'geo.region': 'IN-TN',
         ...(districtName ? { 'geo.placename': districtName } : {}),
         ...(lat && lng ? { 'geo.position': `${lat};${lng}`, ICBM: `${lat}, ${lng}` } : {}),
