@@ -84,7 +84,7 @@ async function fetchImg(url) {
   if (!url) return null;
   try {
     const controller = new AbortController();
-    const t = setTimeout(() => controller.abort(), 4000);
+    const t = setTimeout(() => controller.abort(), 2000);
     const res = await fetch(url, {
       signal: controller.signal,
       headers: {
@@ -145,32 +145,34 @@ export async function GET(request) {
   }
 
   try {
-    // ── Top photo ────────────────────────────────────────────────────────
-    let topBuf;
-    const rawImg = await fetchImg(imgUrl);
-    if (rawImg) {
-      try {
-        topBuf = await sharp(rawImg)
-          .resize(W, IMG_H, { fit: 'cover', position: 'centre' })
-          .png()
-          .toBuffer();
-      } catch (e) {
-        console.error('[og] resize error:', e?.message);
-      }
-    }
-    if (!topBuf) {
-      topBuf = await solidPng(W, IMG_H, { r: 30, g: 58, b: 95 });
-    }
-
-    // ── Ratings card ─────────────────────────────────────────────────────
-    let cardBuf;
-    try {
-      const svg = buildCardSvg({ loc, layout, info, legal, speed, amenities, locscore, isRent });
-      cardBuf = await sharp(Buffer.from(svg)).png().toBuffer();
-    } catch (e) {
-      console.error('[og] card SVG error:', e?.message);
-      cardBuf = await solidPng(W, CARD_H, { r: 240, g: 253, b: 244 });
-    }
+    // ── Fetch image + generate card in parallel ───────────────────────────
+    const [topBuf, cardBuf] = await Promise.all([
+      // Top photo
+      (async () => {
+        try {
+          const raw = await fetchImg(imgUrl);
+          if (raw) {
+            return await sharp(raw)
+              .resize(W, IMG_H, { fit: 'cover', position: 'centre' })
+              .png()
+              .toBuffer();
+          }
+        } catch (e) {
+          console.error('[og] image error:', e?.message);
+        }
+        return solidPng(W, IMG_H, { r: 30, g: 58, b: 95 });
+      })(),
+      // Ratings card SVG → PNG
+      (async () => {
+        try {
+          const svg = buildCardSvg({ loc, layout, info, legal, speed, amenities, locscore, isRent });
+          return await sharp(Buffer.from(svg)).png().toBuffer();
+        } catch (e) {
+          console.error('[og] card SVG error:', e?.message);
+          return solidPng(W, CARD_H, { r: 240, g: 253, b: 244 });
+        }
+      })(),
+    ]);
 
     // ── Composite 1200×630 ───────────────────────────────────────────────
     const final = await sharp({
