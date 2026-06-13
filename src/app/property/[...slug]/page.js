@@ -59,26 +59,9 @@ export async function generateMetadata({ params }) {
 
     const { title, description, imageUrl, lat, lng, districtName } = buildPropertyMeta(property);
 
-    // Build OG image URL — pass all display data so the edge-runtime OG route needs no DB access
-    const isRent = !!property.rent_amount;
-    const ogp = new URLSearchParams();
-    if (imageUrl && imageUrl !== DEFAULT_IMAGE) ogp.set('img', imageUrl);
-    ogp.set('loc', property.village_name || property.taluk_name || property.district_name || '');
-    ogp.set('layout', property.layout_name || property.title || property.street_name_or_road_name || '');
-    ogp.set('info', [
-      property.formatted_id,
-      isRent
-        ? ((property.property_use || '').toLowerCase() === 'commercial' ? 'Commercial' : property.bhk ? `${property.bhk} BHK` : 'Residential')
-        : (property.sale_type ? property.sale_type.charAt(0).toUpperCase() + property.sale_type.slice(1) : 'Property'),
-    ].filter(Boolean).join(' / '));
-    if (!isRent) {
-      ogp.set('legal', property.legal_value || '—');
-      ogp.set('speed', property.area_sales_speed != null ? `${Number(property.area_sales_speed).toFixed(1)}/M` : '—');
-    }
-    ogp.set('amenities', property.amenities_rating != null ? `${Number(property.amenities_rating).toFixed(1)}/10` : '—');
-    ogp.set('locscore', property.utilities_rating != null ? `${Number(property.utilities_rating).toFixed(1)}/10` : '—');
-    if (isRent) ogp.set('rent', '1');
-    const ogImageUrl = `${SITE_URL}/api/og/property?${ogp.toString()}`;
+    // Short OG image URL — just pass the property ID, route fetches everything from DB
+    // (long param URLs can exceed WhatsApp's og:image URL length limit)
+    const ogImageUrl = `${SITE_URL}/api/og/property?id=${encodeURIComponent(property.formatted_id || identifier)}`;
 
     return {
       title,
