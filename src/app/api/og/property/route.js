@@ -4,9 +4,13 @@ import { getPropertyMeta } from '@/lib/services/property.meta.service';
 export const runtime = 'nodejs';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://tnpropertymandi.in';
-const W = 1200, H = 630;
-const IMG_H = 430;   // photo section (taller)
-const CARD_H = 200;  // ratings card section (tighter)
+const W = 1200, H = 628;  // 628 = WhatsApp's preferred OG height (exactly 1200/1.91)
+const IMG_H = 428;
+const CARD_H = 200;
+
+// In-memory cache so WhatsApp/bots get instant response on repeat fetches
+const ogCache = new Map();
+const CACHE_TTL = 30 * 60 * 1000; // 30 min
 
 function xe(s) {
   return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -108,8 +112,18 @@ async function solidPng(width, height, bg) {
   return sharp({ create: { width, height, channels: 3, background: bg } }).png().toBuffer();
 }
 
+function ogResponse(buf, maxAge = 3600) {
+  return new Response(buf, {
+    headers: {
+      'Content-Type': 'image/png',
+      'Cache-Control': `public, max-age=${maxAge}, s-maxage=${maxAge}`,
+    },
+  });
+}
+
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
+  const cacheKey = request.url;
   let imgUrl    = searchParams.get('img') || '';
   let loc       = searchParams.get('loc') || '';
   let layout    = searchParams.get('layout') || '';
@@ -120,6 +134,12 @@ export async function GET(request) {
   let locscore  = searchParams.get('locscore') || '-';
   let isRent    = searchParams.get('rent') === '1';
   const id      = searchParams.get('id') || '';
+
+  // Serve from cache instantly if available
+  const hit = ogCache.get(cacheKey);
+  if (hit && Date.now() - hit.ts < CACHE_TTL) {
+    return ogResponse(hit.buf);
+  }
 
   if (!loc && id) {
     try {
@@ -185,19 +205,13 @@ export async function GET(request) {
       .png()
       .toBuffer();
 
-    return new Response(final, {
-      headers: {
-        'Content-Type': 'image/png',
-        'Cache-Control': 'public, max-age=3600, s-maxage=3600',
-      },
-    });
+    ogCache.set(cacheKey, { buf: final, ts: Date.now() });
+    return ogResponse(final);
   } catch (err) {
     console.error('[og/property] fatal:', err?.message);
     try {
       const fb = await solidPng(W, H, { r: 30, g: 58, b: 95 });
-      return new Response(fb, {
-        headers: { 'Content-Type': 'image/png', 'Cache-Control': 'public, max-age=60' },
-      });
+      return ogResponse(fb, 60);
     } catch {
       return new Response('Error', { status: 500 });
     }
