@@ -58,7 +58,10 @@ export async function generateMetadata({ params }) {
     }
 
     const { title, description, imageUrl, lat, lng, districtName } = buildPropertyMeta(property);
-    const ogImageUrl = `${SITE_URL}/api/og/property?id=${encodeURIComponent(identifier)}`;
+    // Pass the direct image URL to the OG route as a fallback so it doesn't have to re-query
+    const ogParams = new URLSearchParams({ id: identifier });
+    if (imageUrl && imageUrl !== DEFAULT_IMAGE) ogParams.set('img', imageUrl);
+    const ogImageUrl = `${SITE_URL}/api/og/property?${ogParams.toString()}`;
 
     return {
       title,

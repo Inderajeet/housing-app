@@ -28,6 +28,8 @@ const e = React.createElement;
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const identifier = searchParams.get('id') || '';
+  // Image URL pre-fetched by generateMetadata to avoid double DB round-trip
+  const passedImg = searchParams.get('img') || '';
 
   let p = null;
   try {
@@ -67,7 +69,8 @@ export async function GET(request) {
   const extentPart = [p.area_size].filter(Boolean).join(' ')
     || [p.extent_area, p.extent_unit].filter(Boolean).join(' ');
 
-  const imageUrl = toAbsoluteUrl(p.primary_image) || DEFAULT_IMAGE;
+  // Use passed image (from generateMetadata) first, then DB result, then default
+  const imageUrl = toAbsoluteUrl(passedImg) || toAbsoluteUrl(p.primary_image) || DEFAULT_IMAGE;
 
   const idPart = p.formatted_id || '';
   const infoLine = [idPart, typePart, priceDisplay, extentPart].filter(Boolean).join(' / ');
