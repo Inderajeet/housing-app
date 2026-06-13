@@ -57,54 +57,96 @@ export async function GET(request) {
 
   const imageUrl = p.primary_image || DEFAULT_IMAGE;
 
-  const pills = [];
-  if (typePart) pills.push(e('div', {
-    key: 'type',
-    style: { display: 'flex', background: '#1e40af', color: '#dbeafe', padding: '6px 16px', borderRadius: 20, fontSize: 16, fontWeight: 700 }
-  }, typePart));
-  if (priceDisplay) pills.push(e('div', {
-    key: 'price',
-    style: { display: 'flex', background: '#065f46', color: '#d1fae5', padding: '6px 16px', borderRadius: 20, fontSize: 16, fontWeight: 700 }
-  }, priceDisplay));
-  if (extentPart) pills.push(e('div', {
-    key: 'extent',
-    style: { display: 'flex', background: '#78350f', color: '#fef3c7', padding: '6px 16px', borderRadius: 20, fontSize: 16, fontWeight: 700 }
-  }, extentPart));
+  const idPart = p.formatted_id || '';
+  const infoLine = [idPart, typePart, priceDisplay, extentPart].filter(Boolean).join(' / ');
 
-  const bottomItems = [];
-  if (p.formatted_id) bottomItems.push(e('div', {
-    key: 'fid',
-    style: { display: 'flex', color: '#94a3b8', fontSize: 15, fontWeight: 600 }
-  }, p.formatted_id));
-  bottomItems.push(e('div', {
-    key: 'domain',
-    style: { display: 'flex', color: '#64748b', fontSize: 15, fontWeight: 600 }
-  }, 'tnpropertymandi.in'));
+  // Ratings data
+  const areaSalesSpeed = p.area_sales_speed != null
+    ? `${Number(p.area_sales_speed).toFixed(1)}/M`
+    : '—';
+  const amenitiesRating = p.amenities_rating != null
+    ? `${Number(p.amenities_rating).toFixed(1)}/10`
+    : '—';
+  const locationRating = p.utilities_rating != null
+    ? `${Number(p.utilities_rating).toFixed(1)}/10`
+    : '—';
+  const legalGrade = p.legal_value || '—';
+
+  // Rating cell helper
+  const ratingCell = (bg, label, sublabel, value) =>
+    e('div', {
+      style: {
+        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+        background: bg, borderRadius: 6, padding: '10px 4px', flex: 1,
+      }
+    },
+      e('span', { style: { display: 'flex', fontSize: 13, fontWeight: 700, color: 'rgba(255,255,255,0.85)', textTransform: 'uppercase', letterSpacing: '0.03em', lineHeight: 1.1, textAlign: 'center' } }, label),
+      e('span', { style: { display: 'flex', fontSize: 11, color: 'rgba(255,255,255,0.65)', marginBottom: 4, lineHeight: 1 } }, sublabel),
+      e('span', { style: { display: 'flex', fontSize: 22, fontWeight: 800, color: '#ffffff', lineHeight: 1.1 } }, value)
+    );
+
+  const ratingsRow = e('div', {
+    style: { display: 'flex', gap: 4, padding: 4, background: '#e2e8f0', borderRadius: 10, marginTop: 16 }
+  },
+    ...(isRent ? [] : [
+      ratingCell('#16a34a', 'Legal', 'grade', legalGrade),
+      ratingCell('#2563eb', 'Area Sales', 'speed', areaSalesSpeed),
+    ]),
+    ratingCell('#16a34a', 'Amenities', 'rating', amenitiesRating),
+    ratingCell('#ea580c', 'Locational', 'rating', locationRating),
+  );
+
+  // Image top section height
+  const IMG_H = 340;
+  const CARD_H = 630 - IMG_H; // 290
 
   const content = e('div', {
-    style: { display: 'flex', position: 'relative', width: '100%', height: '100%', background: '#0f172a' }
+    style: { display: 'flex', flexDirection: 'column', width: '100%', height: '100%', background: '#f8fafc', fontFamily: 'sans-serif' }
   },
-    e('img', {
-      src: imageUrl,
-      style: { position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: 0.85 }
-    }),
+    // Property photo
+    e('div', { style: { display: 'flex', position: 'relative', width: '100%', height: IMG_H, overflow: 'hidden' } },
+      e('img', {
+        src: imageUrl,
+        style: { width: '100%', height: '100%', objectFit: 'cover' }
+      }),
+      // bottom fade into card
+      e('div', { style: { display: 'flex', position: 'absolute', bottom: 0, left: 0, right: 0, height: 60, background: 'linear-gradient(to bottom, transparent, rgba(248,250,252,0.95))' } })
+    ),
+
+    // Card section
     e('div', {
-      style: { display: 'flex', position: 'absolute', inset: 0, background: 'linear-gradient(to right, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0.15) 55%, transparent 100%)' }
-    }),
-    e('div', {
-      style: { display: 'flex', flexDirection: 'column', position: 'absolute', left: 48, top: 0, bottom: 0, justifyContent: 'center', maxWidth: 520, gap: 10 }
+      style: { display: 'flex', flexDirection: 'column', flex: 1, padding: '16px 40px 16px 40px', background: '#f0fdf4' }
     },
+      // Location row
       location ? e('div', {
-        style: { display: 'flex', alignItems: 'center', gap: 8, color: '#93c5fd', fontSize: 18, fontWeight: 600 }
+        style: { display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }
       },
         e('div', { style: { display: 'flex', width: 8, height: 8, background: '#3b82f6', borderRadius: 4, flexShrink: 0 } }),
-        e('span', null, location)
+        e('span', { style: { display: 'flex', fontSize: 15, color: '#475569', fontWeight: 600 } }, location)
       ) : null,
+
+      // Property name
       layoutOrLandmark ? e('div', {
-        style: { display: 'flex', color: '#ffffff', fontSize: 38, fontWeight: 800, lineHeight: 1.15, letterSpacing: '-0.5px' }
+        style: { display: 'flex', fontSize: 26, fontWeight: 800, color: '#0f172a', lineHeight: 1.15, letterSpacing: '-0.3px' }
       }, layoutOrLandmark) : null,
-      pills.length ? e('div', { style: { display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 4 } }, ...pills) : null,
-      e('div', { style: { display: 'flex', alignItems: 'center', gap: 16, marginTop: 4 } }, ...bottomItems)
+
+      // Info line
+      infoLine ? e('div', {
+        style: { display: 'flex', fontSize: 14, color: '#64748b', marginTop: 2, fontWeight: 500 }
+      }, infoLine) : null,
+
+      // Ratings
+      ratingsRow,
+
+      // Domain
+      e('div', {
+        style: { display: 'flex', alignItems: 'center', gap: 6, marginTop: 10 }
+      },
+        e('div', { style: { display: 'flex', width: 16, height: 16, background: '#16a34a', borderRadius: 3, alignItems: 'center', justifyContent: 'center' } },
+          e('span', { style: { display: 'flex', color: '#fff', fontSize: 10, fontWeight: 800 } }, 'TN')
+        ),
+        e('span', { style: { display: 'flex', fontSize: 13, color: '#64748b', fontWeight: 600 } }, 'tnpropertymandi.in')
+      )
     )
   );
 

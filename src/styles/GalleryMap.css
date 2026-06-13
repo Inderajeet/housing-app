@@ -206,11 +206,11 @@
   gap: 4px;
   font-size: 10px;
   font-weight: 600;
-  color: #2563eb;
+  color: #475569;
   text-decoration: none;
   margin-top: 6px;
 }
-.gallery-map-gmaps-link:hover { text-decoration: underline; }
+.gallery-map-gmaps-link:hover { color: #0f172a; text-decoration: underline; }
 
 @media (max-width: 760px) {
 

@@ -64,10 +64,10 @@
 
 
 .popup-view-link {
-  margin-top: 10px;
+  margin-top: 8px;
   font-size: 12px;
   font-weight: 600;
-  color: #64748b;
+  color: #0f172a;
   text-align: right;
   transition: color 0.15s;
 }
@@ -77,14 +77,32 @@
   font-size: 12px;
   color: #475569;
   display: flex;
-  align-items: center;
-  gap: 6px;
+  align-items: baseline;
+  gap: 5px;
   margin-bottom: 6px;
+  flex-wrap: wrap;
 }
 
 .popup-location svg {
   color: #64748b;
   flex-shrink: 0;
+}
+
+.popup-loc-text {
+  flex-shrink: 0;
+}
+
+.popup-loc-sep {
+  color: #cbd5e1;
+  margin: 0 1px;
+  flex-shrink: 0;
+}
+
+.popup-layout-inline {
+  font-size: 13px;
+  font-weight: 700;
+  color: #0f172a;
+  word-break: break-word;
 }
 
 /* Marker status colors are handled inline via SVG */
@@ -140,12 +158,13 @@
 .popup-ratings-grid {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr 1fr;
-  gap: 6px;
+  gap: 0;
   margin-top: 10px;
-  padding: 8px;
-  background: #f0fdf4;
+  padding: 0;
+  background: #e2e8f0;
   border-radius: 8px;
-  border: 1px solid #bbf7d0;
+  border: 1px solid #cbd5e1;
+  overflow: hidden;
 }
 
 .popup-ratings-grid-2col {
@@ -156,11 +175,18 @@
   display: flex;
   flex-direction: column;
   align-items: center;
+  padding: 4px 1px;
+  border-radius: 0;
 }
+
+.popup-rating-item-legal     { background: #24675e; }
+.popup-rating-item-speed     { background: #235bd8; }
+.popup-rating-item-amenities { background: #d3a72f; }
+.popup-rating-item-location  { background: #ea580c; }
 
 .popup-rating-label {
   font-size: 9px;
-  color: #334155;
+  color: rgba(255,255,255,0.88);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.02em;
@@ -170,7 +196,7 @@
 
 .popup-rating-sublabel {
   font-size: 9px;
-  color: #94a3b8;
+  color: rgba(255,255,255,0.7);
   text-align: center;
   margin-bottom: 3px;
   line-height: 1.1;
@@ -179,6 +205,6 @@
 .popup-rating-value {
   font-size: 12px;
   font-weight: 700;
-  color: #166534;
+  color: #ffffff;
 }
 

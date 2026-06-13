@@ -32,26 +32,24 @@ const PropertyCard = ({ property }) => {
   const thirdLine = [idPart, typePart, rateWithUnit, extentPart].filter(Boolean).join(' / ');
 
   const areaSalesSpeed = property.area_sales_speed != null
-    ? `${Number(property.area_sales_speed).toFixed(1)}/mo`
+    ? `${Number(property.area_sales_speed).toFixed(1)}/M`
     : property.area_speed != null
-      ? `${Number(property.area_speed).toFixed(1)}/mo`
+      ? `${Number(property.area_speed).toFixed(1)}/M`
       : '—';
 
   return (
     <Link className="compact-property-card" href={getPropertyHref(property)}>
       <div className="card-details-section">
-        {locationStr && (
+        {(locationStr || layoutOrLandmark) && (
           <div className="card-location">
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ flexShrink: 0 }}>
               <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
               <circle cx="12" cy="10" r="3" />
             </svg>
-            <span>{locationStr}</span>
+            {locationStr && <span className="card-loc-text">{locationStr}</span>}
+            {locationStr && layoutOrLandmark && <span className="card-loc-sep">|</span>}
+            {layoutOrLandmark && <span className="card-layout-inline">{layoutOrLandmark}</span>}
           </div>
-        )}
-
-        {layoutOrLandmark && (
-          <p className="card-layout-name">{layoutOrLandmark}</p>
         )}
 
         {thirdLine && (
@@ -61,30 +59,30 @@ const PropertyCard = ({ property }) => {
         <div className={`card-ratings-grid${isRent ? ' card-ratings-grid-2col' : ''}`}>
           {!isRent && (
             <>
-              <div className="card-rating-item">
+              <div className="card-rating-item card-rating-item-legal">
                 <span className="card-rating-label">Legal</span>
-                <span className="card-rating-sublabel">rating</span>
+                <span className="card-rating-sublabel">grade</span>
                 <span className="card-rating-value">{property.legal_value ?? '—'}</span>
               </div>
-              <div className="card-rating-item">
+              <div className="card-rating-item card-rating-item-speed">
                 <span className="card-rating-label">Area Sales</span>
                 <span className="card-rating-sublabel">speed</span>
                 <span className="card-rating-value">{areaSalesSpeed}</span>
               </div>
             </>
           )}
-          <div className="card-rating-item">
+          <div className="card-rating-item card-rating-item-amenities">
             <span className="card-rating-label">Amenities</span>
             <span className="card-rating-sublabel">rating</span>
             <span className="card-rating-value">
-              {property.amenities_rating != null ? Number(property.amenities_rating).toFixed(1) : '—'}
+              {property.amenities_rating != null ? `${Number(property.amenities_rating).toFixed(1)}/10` : '—'}
             </span>
           </div>
-          <div className="card-rating-item">
+          <div className="card-rating-item card-rating-item-location">
             <span className="card-rating-label">Location</span>
             <span className="card-rating-sublabel">score</span>
             <span className="card-rating-value">
-              {property.utilities_rating != null ? Number(property.utilities_rating).toFixed(1) : '—'}
+              {property.utilities_rating != null ? `${Number(property.utilities_rating).toFixed(1)}/10` : '—'}
             </span>
           </div>
         </div>

@@ -15,6 +15,9 @@ export async function getPropertyMeta(identifier) {
        d.district_name, t.taluk_name, v.village_name,
        sp.sale_type, sp.layout_name, sp.price AS sale_price, sp.area_size,
        sp.rate_unit, sp.street_name_or_road_name,
+       sp.legal_value, sp.area_sales_speed,
+       COALESCE(sp.amenities_rating, rp.amenities_rating) AS amenities_rating,
+       COALESCE(sp.utilities_rating, rp.utilities_rating) AS utilities_rating,
        rp.bhk, rp.rent_amount, rp.property_use, rp.extent_area, rp.extent_unit,
        rp.landmark, rp.street_name,
        (SELECT file_url FROM property_assets

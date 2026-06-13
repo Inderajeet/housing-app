@@ -89,9 +89,9 @@ const GalleryMap = ({ location, status, title, propertyData = null }) => {
   const thirdLine = [idPart, typePart, rateWithUnit, extentPart].filter(Boolean).join(' / ');
 
   const areaSalesSpeed = popupData?.area_sales_speed != null
-    ? `${Number(popupData.area_sales_speed).toFixed(1)}/mo`
+    ? `${Number(popupData.area_sales_speed).toFixed(1)}/M`
     : popupData?.area_speed != null
-      ? `${Number(popupData.area_speed).toFixed(1)}/mo`
+      ? `${Number(popupData.area_speed).toFixed(1)}/M`
       : '—';
 
   const infoWindowOptions = { pixelOffset: { width: 0, height: -30 }, maxWidth: 280, disableAutoPan: true };
@@ -108,18 +108,16 @@ const GalleryMap = ({ location, status, title, propertyData = null }) => {
         </a>
       )}
 
-      {locationStr && (
+      {(locationStr || layoutOrLandmark) && (
         <div className="popup-location">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ flexShrink: 0 }}>
             <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
             <circle cx="12" cy="10" r="3" />
           </svg>
-          <span>{locationStr}</span>
+          {locationStr && <span className="popup-loc-text">{locationStr}</span>}
+          {locationStr && layoutOrLandmark && <span className="popup-loc-sep">|</span>}
+          {layoutOrLandmark && <span className="popup-layout-inline">{layoutOrLandmark}</span>}
         </div>
-      )}
-
-      {layoutOrLandmark && (
-        <div className="popup-layout-name">{layoutOrLandmark}</div>
       )}
 
       {thirdLine && (
@@ -129,30 +127,30 @@ const GalleryMap = ({ location, status, title, propertyData = null }) => {
       <div className={`popup-ratings-grid${isRent ? ' popup-ratings-grid-2col' : ''}`}>
         {!isRent && (
           <>
-            <div className="popup-rating-item">
+            <div className="popup-rating-item popup-rating-item-legal">
               <span className="popup-rating-label">Legal</span>
-              <span className="popup-rating-sublabel">rating</span>
+              <span className="popup-rating-sublabel">grade</span>
               <span className="popup-rating-value">{popupData?.legal_value ?? '—'}</span>
             </div>
-            <div className="popup-rating-item">
+            <div className="popup-rating-item popup-rating-item-speed">
               <span className="popup-rating-label">Area Sales</span>
               <span className="popup-rating-sublabel">speed</span>
               <span className="popup-rating-value">{areaSalesSpeed}</span>
             </div>
           </>
         )}
-        <div className="popup-rating-item">
+        <div className="popup-rating-item popup-rating-item-amenities">
           <span className="popup-rating-label">Amenities</span>
           <span className="popup-rating-sublabel">rating</span>
           <span className="popup-rating-value">
-            {popupData?.amenities_rating != null ? Number(popupData.amenities_rating).toFixed(1) : '—'}
+            {popupData?.amenities_rating != null ? `${Number(popupData.amenities_rating).toFixed(1)}/10` : '—'}
           </span>
         </div>
-        <div className="popup-rating-item">
+        <div className="popup-rating-item popup-rating-item-location">
           <span className="popup-rating-label">Location</span>
           <span className="popup-rating-sublabel">score</span>
           <span className="popup-rating-value">
-            {popupData?.utilities_rating != null ? Number(popupData.utilities_rating).toFixed(1) : '—'}
+            {popupData?.utilities_rating != null ? `${Number(popupData.utilities_rating).toFixed(1)}/10` : '—'}
           </span>
         </div>
       </div>

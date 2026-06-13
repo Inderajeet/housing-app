@@ -99,11 +99,9 @@ const UnifiedMap = ({ properties = [], mapCenter, mapZoom }) => {
     const layoutName = property.title || property.layout_name || '';
     const layoutOrLandmark = layoutName || landmark || '';
 
-    // If layout name is in line 2, location shows landmark → village → taluk → district
-    // If landmark is in line 2 (no layout name), location shows broader area only
     const locationStr = layoutName
-      ? (landmark || [property.village_name, property.taluk_name].filter(Boolean).join(', ') || property.district_name || '')
-      : ([property.village_name, property.taluk_name].filter(Boolean).join(', ') || property.district_name || '');
+      ? (landmark || property.village_name || property.taluk_name || property.district_name || '')
+      : (property.village_name || property.taluk_name || property.district_name || '');
 
     const idPart = property.formatted_id || '';
     const typePart = isRent
@@ -117,9 +115,9 @@ const UnifiedMap = ({ properties = [], mapCenter, mapZoom }) => {
     const thirdLine = [idPart, typePart, rateWithUnit, extentPart].filter(Boolean).join(' / ');
 
     const areaSalesSpeed = property.area_sales_speed != null
-      ? `${Number(property.area_sales_speed).toFixed(1)}/mo`
+      ? `${Number(property.area_sales_speed).toFixed(1)}/M`
       : property.area_speed != null
-        ? `${Number(property.area_speed).toFixed(1)}/mo`
+        ? `${Number(property.area_speed).toFixed(1)}/M`
         : '—';
 
     return (
@@ -135,16 +133,14 @@ const UnifiedMap = ({ properties = [], mapCenter, mapZoom }) => {
         >✕</button>
 
         <div className="popup-location">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ flexShrink: 0 }}>
             <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
             <circle cx="12" cy="10" r="3" />
           </svg>
-          <span>{locationStr}</span>
+          {locationStr && <span className="popup-loc-text">{locationStr}</span>}
+          {locationStr && layoutOrLandmark && <span className="popup-loc-sep">|</span>}
+          {layoutOrLandmark && <span className="popup-layout-inline">{layoutOrLandmark}</span>}
         </div>
-
-        {layoutOrLandmark && (
-          <div className="popup-layout-name">{layoutOrLandmark}</div>
-        )}
 
         {thirdLine && (
           <div className="popup-info-line">{thirdLine}</div>
@@ -153,30 +149,30 @@ const UnifiedMap = ({ properties = [], mapCenter, mapZoom }) => {
         <div className={`popup-ratings-grid${isRent ? ' popup-ratings-grid-2col' : ''}`}>
           {!isRent && (
             <>
-              <div className="popup-rating-item">
+              <div className="popup-rating-item popup-rating-item-legal">
                 <span className="popup-rating-label">Legal</span>
-                <span className="popup-rating-sublabel">rating</span>
+                <span className="popup-rating-sublabel">grade</span>
                 <span className="popup-rating-value">{property.legal_value ?? '—'}</span>
               </div>
-              <div className="popup-rating-item">
+              <div className="popup-rating-item popup-rating-item-speed">
                 <span className="popup-rating-label">Area Sales</span>
                 <span className="popup-rating-sublabel">speed</span>
                 <span className="popup-rating-value">{areaSalesSpeed}</span>
               </div>
             </>
           )}
-          <div className="popup-rating-item">
+          <div className="popup-rating-item popup-rating-item-amenities">
             <span className="popup-rating-label">Amenities</span>
             <span className="popup-rating-sublabel">rating</span>
             <span className="popup-rating-value">
-              {property.amenities_rating != null ? Number(property.amenities_rating).toFixed(1) : '—'}
+              {property.amenities_rating != null ? `${Number(property.amenities_rating).toFixed(1)}/10` : '—'}
             </span>
           </div>
-          <div className="popup-rating-item">
+          <div className="popup-rating-item popup-rating-item-location">
             <span className="popup-rating-label">Location</span>
             <span className="popup-rating-sublabel">score</span>
             <span className="popup-rating-value">
-              {property.utilities_rating != null ? Number(property.utilities_rating).toFixed(1) : '—'}
+              {property.utilities_rating != null ? `${Number(property.utilities_rating).toFixed(1)}/10` : '—'}
             </span>
           </div>
         </div>
