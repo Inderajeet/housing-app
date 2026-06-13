@@ -4,165 +4,182 @@ import { getPropertyMeta } from '@/lib/services/property.meta.service';
 export const runtime = 'nodejs';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://tnpropertymandi.in';
+const W = 1200, H = 630, IMG_H = 346, CARD_H = 284;
 
-function x(s) {
+function xe(s) {
   return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
-
-function trunc(str, maxLen) {
+function trunc(str, max) {
   const s = String(str ?? '');
-  return s.length > maxLen ? s.slice(0, maxLen - 1) + '…' : s;
+  return s.length > max ? s.slice(0, max - 1) + '…' : s;
 }
 
-async function fetchImageBase64(url) {
+function buildCardSvg({ loc, layout, info, legal, speed, amenities, locscore, isRent }) {
+  const PX = 50;
+  const locStr    = trunc(loc, 35);
+  const layoutStr = trunc(layout, 50);
+  const sep       = locStr && layoutStr ? '  |  ' : '';
+  const locLine   = xe(locStr + sep + layoutStr);
+
+  const numBoxes = isRent ? 2 : 4;
+  const boxW = Math.floor((W - PX * 2) / numBoxes);
+  const boxH = 84, boxY = CARD_H - boxH - 34;
+
+  const boxDefs = isRent
+    ? [
+        { bg: '#d3a72f', label: 'AMENITIES', sub: 'rating', val: amenities },
+        { bg: '#ea580c', label: 'LOCATION',  sub: 'score',  val: locscore  },
+      ]
+    : [
+        { bg: '#24675e', label: 'LEGAL',      sub: 'grade', val: legal     },
+        { bg: '#235bd8', label: 'AREA SALES', sub: 'speed', val: speed     },
+        { bg: '#d3a72f', label: 'AMENITIES',  sub: 'rating', val: amenities },
+        { bg: '#ea580c', label: 'LOCATION',   sub: 'score',  val: locscore  },
+      ];
+
+  const boxes = boxDefs.map(({ bg, label, sub, val }, i) => {
+    const bx = PX + i * boxW;
+    return `
+      <rect x="${bx}" y="${boxY}" width="${boxW}" height="${boxH}" fill="${bg}"/>
+      <text x="${bx + boxW / 2}" y="${boxY + 22}" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" font-weight="700" fill="rgba(255,255,255,0.9)">${label}</text>
+      <text x="${bx + boxW / 2}" y="${boxY + 38}" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="rgba(255,255,255,0.7)">${sub}</text>
+      <text x="${bx + boxW / 2}" y="${boxY + 68}" text-anchor="middle" font-family="Arial,sans-serif" font-size="26" font-weight="800" fill="#ffffff">${xe(val)}</text>`;
+  }).join('');
+
+  return `<svg width="${W}" height="${CARD_H}" xmlns="http://www.w3.org/2000/svg">
+  <rect width="${W}" height="${CARD_H}" fill="#f0fdf4"/>
+  <circle cx="${PX + 5}" cy="27" r="5" fill="#3b82f6"/>
+  <text x="${PX + 17}" y="32" font-family="Arial,sans-serif" font-size="16" font-weight="700" fill="#1e293b">${locLine}</text>
+  ${info ? `<text x="${PX}" y="54" font-family="Arial,sans-serif" font-size="13" fill="#64748b">${xe(trunc(info, 80))}</text>` : ''}
+  ${boxes}
+  <rect x="${PX}" y="${CARD_H - 22}" width="14" height="14" rx="3" fill="#24675e"/>
+  <text x="${PX + 5}" y="${CARD_H - 11}" text-anchor="middle" font-family="Arial,sans-serif" font-size="8" font-weight="800" fill="#ffffff">TN</text>
+  <text x="${PX + 21}" y="${CARD_H - 11}" font-family="Arial,sans-serif" font-size="12" font-weight="600" fill="#64748b">tnpropertymandi.in</text>
+</svg>`;
+}
+
+async function fetchImg(url) {
+  if (!url) return null;
   try {
-    const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
-    if (!res.ok) return null;
-    const buf = await res.arrayBuffer();
-    const mime = (res.headers.get('content-type') || 'image/jpeg').split(';')[0].trim();
-    return { base64: Buffer.from(buf).toString('base64'), mime };
-  } catch {
+    const controller = new AbortController();
+    const t = setTimeout(() => controller.abort(), 8000);
+    const res = await fetch(url, {
+      signal: controller.signal,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; TN-Property-OG/1.0)',
+        'Accept': 'image/*,*/*',
+      },
+    });
+    clearTimeout(t);
+    if (!res.ok) {
+      console.error('[og] image fetch failed:', res.status, url);
+      return null;
+    }
+    return Buffer.from(await res.arrayBuffer());
+  } catch (e) {
+    console.error('[og] image fetch error:', e?.message, url);
     return null;
   }
 }
 
-function buildSvg({ imgBase64, imgMime, loc, layout, info, legal, speed, amenities, locscore, isRent }) {
-  const W = 1200, H = 630, IMG_H = 346;
-  const CARD_Y = IMG_H, CARD_H = H - IMG_H;
-  const PX = 50; // horizontal padding
-
-  const imgSection = imgBase64
-    ? `<image href="data:${imgMime};base64,${imgBase64}" x="0" y="0" width="${W}" height="${IMG_H}" preserveAspectRatio="xMidYMid slice"/>`
-    : `<rect x="0" y="0" width="${W}" height="${IMG_H}" fill="#1e3a5f"/>
-       <text x="${W / 2}" y="${IMG_H / 2 + 14}" text-anchor="middle" font-family="Arial,sans-serif" font-size="40" font-weight="700" fill="rgba(255,255,255,0.2)">TN Property Mandi</text>`;
-
-  // Location | Layout row — combined on one line, truncated to fit
-  const locStr  = trunc(loc, 35);
-  const layoutStr = trunc(layout, 55);
-  const sep = locStr && layoutStr ? '  |  ' : '';
-  const locLayoutText = x(locStr + sep + layoutStr);
-
-  // Rating boxes — 4 for sale, 2 for rent
-  const boxW = isRent ? Math.floor((W - PX * 2) / 2) : Math.floor((W - PX * 2) / 4);
-  const boxH = 84;
-  const boxY = CARD_Y + CARD_H - boxH - 36; // bottom-aligned with brand below
-
-  const boxes = isRent
-    ? [
-        { bg: '#d3a72f', label: 'AMENITIES', sub: 'rating', val: amenities, x: PX },
-        { bg: '#ea580c', label: 'LOCATION',  sub: 'score',  val: locscore,  x: PX + boxW },
-      ]
-    : [
-        { bg: '#24675e', label: 'LEGAL',    sub: 'grade',  val: legal,     x: PX },
-        { bg: '#235bd8', label: 'AREA SALES', sub: 'speed', val: speed,    x: PX + boxW },
-        { bg: '#d3a72f', label: 'AMENITIES', sub: 'rating', val: amenities, x: PX + boxW * 2 },
-        { bg: '#ea580c', label: 'LOCATION',  sub: 'score',  val: locscore,  x: PX + boxW * 3 },
-      ];
-
-  const ratingsSvg = boxes.map(({ bg, label, sub, val, x: bx }) => `
-    <rect x="${bx}" y="${boxY}" width="${boxW}" height="${boxH}" fill="${bg}"/>
-    <text x="${bx + boxW / 2}" y="${boxY + 22}" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" font-weight="700" fill="rgba(255,255,255,0.9)">${label}</text>
-    <text x="${bx + boxW / 2}" y="${boxY + 38}" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="rgba(255,255,255,0.7)">${sub}</text>
-    <text x="${bx + boxW / 2}" y="${boxY + 68}" text-anchor="middle" font-family="Arial,sans-serif" font-size="26" font-weight="800" fill="#ffffff">${x(val)}</text>
-  `).join('');
-
-  // Separator line between photo and card
-  const infoY = CARD_Y + 32;
-  const lineY2 = boxY - 12;
-
-  return `<svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
-  <!-- photo -->
-  ${imgSection}
-
-  <!-- card background -->
-  <rect x="0" y="${CARD_Y}" width="${W}" height="${CARD_H}" fill="#f0fdf4"/>
-
-  <!-- pin dot -->
-  <circle cx="${PX + 5}" cy="${infoY - 5}" r="5" fill="#3b82f6"/>
-
-  <!-- location | layout -->
-  <text x="${PX + 17}" y="${infoY}" font-family="Arial,sans-serif" font-size="16" font-weight="700" fill="#1e293b">${locLayoutText}</text>
-
-  <!-- info line -->
-  ${info ? `<text x="${PX}" y="${infoY + 22}" font-family="Arial,sans-serif" font-size="13" fill="#64748b">${x(trunc(info, 80))}</text>` : ''}
-
-  <!-- ratings -->
-  ${ratingsSvg}
-
-  <!-- brand -->
-  <rect x="${PX}" y="${H - 28}" width="14" height="14" rx="3" fill="#24675e"/>
-  <text x="${PX + 5}" y="${H - 18}" text-anchor="middle" font-family="Arial,sans-serif" font-size="8" font-weight="800" fill="#ffffff">TN</text>
-  <text x="${PX + 20}" y="${H - 17}" font-family="Arial,sans-serif" font-size="13" font-weight="600" fill="#64748b">tnpropertymandi.in</text>
-</svg>`;
+async function makePlaceholder(width, height, bg = { r: 30, g: 58, b: 95 }) {
+  return sharp({ create: { width, height, channels: 3, background: bg } }).png().toBuffer();
 }
 
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
-  const imgUrl    = searchParams.get('img') || '';
-  const loc       = searchParams.get('loc') || '';
-  const layout    = searchParams.get('layout') || '';
-  const info      = searchParams.get('info') || '';
-  const legal     = searchParams.get('legal') || '—';
-  const speed     = searchParams.get('speed') || '—';
-  const amenities = searchParams.get('amenities') || '—';
-  const locscore  = searchParams.get('locscore') || '—';
-  const isRent    = searchParams.get('rent') === '1';
-  const identifier = searchParams.get('id') || '';
+  let imgUrl     = searchParams.get('img') || '';
+  let loc        = searchParams.get('loc') || '';
+  let layout     = searchParams.get('layout') || '';
+  let info       = searchParams.get('info') || '';
+  let legal      = searchParams.get('legal') || '—';
+  let speed      = searchParams.get('speed') || '—';
+  let amenities  = searchParams.get('amenities') || '—';
+  let locscore   = searchParams.get('locscore') || '—';
+  let isRent     = searchParams.get('rent') === '1';
+  const id       = searchParams.get('id') || '';
 
-  // If no display data passed, try fetching from DB
-  let finalLoc = loc, finalLayout = layout, finalInfo = info;
-  let finalLegal = legal, finalSpeed = speed, finalAmenities = amenities, finalLocscore = locscore;
-  let finalIsRent = isRent, finalImgUrl = imgUrl;
-
-  if (!loc && identifier) {
+  if (!loc && id) {
     try {
-      const p = await getPropertyMeta(identifier);
+      const p = await getPropertyMeta(id);
       if (p) {
-        finalLoc = p.village_name || p.taluk_name || p.district_name || '';
-        finalLayout = p.layout_name || p.title || '';
-        finalIsRent = !!p.rent_amount;
-        const saleType = (p.sale_type || '').toLowerCase();
-        const typePart = finalIsRent
+        loc       = p.village_name || p.taluk_name || p.district_name || '';
+        layout    = p.layout_name || p.title || '';
+        isRent    = !!p.rent_amount;
+        const st  = (p.sale_type || '').toLowerCase();
+        const tp  = isRent
           ? ((p.property_use || '').toLowerCase() === 'commercial' ? 'Commercial' : p.bhk ? `${p.bhk} BHK` : 'Residential')
-          : (saleType ? saleType.charAt(0).toUpperCase() + saleType.slice(1) : 'Property');
-        finalInfo = [p.formatted_id, typePart].filter(Boolean).join(' / ');
-        finalLegal = p.legal_value || '—';
-        finalSpeed = p.area_sales_speed != null ? `${Number(p.area_sales_speed).toFixed(1)}/M` : '—';
-        finalAmenities = p.amenities_rating != null ? `${Number(p.amenities_rating).toFixed(1)}/10` : '—';
-        finalLocscore = p.utilities_rating != null ? `${Number(p.utilities_rating).toFixed(1)}/10` : '—';
-        finalImgUrl = imgUrl || p.primary_image || '';
+          : (st ? st.charAt(0).toUpperCase() + st.slice(1) : 'Property');
+        info      = [p.formatted_id, tp].filter(Boolean).join(' / ');
+        legal     = p.legal_value || '—';
+        speed     = p.area_sales_speed != null ? `${Number(p.area_sales_speed).toFixed(1)}/M` : '—';
+        amenities = p.amenities_rating  != null ? `${Number(p.amenities_rating).toFixed(1)}/10` : '—';
+        locscore  = p.utilities_rating  != null ? `${Number(p.utilities_rating).toFixed(1)}/10` : '—';
+        imgUrl    = imgUrl || p.primary_image || '';
       }
-    } catch { /* ignore */ }
+    } catch (e) {
+      console.error('[og] DB fallback error:', e?.message);
+    }
   }
 
-  // Fetch property image
-  const imgData = finalImgUrl ? await fetchImageBase64(finalImgUrl) : null;
-
-  const svg = buildSvg({
-    imgBase64: imgData?.base64 || null,
-    imgMime: imgData?.mime || 'image/jpeg',
-    loc: finalLoc,
-    layout: finalLayout,
-    info: finalInfo,
-    legal: finalLegal,
-    speed: finalSpeed,
-    amenities: finalAmenities,
-    locscore: finalLocscore,
-    isRent: finalIsRent,
-  });
-
+  // Always return a 1200×630 PNG (never redirect — redirect causes portrait preview)
   try {
-    const png = await sharp(Buffer.from(svg)).png().toBuffer();
-    return new Response(png, {
+    // 1. Top section: property photo resized to 1200×346
+    let topBuf;
+    const rawImg = await fetchImg(imgUrl);
+    if (rawImg) {
+      try {
+        topBuf = await sharp(rawImg)
+          .resize(W, IMG_H, { fit: 'cover', position: 'centre' })
+          .png()
+          .toBuffer();
+      } catch (e) {
+        console.error('[og] top image resize error:', e?.message);
+      }
+    }
+    if (!topBuf) {
+      topBuf = await makePlaceholder(W, IMG_H);
+    }
+
+    // 2. Bottom section: ratings card SVG → PNG (1200×284)
+    let cardBuf;
+    try {
+      const cardSvg = buildCardSvg({ loc, layout, info, legal, speed, amenities, locscore, isRent });
+      cardBuf = await sharp(Buffer.from(cardSvg)).png().toBuffer();
+    } catch (e) {
+      console.error('[og] card SVG error:', e?.message);
+      cardBuf = await makePlaceholder(W, CARD_H, { r: 240, g: 253, b: 244 });
+    }
+
+    // 3. Composite into 1200×630
+    const final = await sharp({
+      create: { width: W, height: H, channels: 3, background: { r: 248, g: 250, b: 252 } },
+    })
+      .composite([
+        { input: topBuf,  top: 0,     left: 0 },
+        { input: cardBuf, top: IMG_H, left: 0 },
+      ])
+      .png()
+      .toBuffer();
+
+    return new Response(final, {
       headers: {
         'Content-Type': 'image/png',
-        'Cache-Control': 'public, max-age=3600',
+        'Cache-Control': 'public, max-age=3600, s-maxage=3600',
       },
     });
   } catch (err) {
-    console.error('[og/property] sharp error:', err?.message);
-    // Final fallback: redirect to image or default
-    const fallback = finalImgUrl || `${SITE_URL}/default-home.jpg`;
-    return Response.redirect(fallback, 302);
+    console.error('[og/property] fatal error:', err?.message);
+    // Last-resort: return a 1200×630 solid-color PNG (NOT a redirect)
+    try {
+      const fallback = await sharp({
+        create: { width: W, height: H, channels: 3, background: { r: 30, g: 58, b: 95 } },
+      }).png().toBuffer();
+      return new Response(fallback, {
+        headers: { 'Content-Type': 'image/png', 'Cache-Control': 'public, max-age=60' },
+      });
+    } catch {
+      return new Response('Error generating image', { status: 500 });
+    }
   }
 }
