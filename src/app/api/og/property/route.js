@@ -4,7 +4,9 @@ import { getPropertyMeta } from '@/lib/services/property.meta.service';
 export const runtime = 'nodejs';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://tnpropertymandi.in';
-const W = 1200, H = 630, IMG_H = 346, CARD_H = 284;
+const W = 1200, H = 630;
+const IMG_H = 430;   // photo section (taller)
+const CARD_H = 200;  // ratings card section (tighter)
 
 function xe(s) {
   return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -15,15 +17,22 @@ function trunc(str, max) {
 }
 
 function buildCardSvg({ loc, layout, info, legal, speed, amenities, locscore, isRent }) {
-  const PX = 50;
-  const locStr    = trunc(loc, 35);
-  const layoutStr = trunc(layout, 50);
-  const sep       = locStr && layoutStr ? '  |  ' : '';
-  const locLine   = xe(locStr + sep + layoutStr);
+  const PX = 48;
 
+  // Line 1: location  |  layout/landmark
+  const locStr    = trunc(loc, 30);
+  const layoutStr = trunc(layout, 45);
+  const sep       = locStr && layoutStr ? '   |   ' : '';
+  const line1     = xe(locStr + sep + layoutStr);
+
+  // Line 2: property info (formatted_id / type)
+  const line2     = xe(trunc(info, 80));
+
+  // Rating boxes — fill bottom of card
   const numBoxes = isRent ? 2 : 4;
   const boxW = Math.floor((W - PX * 2) / numBoxes);
-  const boxH = 84, boxY = CARD_H - boxH - 34;
+  const boxH = 80;
+  const boxY = 52;  // right after the two text lines
 
   const boxDefs = isRent
     ? [
@@ -41,20 +50,33 @@ function buildCardSvg({ loc, layout, info, legal, speed, amenities, locscore, is
     const bx = PX + i * boxW;
     return `
       <rect x="${bx}" y="${boxY}" width="${boxW}" height="${boxH}" fill="${bg}"/>
-      <text x="${bx + boxW / 2}" y="${boxY + 22}" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" font-weight="700" fill="rgba(255,255,255,0.9)">${label}</text>
-      <text x="${bx + boxW / 2}" y="${boxY + 38}" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="rgba(255,255,255,0.7)">${sub}</text>
-      <text x="${bx + boxW / 2}" y="${boxY + 68}" text-anchor="middle" font-family="Arial,sans-serif" font-size="26" font-weight="800" fill="#ffffff">${xe(val)}</text>`;
+      <text x="${bx + boxW / 2}" y="${boxY + 19}" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" font-weight="700" fill="rgba(255,255,255,0.9)">${label}</text>
+      <text x="${bx + boxW / 2}" y="${boxY + 33}" text-anchor="middle" font-family="Arial,sans-serif" font-size="10" fill="rgba(255,255,255,0.7)">${sub}</text>
+      <text x="${bx + boxW / 2}" y="${boxY + 63}" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="800" fill="#ffffff">${xe(val)}</text>`;
   }).join('');
+
+  // Brand row sits below boxes
+  const brandY = boxY + boxH + 14;
 
   return `<svg width="${W}" height="${CARD_H}" xmlns="http://www.w3.org/2000/svg">
   <rect width="${W}" height="${CARD_H}" fill="#f0fdf4"/>
-  <circle cx="${PX + 5}" cy="27" r="5" fill="#3b82f6"/>
-  <text x="${PX + 17}" y="32" font-family="Arial,sans-serif" font-size="16" font-weight="700" fill="#1e293b">${locLine}</text>
-  ${info ? `<text x="${PX}" y="54" font-family="Arial,sans-serif" font-size="13" fill="#64748b">${xe(trunc(info, 80))}</text>` : ''}
+
+  <!-- Location pin icon (circle + stem) -->
+  <circle cx="${PX + 6}" cy="17" r="6" fill="#3b82f6"/>
+  <line x1="${PX + 6}" y1="23" x2="${PX + 6}" y2="30" stroke="#3b82f6" stroke-width="2"/>
+
+  <!-- Line 1: location | layout -->
+  <text x="${PX + 18}" y="22" font-family="Arial,sans-serif" font-size="15" font-weight="700" fill="#1e293b">${line1}</text>
+
+  <!-- Line 2: formatted_id / type -->
+  ${line2 ? `<text x="${PX + 18}" y="40" font-family="Arial,sans-serif" font-size="12" fill="#64748b">${line2}</text>` : ''}
+
   ${boxes}
-  <rect x="${PX}" y="${CARD_H - 22}" width="14" height="14" rx="3" fill="#24675e"/>
-  <text x="${PX + 5}" y="${CARD_H - 11}" text-anchor="middle" font-family="Arial,sans-serif" font-size="8" font-weight="800" fill="#ffffff">TN</text>
-  <text x="${PX + 21}" y="${CARD_H - 11}" font-family="Arial,sans-serif" font-size="12" font-weight="600" fill="#64748b">tnpropertymandi.in</text>
+
+  <!-- Brand -->
+  <rect x="${PX}" y="${brandY}" width="16" height="16" rx="3" fill="#24675e"/>
+  <text x="${PX + 8}" y="${brandY + 11}" text-anchor="middle" font-family="Arial,sans-serif" font-size="8" font-weight="800" fill="#ffffff">TN</text>
+  <text x="${PX + 23}" y="${brandY + 12}" font-family="Arial,sans-serif" font-size="12" font-weight="600" fill="#64748b">tnpropertymandi.in</text>
 </svg>`;
 }
 
@@ -82,22 +104,22 @@ async function fetchImg(url) {
   }
 }
 
-async function makePlaceholder(width, height, bg = { r: 30, g: 58, b: 95 }) {
+async function solidPng(width, height, bg) {
   return sharp({ create: { width, height, channels: 3, background: bg } }).png().toBuffer();
 }
 
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
-  let imgUrl     = searchParams.get('img') || '';
-  let loc        = searchParams.get('loc') || '';
-  let layout     = searchParams.get('layout') || '';
-  let info       = searchParams.get('info') || '';
-  let legal      = searchParams.get('legal') || '—';
-  let speed      = searchParams.get('speed') || '—';
-  let amenities  = searchParams.get('amenities') || '—';
-  let locscore   = searchParams.get('locscore') || '—';
-  let isRent     = searchParams.get('rent') === '1';
-  const id       = searchParams.get('id') || '';
+  let imgUrl    = searchParams.get('img') || '';
+  let loc       = searchParams.get('loc') || '';
+  let layout    = searchParams.get('layout') || '';
+  let info      = searchParams.get('info') || '';
+  let legal     = searchParams.get('legal') || '—';
+  let speed     = searchParams.get('speed') || '—';
+  let amenities = searchParams.get('amenities') || '—';
+  let locscore  = searchParams.get('locscore') || '—';
+  let isRent    = searchParams.get('rent') === '1';
+  const id      = searchParams.get('id') || '';
 
   if (!loc && id) {
     try {
@@ -118,13 +140,12 @@ export async function GET(request) {
         imgUrl    = imgUrl || p.primary_image || '';
       }
     } catch (e) {
-      console.error('[og] DB fallback error:', e?.message);
+      console.error('[og] DB error:', e?.message);
     }
   }
 
-  // Always return a 1200×630 PNG (never redirect — redirect causes portrait preview)
   try {
-    // 1. Top section: property photo resized to 1200×346
+    // ── Top photo ────────────────────────────────────────────────────────
     let topBuf;
     const rawImg = await fetchImg(imgUrl);
     if (rawImg) {
@@ -134,24 +155,24 @@ export async function GET(request) {
           .png()
           .toBuffer();
       } catch (e) {
-        console.error('[og] top image resize error:', e?.message);
+        console.error('[og] resize error:', e?.message);
       }
     }
     if (!topBuf) {
-      topBuf = await makePlaceholder(W, IMG_H);
+      topBuf = await solidPng(W, IMG_H, { r: 30, g: 58, b: 95 });
     }
 
-    // 2. Bottom section: ratings card SVG → PNG (1200×284)
+    // ── Ratings card ─────────────────────────────────────────────────────
     let cardBuf;
     try {
-      const cardSvg = buildCardSvg({ loc, layout, info, legal, speed, amenities, locscore, isRent });
-      cardBuf = await sharp(Buffer.from(cardSvg)).png().toBuffer();
+      const svg = buildCardSvg({ loc, layout, info, legal, speed, amenities, locscore, isRent });
+      cardBuf = await sharp(Buffer.from(svg)).png().toBuffer();
     } catch (e) {
       console.error('[og] card SVG error:', e?.message);
-      cardBuf = await makePlaceholder(W, CARD_H, { r: 240, g: 253, b: 244 });
+      cardBuf = await solidPng(W, CARD_H, { r: 240, g: 253, b: 244 });
     }
 
-    // 3. Composite into 1200×630
+    // ── Composite 1200×630 ───────────────────────────────────────────────
     const final = await sharp({
       create: { width: W, height: H, channels: 3, background: { r: 248, g: 250, b: 252 } },
     })
@@ -169,17 +190,14 @@ export async function GET(request) {
       },
     });
   } catch (err) {
-    console.error('[og/property] fatal error:', err?.message);
-    // Last-resort: return a 1200×630 solid-color PNG (NOT a redirect)
+    console.error('[og/property] fatal:', err?.message);
     try {
-      const fallback = await sharp({
-        create: { width: W, height: H, channels: 3, background: { r: 30, g: 58, b: 95 } },
-      }).png().toBuffer();
-      return new Response(fallback, {
+      const fb = await solidPng(W, H, { r: 30, g: 58, b: 95 });
+      return new Response(fb, {
         headers: { 'Content-Type': 'image/png', 'Cache-Control': 'public, max-age=60' },
       });
     } catch {
-      return new Response('Error generating image', { status: 500 });
+      return new Response('Error', { status: 500 });
     }
   }
 }
