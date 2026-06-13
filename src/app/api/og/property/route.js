@@ -114,10 +114,10 @@ export async function GET(request) {
   let loc       = searchParams.get('loc') || '';
   let layout    = searchParams.get('layout') || '';
   let info      = searchParams.get('info') || '';
-  let legal     = searchParams.get('legal') || '—';
-  let speed     = searchParams.get('speed') || '—';
-  let amenities = searchParams.get('amenities') || '—';
-  let locscore  = searchParams.get('locscore') || '—';
+  let legal     = searchParams.get('legal') || '-';
+  let speed     = searchParams.get('speed') || '-';
+  let amenities = searchParams.get('amenities') || '-';
+  let locscore  = searchParams.get('locscore') || '-';
   let isRent    = searchParams.get('rent') === '1';
   const id      = searchParams.get('id') || '';
 
@@ -133,10 +133,10 @@ export async function GET(request) {
           ? ((p.property_use || '').toLowerCase() === 'commercial' ? 'Commercial' : p.bhk ? `${p.bhk} BHK` : 'Residential')
           : (st ? st.charAt(0).toUpperCase() + st.slice(1) : 'Property');
         info      = [p.formatted_id, tp].filter(Boolean).join(' / ');
-        legal     = p.legal_value || '—';
-        speed     = p.area_sales_speed != null ? `${Number(p.area_sales_speed).toFixed(1)}/M` : '—';
-        amenities = p.amenities_rating  != null ? `${Number(p.amenities_rating).toFixed(1)}/10` : '—';
-        locscore  = p.utilities_rating  != null ? `${Number(p.utilities_rating).toFixed(1)}/10` : '—';
+        legal     = p.legal_value || '-';
+        speed     = p.area_sales_speed != null ? `${Number(p.area_sales_speed).toFixed(1)}/M` : '-';
+        amenities = p.amenities_rating  != null ? `${Number(p.amenities_rating).toFixed(1)}/10` : '-';
+        locscore  = p.utilities_rating  != null ? `${Number(p.utilities_rating).toFixed(1)}/10` : '-';
         imgUrl    = imgUrl || p.primary_image || '';
       }
     } catch (e) {
