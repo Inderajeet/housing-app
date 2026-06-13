@@ -513,11 +513,11 @@
         bottom: auto;
         right: -30px;
         top: 50%;
-        transform: translateY(-50%) rotate(180deg);
+        transform: translateY(-50%) rotate(-90deg);
     }
 
     .whatsapp-float:hover {
-        transform: translateY(-50%) rotate(180deg) scale(1.08);
+        transform: translateY(-50%) rotate(-90deg) scale(1.08);
     }
 
     .whatsapp-float-img {

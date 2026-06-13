@@ -84,7 +84,7 @@ async function fetchImg(url) {
   if (!url) return null;
   try {
     const controller = new AbortController();
-    const t = setTimeout(() => controller.abort(), 8000);
+    const t = setTimeout(() => controller.abort(), 4000);
     const res = await fetch(url, {
       signal: controller.signal,
       headers: {
