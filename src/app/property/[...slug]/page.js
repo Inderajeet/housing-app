@@ -87,7 +87,7 @@ export async function generateMetadata({ params }) {
         description: richDesc,
         siteName: 'TN Property Mandi',
         // width/height here tells Next.js to emit og:image:width and og:image:height
-        images: [{ url: ogImageUrl, width: 1200, height: 630, alt: title }],
+        images: [{ url: ogImageUrl, width: 1200, height: 628, alt: title }],
         locale: 'en_IN',
         type: 'website',
         url: `${SITE_URL}/property/${slug.join('/')}`,

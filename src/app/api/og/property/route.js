@@ -108,14 +108,14 @@ async function fetchImg(url) {
   }
 }
 
-async function solidPng(width, height, bg) {
-  return sharp({ create: { width, height, channels: 3, background: bg } }).png().toBuffer();
+async function solidJpeg(width, height, bg) {
+  return sharp({ create: { width, height, channels: 3, background: bg } }).jpeg({ quality: 80 }).toBuffer();
 }
 
 function ogResponse(buf, maxAge = 3600) {
   return new Response(buf, {
     headers: {
-      'Content-Type': 'image/png',
+      'Content-Type': 'image/jpeg',
       'Cache-Control': `public, max-age=${maxAge}, s-maxage=${maxAge}`,
     },
   });
@@ -174,22 +174,22 @@ export async function GET(request) {
           if (raw) {
             return await sharp(raw)
               .resize(W, IMG_H, { fit: 'cover', position: 'centre' })
-              .png()
+              .jpeg({ quality: 82 })
               .toBuffer();
           }
         } catch (e) {
           console.error('[og] image error:', e?.message);
         }
-        return solidPng(W, IMG_H, { r: 30, g: 58, b: 95 });
+        return solidJpeg(W, IMG_H, { r: 30, g: 58, b: 95 });
       })(),
       // Ratings card SVG → PNG
       (async () => {
         try {
           const svg = buildCardSvg({ loc, layout, info, legal, speed, amenities, locscore, isRent });
-          return await sharp(Buffer.from(svg)).png().toBuffer();
+          return await sharp(Buffer.from(svg)).jpeg({ quality: 92 }).toBuffer();
         } catch (e) {
           console.error('[og] card SVG error:', e?.message);
-          return solidPng(W, CARD_H, { r: 240, g: 253, b: 244 });
+          return solidJpeg(W, CARD_H, { r: 240, g: 253, b: 244 });
         }
       })(),
     ]);
@@ -202,7 +202,7 @@ export async function GET(request) {
         { input: topBuf,  top: 0,     left: 0 },
         { input: cardBuf, top: IMG_H, left: 0 },
       ])
-      .png()
+      .jpeg({ quality: 82, mozjpeg: true })
       .toBuffer();
 
     ogCache.set(cacheKey, { buf: final, ts: Date.now() });
@@ -210,7 +210,7 @@ export async function GET(request) {
   } catch (err) {
     console.error('[og/property] fatal:', err?.message);
     try {
-      const fb = await solidPng(W, H, { r: 30, g: 58, b: 95 });
+      const fb = await solidJpeg(W, H, { r: 30, g: 58, b: 95 });
       return ogResponse(fb, 60);
     } catch {
       return new Response('Error', { status: 500 });
