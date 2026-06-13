@@ -29,8 +29,6 @@ export async function getPropertyMeta(identifier) {
              sp.sale_type, sp.layout_name, sp.price AS sale_price, sp.area_size,
              sp.rate_unit, sp.street_name_or_road_name,
              sp.legal_value, sp.area_sales_speed,
-             sp.amenities_rating AS sp_amenities_rating,
-             sp.utilities_rating AS sp_utilities_rating,
              sp.images AS sp_images,
              (SELECT JSON_AGG(JSON_BUILD_OBJECT('url', file_url))
               FROM property_assets
@@ -56,8 +54,6 @@ export async function getPropertyMeta(identifier) {
              rp.bhk, rp.rent_amount, rp.property_use, rp.extent_area, rp.extent_unit,
              rp.landmark, rp.street_name,
              rp.legal_value, rp.area_sales_speed,
-             rp.amenities_rating AS sp_amenities_rating,
-             rp.utilities_rating AS sp_utilities_rating,
              rp.images AS sp_images,
              NULL::text AS sale_type, NULL::text AS layout_name,
              NULL::numeric AS sale_price, NULL::text AS area_size,
@@ -93,8 +89,9 @@ export async function getPropertyMeta(identifier) {
       return {
         ...row,
         primary_image,
-        amenities_rating: row.sp_amenities_rating ?? row.amenities_rating,
-        utilities_rating: row.sp_utilities_rating ?? row.utilities_rating,
+        // amenities/utilities ratings live on the properties table (p.*)
+        amenities_rating: row.amenities_rating,
+        utilities_rating: row.utilities_rating,
         area_sales_speed: row.area_sales_speed ?? row.area_speed,
       };
     }
