@@ -21,7 +21,8 @@ export async function getPropertyMeta(identifier) {
        rp.bhk, rp.rent_amount, rp.property_use, rp.extent_area, rp.extent_unit,
        rp.landmark, rp.street_name,
        (SELECT file_url FROM property_assets
-        WHERE property_id = p.property_id AND asset_type = 'image' LIMIT 1) AS primary_image
+        WHERE property_id = p.property_id AND file_url IS NOT NULL
+        LIMIT 1) AS primary_image
      FROM properties p
      LEFT JOIN districts d ON d.district_id = p.district_id
      LEFT JOIN taluks t ON t.taluk_id = p.taluk_id

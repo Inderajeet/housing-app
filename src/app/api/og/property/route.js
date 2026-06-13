@@ -15,6 +15,12 @@ const fmt = (n) => {
   return `₹${v.toLocaleString('en-IN')}`;
 };
 
+const toAbsoluteUrl = (url) => {
+  if (!url) return null;
+  if (url.startsWith('http://') || url.startsWith('https://')) return url;
+  return `${SITE_URL}${url.startsWith('/') ? '' : '/'}${url}`;
+};
+
 const e = React.createElement;
 
 export async function GET(request) {
@@ -41,7 +47,8 @@ export async function GET(request) {
   const saleType = (p.sale_type || '').toLowerCase();
   const landmark = p.street_name_or_road_name || p.landmark || p.street_name || '';
   const layoutOrLandmark = p.layout_name || p.title || landmark || '';
-  const location = [p.village_name, p.taluk_name, p.district_name].filter(Boolean).join(', ');
+  // Show village only, fallback to taluk, then district
+  const locationStr = p.village_name || p.taluk_name || p.district_name || '';
 
   const price = isRent ? fmt(p.rent_amount) : fmt(p.sale_price);
   const priceDisplay = isRent
@@ -55,7 +62,8 @@ export async function GET(request) {
   const extentPart = [p.area_size].filter(Boolean).join(' ')
     || [p.extent_area, p.extent_unit].filter(Boolean).join(' ');
 
-  const imageUrl = p.primary_image || DEFAULT_IMAGE;
+  const rawImage = p.primary_image;
+  const imageUrl = toAbsoluteUrl(rawImage) || DEFAULT_IMAGE;
 
   const idPart = p.formatted_id || '';
   const infoLine = [idPart, typePart, priceDisplay, extentPart].filter(Boolean).join(' / ');
@@ -72,33 +80,31 @@ export async function GET(request) {
     : '—';
   const legalGrade = p.legal_value || '—';
 
-  // Rating cell helper
+  // Rating cell — no border-radius, no gap (matches card UI)
   const ratingCell = (bg, label, sublabel, value) =>
     e('div', {
       style: {
         display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-        background: bg, borderRadius: 6, padding: '10px 4px', flex: 1,
+        background: bg, padding: '12px 4px', flex: 1,
       }
     },
-      e('span', { style: { display: 'flex', fontSize: 13, fontWeight: 700, color: 'rgba(255,255,255,0.85)', textTransform: 'uppercase', letterSpacing: '0.03em', lineHeight: 1.1, textAlign: 'center' } }, label),
-      e('span', { style: { display: 'flex', fontSize: 11, color: 'rgba(255,255,255,0.65)', marginBottom: 4, lineHeight: 1 } }, sublabel),
+      e('span', { style: { display: 'flex', fontSize: 13, fontWeight: 700, color: 'rgba(255,255,255,0.88)', textTransform: 'uppercase', letterSpacing: '0.03em', lineHeight: 1.1, textAlign: 'center' } }, label),
+      e('span', { style: { display: 'flex', fontSize: 11, color: 'rgba(255,255,255,0.7)', marginBottom: 4, lineHeight: 1 } }, sublabel),
       e('span', { style: { display: 'flex', fontSize: 22, fontWeight: 800, color: '#ffffff', lineHeight: 1.1 } }, value)
     );
 
   const ratingsRow = e('div', {
-    style: { display: 'flex', gap: 4, padding: 4, background: '#e2e8f0', borderRadius: 10, marginTop: 16 }
+    style: { display: 'flex', gap: 0, padding: 0, background: '#e2e8f0', borderRadius: 8, marginTop: 14, overflow: 'hidden', border: '1px solid #cbd5e1' }
   },
     ...(isRent ? [] : [
-      ratingCell('#16a34a', 'Legal', 'grade', legalGrade),
-      ratingCell('#2563eb', 'Area Sales', 'speed', areaSalesSpeed),
+      ratingCell('#24675e', 'Legal', 'grade', legalGrade),
+      ratingCell('#235bd8', 'Area Sales', 'speed', areaSalesSpeed),
     ]),
-    ratingCell('#16a34a', 'Amenities', 'rating', amenitiesRating),
-    ratingCell('#ea580c', 'Locational', 'rating', locationRating),
+    ratingCell('#d3a72f', 'Amenities', 'rating', amenitiesRating),
+    ratingCell('#ea580c', 'Location', 'score', locationRating),
   );
 
-  // Image top section height
   const IMG_H = 340;
-  const CARD_H = 630 - IMG_H; // 290
 
   const content = e('div', {
     style: { display: 'flex', flexDirection: 'column', width: '100%', height: '100%', background: '#f8fafc', fontFamily: 'sans-serif' }
@@ -109,26 +115,22 @@ export async function GET(request) {
         src: imageUrl,
         style: { width: '100%', height: '100%', objectFit: 'cover' }
       }),
-      // bottom fade into card
       e('div', { style: { display: 'flex', position: 'absolute', bottom: 0, left: 0, right: 0, height: 60, background: 'linear-gradient(to bottom, transparent, rgba(248,250,252,0.95))' } })
     ),
 
     // Card section
     e('div', {
-      style: { display: 'flex', flexDirection: 'column', flex: 1, padding: '16px 40px 16px 40px', background: '#f0fdf4' }
+      style: { display: 'flex', flexDirection: 'column', flex: 1, padding: '14px 40px 14px 40px', background: '#f0fdf4' }
     },
-      // Location row
-      location ? e('div', {
-        style: { display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }
+      // Location | Layout name row
+      e('div', {
+        style: { display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4, flexWrap: 'wrap' }
       },
         e('div', { style: { display: 'flex', width: 8, height: 8, background: '#3b82f6', borderRadius: 4, flexShrink: 0 } }),
-        e('span', { style: { display: 'flex', fontSize: 15, color: '#475569', fontWeight: 600 } }, location)
-      ) : null,
-
-      // Property name
-      layoutOrLandmark ? e('div', {
-        style: { display: 'flex', fontSize: 26, fontWeight: 800, color: '#0f172a', lineHeight: 1.15, letterSpacing: '-0.3px' }
-      }, layoutOrLandmark) : null,
+        locationStr ? e('span', { style: { display: 'flex', fontSize: 15, color: '#475569', fontWeight: 600 } }, locationStr) : null,
+        locationStr && layoutOrLandmark ? e('span', { style: { display: 'flex', fontSize: 15, color: '#cbd5e1', fontWeight: 400 } }, '|') : null,
+        layoutOrLandmark ? e('span', { style: { display: 'flex', fontSize: 17, fontWeight: 800, color: '#0f172a' } }, layoutOrLandmark) : null,
+      ),
 
       // Info line
       infoLine ? e('div', {
@@ -142,7 +144,7 @@ export async function GET(request) {
       e('div', {
         style: { display: 'flex', alignItems: 'center', gap: 6, marginTop: 10 }
       },
-        e('div', { style: { display: 'flex', width: 16, height: 16, background: '#16a34a', borderRadius: 3, alignItems: 'center', justifyContent: 'center' } },
+        e('div', { style: { display: 'flex', width: 16, height: 16, background: '#24675e', borderRadius: 3, alignItems: 'center', justifyContent: 'center' } },
           e('span', { style: { display: 'flex', color: '#fff', fontSize: 10, fontWeight: 800 } }, 'TN')
         ),
         e('span', { style: { display: 'flex', fontSize: 13, color: '#64748b', fontWeight: 600 } }, 'tnpropertymandi.in')
