@@ -17,8 +17,10 @@ const fmt = (n) => {
 
 const toAbsoluteUrl = (url) => {
   if (!url) return null;
-  if (url.startsWith('http://') || url.startsWith('https://')) return url;
-  return `${SITE_URL}${url.startsWith('/') ? '' : '/'}${url}`;
+  const s = String(url).trim();
+  if (!s) return null;
+  if (s.startsWith('http://') || s.startsWith('https://')) return s;
+  return `${SITE_URL}${s.startsWith('/') ? '' : '/'}${s}`;
 };
 
 const e = React.createElement;
@@ -28,7 +30,11 @@ export async function GET(request) {
   const identifier = searchParams.get('id') || '';
 
   let p = null;
-  try { p = identifier ? await getPropertyMeta(identifier) : null; } catch {}
+  try {
+    p = identifier ? await getPropertyMeta(identifier) : null;
+  } catch (err) {
+    console.error('[og/property] getPropertyMeta error:', err?.message || err);
+  }
 
   const fallback = e('div', {
     style: { display: 'flex', width: '100%', height: '100%', background: '#0f172a', alignItems: 'center', justifyContent: 'center' }
@@ -47,7 +53,6 @@ export async function GET(request) {
   const saleType = (p.sale_type || '').toLowerCase();
   const landmark = p.street_name_or_road_name || p.landmark || p.street_name || '';
   const layoutOrLandmark = p.layout_name || p.title || landmark || '';
-  // Show village only, fallback to taluk, then district
   const locationStr = p.village_name || p.taluk_name || p.district_name || '';
 
   const price = isRent ? fmt(p.rent_amount) : fmt(p.sale_price);
@@ -62,25 +67,16 @@ export async function GET(request) {
   const extentPart = [p.area_size].filter(Boolean).join(' ')
     || [p.extent_area, p.extent_unit].filter(Boolean).join(' ');
 
-  const rawImage = p.primary_image;
-  const imageUrl = toAbsoluteUrl(rawImage) || DEFAULT_IMAGE;
+  const imageUrl = toAbsoluteUrl(p.primary_image) || DEFAULT_IMAGE;
 
   const idPart = p.formatted_id || '';
   const infoLine = [idPart, typePart, priceDisplay, extentPart].filter(Boolean).join(' / ');
 
-  // Ratings data
-  const areaSalesSpeed = p.area_sales_speed != null
-    ? `${Number(p.area_sales_speed).toFixed(1)}/M`
-    : '—';
-  const amenitiesRating = p.amenities_rating != null
-    ? `${Number(p.amenities_rating).toFixed(1)}/10`
-    : '—';
-  const locationRating = p.utilities_rating != null
-    ? `${Number(p.utilities_rating).toFixed(1)}/10`
-    : '—';
+  const areaSalesSpeed = p.area_sales_speed != null ? `${Number(p.area_sales_speed).toFixed(1)}/M` : '—';
+  const amenitiesRating = p.amenities_rating != null ? `${Number(p.amenities_rating).toFixed(1)}/10` : '—';
+  const locationRating = p.utilities_rating != null ? `${Number(p.utilities_rating).toFixed(1)}/10` : '—';
   const legalGrade = p.legal_value || '—';
 
-  // Rating cell — no border-radius, no gap (matches card UI)
   const ratingCell = (bg, label, sublabel, value) =>
     e('div', {
       style: {
@@ -94,7 +90,7 @@ export async function GET(request) {
     );
 
   const ratingsRow = e('div', {
-    style: { display: 'flex', gap: 0, padding: 0, background: '#e2e8f0', borderRadius: 8, marginTop: 14, overflow: 'hidden', border: '1px solid #cbd5e1' }
+    style: { display: 'flex', gap: 0, background: '#e2e8f0', borderRadius: 8, marginTop: 14, overflow: 'hidden', border: '1px solid #cbd5e1' }
   },
     ...(isRent ? [] : [
       ratingCell('#24675e', 'Legal', 'grade', legalGrade),
@@ -110,11 +106,8 @@ export async function GET(request) {
     style: { display: 'flex', flexDirection: 'column', width: '100%', height: '100%', background: '#f8fafc', fontFamily: 'sans-serif' }
   },
     // Property photo
-    e('div', { style: { display: 'flex', position: 'relative', width: '100%', height: IMG_H, overflow: 'hidden' } },
-      e('img', {
-        src: imageUrl,
-        style: { width: '100%', height: '100%', objectFit: 'cover' }
-      }),
+    e('div', { style: { display: 'flex', position: 'relative', width: '100%', height: IMG_H, overflow: 'hidden', background: '#e2e8f0' } },
+      e('img', { src: imageUrl, style: { width: '100%', height: '100%', objectFit: 'cover' }, alt: '' }),
       e('div', { style: { display: 'flex', position: 'absolute', bottom: 0, left: 0, right: 0, height: 60, background: 'linear-gradient(to bottom, transparent, rgba(248,250,252,0.95))' } })
     ),
 
@@ -122,28 +115,32 @@ export async function GET(request) {
     e('div', {
       style: { display: 'flex', flexDirection: 'column', flex: 1, padding: '14px 40px 14px 40px', background: '#f0fdf4' }
     },
-      // Location | Layout name row
+      // Location pin dot + location | layout name on same line
       e('div', {
         style: { display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4, flexWrap: 'wrap' }
       },
         e('div', { style: { display: 'flex', width: 8, height: 8, background: '#3b82f6', borderRadius: 4, flexShrink: 0 } }),
-        locationStr ? e('span', { style: { display: 'flex', fontSize: 15, color: '#475569', fontWeight: 600 } }, locationStr) : null,
-        locationStr && layoutOrLandmark ? e('span', { style: { display: 'flex', fontSize: 15, color: '#cbd5e1', fontWeight: 400 } }, '|') : null,
-        layoutOrLandmark ? e('span', { style: { display: 'flex', fontSize: 17, fontWeight: 800, color: '#0f172a' } }, layoutOrLandmark) : null,
+        locationStr
+          ? e('span', { style: { display: 'flex', fontSize: 15, color: '#475569', fontWeight: 600 } }, locationStr)
+          : null,
+        locationStr && layoutOrLandmark
+          ? e('span', { style: { display: 'flex', fontSize: 15, color: '#cbd5e1', marginLeft: 2, marginRight: 2 } }, '|')
+          : null,
+        layoutOrLandmark
+          ? e('span', { style: { display: 'flex', fontSize: 17, fontWeight: 800, color: '#0f172a' } }, layoutOrLandmark)
+          : null,
       ),
 
       // Info line
-      infoLine ? e('div', {
-        style: { display: 'flex', fontSize: 14, color: '#64748b', marginTop: 2, fontWeight: 500 }
-      }, infoLine) : null,
+      infoLine
+        ? e('div', { style: { display: 'flex', fontSize: 14, color: '#64748b', marginTop: 2, fontWeight: 500 } }, infoLine)
+        : null,
 
-      // Ratings
+      // Ratings grid
       ratingsRow,
 
-      // Domain
-      e('div', {
-        style: { display: 'flex', alignItems: 'center', gap: 6, marginTop: 10 }
-      },
+      // Domain badge
+      e('div', { style: { display: 'flex', alignItems: 'center', gap: 6, marginTop: 10 } },
         e('div', { style: { display: 'flex', width: 16, height: 16, background: '#24675e', borderRadius: 3, alignItems: 'center', justifyContent: 'center' } },
           e('span', { style: { display: 'flex', color: '#fff', fontSize: 10, fontWeight: 800 } }, 'TN')
         ),

@@ -52,9 +52,12 @@ export async function generateMetadata({ params }) {
 
   try {
     const property = await getPropertyMeta(identifier);
-    if (!property) return { title: 'Property | TN Property Mandi' };
+    if (!property) {
+      console.warn('[generateMetadata] property not found for identifier:', identifier);
+      return { title: 'Property | TN Property Mandi' };
+    }
 
-    const { title, description, lat, lng, districtName } = buildPropertyMeta(property);
+    const { title, description, imageUrl, lat, lng, districtName } = buildPropertyMeta(property);
     const ogImageUrl = `${SITE_URL}/api/og/property?id=${encodeURIComponent(identifier)}`;
 
     return {
@@ -67,6 +70,7 @@ export async function generateMetadata({ params }) {
         images: [{ url: ogImageUrl, width: 1200, height: 630, alt: title }],
         locale: 'en_IN',
         type: 'website',
+        url: `${SITE_URL}/property/${slug.join('/')}`,
       },
       twitter: {
         card: 'summary_large_image',
@@ -80,7 +84,8 @@ export async function generateMetadata({ params }) {
         ...(lat && lng ? { 'geo.position': `${lat};${lng}`, ICBM: `${lat}, ${lng}` } : {}),
       },
     };
-  } catch {
+  } catch (err) {
+    console.error('[generateMetadata] failed for identifier:', identifier, err?.message || err);
     return { title: 'Property | TN Property Mandi' };
   }
 }
