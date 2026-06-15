@@ -35,8 +35,8 @@ function buildCardSvg({ loc, layout, info, legal, speed, amenities, locscore, is
   // Rating boxes — fill bottom of card
   const numBoxes = isRent ? 2 : 4;
   const boxW = Math.floor((W - PX * 2) / numBoxes);
-  const boxH = 80;
-  const boxY = 52;  // right after the two text lines
+  const boxH = 84;
+  const boxY = 62;  // pushed down to give room for larger header text
 
   const boxDefs = isRent
     ? [
@@ -54,33 +54,33 @@ function buildCardSvg({ loc, layout, info, legal, speed, amenities, locscore, is
     const bx = PX + i * boxW;
     return `
       <rect x="${bx}" y="${boxY}" width="${boxW}" height="${boxH}" fill="${bg}"/>
-      <text x="${bx + boxW / 2}" y="${boxY + 19}" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" font-weight="700" fill="rgba(255,255,255,0.9)">${label}</text>
-      <text x="${bx + boxW / 2}" y="${boxY + 33}" text-anchor="middle" font-family="Arial,sans-serif" font-size="10" fill="rgba(255,255,255,0.7)">${sub}</text>
-      <text x="${bx + boxW / 2}" y="${boxY + 63}" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="800" fill="#ffffff">${xe(val)}</text>`;
+      <text x="${bx + boxW / 2}" y="${boxY + 20}" text-anchor="middle" font-family="Arial,sans-serif" font-size="14" font-weight="700" fill="rgba(255,255,255,0.9)">${label}</text>
+      <text x="${bx + boxW / 2}" y="${boxY + 35}" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" fill="rgba(255,255,255,0.75)">${sub}</text>
+      <text x="${bx + boxW / 2}" y="${boxY + 68}" text-anchor="middle" font-family="Arial,sans-serif" font-size="30" font-weight="800" fill="#ffffff">${xe(val)}</text>`;
   }).join('');
 
   // Brand row sits below boxes
-  const brandY = boxY + boxH + 14;
+  const brandY = boxY + boxH + 10;
 
   return `<svg width="${W}" height="${CARD_H}" xmlns="http://www.w3.org/2000/svg">
   <rect width="${W}" height="${CARD_H}" fill="#f0fdf4"/>
 
   <!-- Location pin icon (circle + stem) -->
-  <circle cx="${PX + 6}" cy="17" r="6" fill="#3b82f6"/>
-  <line x1="${PX + 6}" y1="23" x2="${PX + 6}" y2="30" stroke="#3b82f6" stroke-width="2"/>
+  <circle cx="${PX + 7}" cy="20" r="7" fill="#3b82f6"/>
+  <line x1="${PX + 7}" y1="27" x2="${PX + 7}" y2="36" stroke="#3b82f6" stroke-width="2"/>
 
   <!-- Line 1: location | layout -->
-  <text x="${PX + 18}" y="22" font-family="Arial,sans-serif" font-size="15" font-weight="700" fill="#1e293b">${line1}</text>
+  <text x="${PX + 22}" y="26" font-family="Arial,sans-serif" font-size="19" font-weight="700" fill="#1e293b">${line1}</text>
 
   <!-- Line 2: formatted_id / type -->
-  ${line2 ? `<text x="${PX + 18}" y="40" font-family="Arial,sans-serif" font-size="12" fill="#64748b">${line2}</text>` : ''}
+  ${line2 ? `<text x="${PX + 22}" y="48" font-family="Arial,sans-serif" font-size="15" fill="#64748b">${line2}</text>` : ''}
 
   ${boxes}
 
   <!-- Brand -->
-  <rect x="${PX}" y="${brandY}" width="16" height="16" rx="3" fill="#24675e"/>
-  <text x="${PX + 8}" y="${brandY + 11}" text-anchor="middle" font-family="Arial,sans-serif" font-size="8" font-weight="800" fill="#ffffff">TN</text>
-  <text x="${PX + 23}" y="${brandY + 12}" font-family="Arial,sans-serif" font-size="12" font-weight="600" fill="#64748b">tnpropertymandi.in</text>
+  <rect x="${PX}" y="${brandY}" width="18" height="18" rx="3" fill="#24675e"/>
+  <text x="${PX + 9}" y="${brandY + 13}" text-anchor="middle" font-family="Arial,sans-serif" font-size="9" font-weight="800" fill="#ffffff">TN</text>
+  <text x="${PX + 26}" y="${brandY + 13}" font-family="Arial,sans-serif" font-size="13" font-weight="600" fill="#64748b">tnpropertymandi.in</text>
 </svg>`;
 }
 
