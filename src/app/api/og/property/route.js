@@ -55,7 +55,7 @@ function buildCardSvg({ loc, layout, info, legal, speed, amenities, locscore, is
     return `
       <rect x="${bx}" y="${boxY}" width="${boxW}" height="${boxH}" fill="${bg}"/>
       <text x="${bx + boxW / 2}" y="${boxY + 20}" text-anchor="middle" font-family="Arial,sans-serif" font-size="14" font-weight="700" fill="rgba(255,255,255,0.9)">${label}</text>
-      <text x="${bx + boxW / 2}" y="${boxY + 35}" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" fill="rgba(255,255,255,0.75)">${sub}</text>
+      <text x="${bx + boxW / 2}" y="${boxY + 37}" text-anchor="middle" font-family="Arial,sans-serif" font-size="16" fill="rgba(255,255,255,0.75)">${sub}</text>
       <text x="${bx + boxW / 2}" y="${boxY + 68}" text-anchor="middle" font-family="Arial,sans-serif" font-size="30" font-weight="800" fill="#ffffff">${xe(val)}</text>`;
   }).join('');
 
@@ -73,7 +73,7 @@ function buildCardSvg({ loc, layout, info, legal, speed, amenities, locscore, is
   <text x="${PX + 22}" y="26" font-family="Arial,sans-serif" font-size="19" font-weight="700" fill="#1e293b">${line1}</text>
 
   <!-- Line 2: formatted_id / type -->
-  ${line2 ? `<text x="${PX + 22}" y="48" font-family="Arial,sans-serif" font-size="15" fill="#64748b">${line2}</text>` : ''}
+  ${line2 ? `<text x="${PX + 22}" y="48" font-family="Arial,sans-serif" font-size="18" fill="#64748b">${line2}</text>` : ''}
 
   ${boxes}
 
