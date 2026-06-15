@@ -54,13 +54,10 @@ function buildCardSvg({ loc, layout, info, legal, speed, amenities, locscore, is
     const bx = PX + i * boxW;
     return `
       <rect x="${bx}" y="${boxY}" width="${boxW}" height="${boxH}" fill="${bg}"/>
-      <text x="${bx + boxW / 2}" y="${boxY + 20}" text-anchor="middle" font-family="Arial,sans-serif" font-size="14" font-weight="700" fill="rgba(255,255,255,0.9)">${label}</text>
+      <text x="${bx + boxW / 2}" y="${boxY + 22}" text-anchor="middle" font-family="Arial,sans-serif" font-size="22" font-weight="700" fill="rgba(255,255,255,0.9)">${label}</text>
       <text x="${bx + boxW / 2}" y="${boxY + 37}" text-anchor="middle" font-family="Arial,sans-serif" font-size="16" fill="rgba(255,255,255,0.75)">${sub}</text>
       <text x="${bx + boxW / 2}" y="${boxY + 68}" text-anchor="middle" font-family="Arial,sans-serif" font-size="30" font-weight="800" fill="#ffffff">${xe(val)}</text>`;
   }).join('');
-
-  // Brand row sits below boxes
-  const brandY = boxY + boxH + 10;
 
   return `<svg width="${W}" height="${CARD_H}" xmlns="http://www.w3.org/2000/svg">
   <rect width="${W}" height="${CARD_H}" fill="#f0fdf4"/>
@@ -70,17 +67,12 @@ function buildCardSvg({ loc, layout, info, legal, speed, amenities, locscore, is
   <line x1="${PX + 7}" y1="27" x2="${PX + 7}" y2="36" stroke="#3b82f6" stroke-width="2"/>
 
   <!-- Line 1: location | layout -->
-  <text x="${PX + 22}" y="26" font-family="Arial,sans-serif" font-size="19" font-weight="700" fill="#1e293b">${line1}</text>
+  <text x="${PX + 22}" y="28" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#1e293b">${line1}</text>
 
   <!-- Line 2: formatted_id / type -->
-  ${line2 ? `<text x="${PX + 22}" y="48" font-family="Arial,sans-serif" font-size="18" fill="#64748b">${line2}</text>` : ''}
+  ${line2 ? `<text x="${PX + 22}" y="52" font-family="Arial,sans-serif" font-size="22" fill="#64748b">${line2}</text>` : ''}
 
   ${boxes}
-
-  <!-- Brand -->
-  <rect x="${PX}" y="${brandY}" width="18" height="18" rx="3" fill="#24675e"/>
-  <text x="${PX + 9}" y="${brandY + 13}" text-anchor="middle" font-family="Arial,sans-serif" font-size="9" font-weight="800" fill="#ffffff">TN</text>
-  <text x="${PX + 26}" y="${brandY + 13}" font-family="Arial,sans-serif" font-size="13" font-weight="600" fill="#64748b">tnpropertymandi.in</text>
 </svg>`;
 }
 
