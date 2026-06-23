@@ -38,6 +38,7 @@ export const getAll = async () => {
       COALESCE((SELECT COUNT(DISTINCT b.buyer_id)::INT FROM bookings b
         WHERE b.property_id = p.property_id AND b.unit_type = 'rent'), 0) AS booked_people_count,
       p.live_image, p.latitude, p.longitude, p.district_id, p.taluk_id, p.village_id, p.area_id,
+      p.amenities_rating, p.utilities_rating,
       r.bhk, r.rent_amount, r.advance_amount, r.property_use, r.furnished_status, r.rent_status,
       r.landmark, r.street_name, r.extent_area, r.extent_unit,
       r.alternate_contact_phone, r.alternate_seller_name,
@@ -64,6 +65,7 @@ export const getById = async (propertyId) => {
       COALESCE((SELECT COUNT(DISTINCT b.buyer_id)::INT FROM bookings b
         WHERE b.property_id = p.property_id AND b.unit_type = 'rent'), 0) AS booked_people_count,
       p.live_image, p.latitude, p.longitude, p.district_id, p.taluk_id, p.village_id, p.area_id,
+      p.amenities_rating, p.utilities_rating,
       r.bhk, r.rent_amount, r.advance_amount, r.property_use, r.furnished_status, r.rent_status,
       r.landmark, r.street_name, r.extent_area, r.extent_unit,
       r.alternate_contact_phone, r.alternate_seller_name,
@@ -148,8 +150,16 @@ export const updateRentProperty = async (propertyId, data, files = {}) => {
 
   await prisma.$transaction(async (tx) => {
     if (phone) {
-      const sellerCheck = await tx.$queryRawUnsafe('SELECT seller_id FROM sellers WHERE seller_id = $1', currentSellerId);
-      if (sellerCheck.length > 0) {
+      const sellerByPhone = await tx.$queryRawUnsafe('SELECT seller_id, name FROM sellers WHERE phone_number = $1 LIMIT 1', phone);
+      if (sellerByPhone.length > 0) {
+        const targetId = sellerByPhone[0].seller_id;
+        if (sellerName && sellerName !== sellerByPhone[0].name) {
+          await tx.$executeRawUnsafe('UPDATE sellers SET name = $1 WHERE seller_id = $2', sellerName, targetId);
+        }
+        if (String(targetId) !== String(currentSellerId)) {
+          await tx.$executeRawUnsafe('UPDATE properties SET seller_id = $1 WHERE property_id = $2', targetId, propertyId);
+        }
+      } else if (currentSellerId) {
         await tx.$executeRawUnsafe('UPDATE sellers SET name = $1, phone_number = $2 WHERE seller_id = $3', sellerName, phone, currentSellerId);
       } else {
         const newSeller = await tx.$queryRawUnsafe('INSERT INTO sellers (name, phone_number) VALUES ($1, $2) RETURNING seller_id', sellerName, phone);
@@ -161,10 +171,11 @@ export const updateRentProperty = async (propertyId, data, files = {}) => {
       await tx.$executeRawUnsafe('UPDATE properties SET formatted_id = $1 WHERE property_id = $2', newFormattedId, propertyId);
     }
     await tx.$executeRawUnsafe(
-      `UPDATE properties SET title=$1, description=$2, contact_phone=$3, address=$4, district_id=$5, taluk_id=$6, village_id=$7, area_id=$8, status=$9, latitude=$10, longitude=$11, live_image=$12 WHERE property_id=$13`,
+      `UPDATE properties SET title=$1, description=$2, contact_phone=$3, address=$4, district_id=$5, taluk_id=$6, village_id=$7, area_id=$8, status=$9, latitude=$10, longitude=$11, live_image=$12, amenities_rating=$13, utilities_rating=$14 WHERE property_id=$15`,
       toStr(data.title), toStr(data.description), toStr(phone), toStr(data.address),
       toInt(data.district_id), toInt(data.taluk_id), toInt(data.village_id), toInt(data.area_id),
-      toStr(data.status), toFloat(data.latitude), toFloat(data.longitude), liveImageUrl, propertyId
+      toStr(data.status), toFloat(data.latitude), toFloat(data.longitude), liveImageUrl,
+      toFloat(data.amenities_rating), toFloat(data.utilities_rating), propertyId
     );
     await tx.$executeRawUnsafe(
       `UPDATE rent_properties SET bhk=$1, rent_amount=$2, advance_amount=$3, property_use=$4, furnished_status=$5, rent_status=$6, landmark=$7, street_name=$8, extent_area=$9, extent_unit=$10, alternate_contact_phone=$11, alternate_seller_name=$12, description=$13, token_amount=$14, token_paid_to=$15, rent_out_rate=$16, rent_out_date=$17, legal_value=$18, area_sales_speed=$19, facing=$20, road_width=$21 WHERE property_id=$22`,

@@ -228,6 +228,7 @@ const PostPropertyFlow = ({ onClose, initialTransactionType = 'rent', onSuccessf
 
         try {
             let payload = {
+                contact_phone: formData.number || null,
                 district_id: formData.district_id,
                 taluk_id: formData.taluk_id,
                 village_id: formData.village_id,
