@@ -5,6 +5,37 @@ const toInt = (v) => (v === '' || v === undefined || v === null ? null : parseIn
 const toFloat = (v) => (v === '' || v === undefined || v === null ? null : parseFloat(v));
 const toStr = (v) => (v === '' || v === undefined ? null : v);
 
+const normalizeDtcp = (value) => String(value || '').trim();
+
+const assertUniqueDtcp = async (tx, dtcp, propertyId = null) => {
+  const normalized = normalizeDtcp(dtcp);
+  if (!normalized) return;
+
+  const existing = propertyId
+    ? await tx.$queryRawUnsafe(
+        `SELECT sp.property_id
+         FROM sale_properties sp
+         WHERE LOWER(TRIM(sp.dtcp)) = LOWER($1)
+           AND sp.property_id <> $2
+         LIMIT 1`,
+        normalized,
+        propertyId
+      )
+    : await tx.$queryRawUnsafe(
+        `SELECT sp.property_id
+         FROM sale_properties sp
+         WHERE LOWER(TRIM(sp.dtcp)) = LOWER($1)
+         LIMIT 1`,
+        normalized
+      );
+
+  if (existing.length > 0) {
+    const error = new Error('DTCP number already exists for another property');
+    error.code = 'DTCP_EXISTS';
+    throw error;
+  }
+};
+
 const allocateFormattedId = async (tx, districtId) => {
   const did = toInt(districtId);
   if (!did) return null;
@@ -40,7 +71,7 @@ export const getAll = async () => {
       s.sale_type, s.price, s.rate_unit, s.area_size, s.extension, s.street_name_or_road_name, s.survey_number,
       s.boundary_north, s.boundary_south, s.boundary_east, s.boundary_west, s.sale_status,
       s.drawing_image, s.total_units_count, s.booked_units, s.open_units,
-      s.alternate_contact_phone, s.alternate_seller_name, s.layout_name, s.dtcp,
+      s.alternate_contact_phone, s.alternate_seller_name, s.listing_person_phone, s.layout_name, s.dtcp,
       s.parent_document, s.sub_registrar_office, s.gift_deed,
       s.token_amount, s.token_paid_to, s.sold_rate, s.sold_date, s.advance_amount,
       s.legal_value, s.area_sales_speed, s.facing, s.road_width,
@@ -68,7 +99,7 @@ export const getById = async (propertyId) => {
       s.sale_type, s.price, s.rate_unit, s.area_size, s.extension, s.street_name_or_road_name, s.survey_number,
       s.boundary_north, s.boundary_south, s.boundary_east, s.boundary_west, s.sale_status,
       s.drawing_image, s.total_units_count, s.booked_units, s.open_units,
-      s.alternate_contact_phone, s.alternate_seller_name, s.layout_name, s.dtcp,
+      s.alternate_contact_phone, s.alternate_seller_name, s.listing_person_phone, s.layout_name, s.dtcp,
       s.parent_document, s.sub_registrar_office, s.gift_deed,
       s.token_amount, s.token_paid_to, s.sold_rate, s.sold_date, s.advance_amount,
       s.legal_value, s.area_sales_speed, s.facing, s.road_width,
@@ -99,6 +130,7 @@ export const createSaleProperty = async (data, files = {}) => {
         sellerId = newSeller[0].seller_id;
       }
     }
+    await assertUniqueDtcp(tx, data.dtcp);
     const propRes = await tx.$queryRawUnsafe(
       `INSERT INTO properties (property_type, seller_id, title, description, contact_phone, address, latitude, longitude, district_id, taluk_id, village_id, area_id, status, live_image)
        VALUES ('sale', $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING property_id`,
@@ -109,15 +141,15 @@ export const createSaleProperty = async (data, files = {}) => {
     const propertyId = propRes[0].property_id;
     const saleType = toStr(data.sale_type)?.toLowerCase();
     await tx.$executeRawUnsafe(
-      `INSERT INTO sale_properties (property_id, sale_type, price, rate_unit, area_size, street_name_or_road_name, survey_number, boundary_north, boundary_south, boundary_east, boundary_west, sale_status, drawing_image, total_units_count, booked_units, open_units, alternate_contact_phone, alternate_seller_name, layout_name, dtcp, parent_document, sub_registrar_office, gift_deed, legal_value, area_sales_speed, facing, road_width)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27)`,
+      `INSERT INTO sale_properties (property_id, sale_type, price, rate_unit, area_size, street_name_or_road_name, survey_number, boundary_north, boundary_south, boundary_east, boundary_west, sale_status, drawing_image, total_units_count, booked_units, open_units, alternate_contact_phone, alternate_seller_name, listing_person_phone, layout_name, dtcp, parent_document, sub_registrar_office, gift_deed, legal_value, area_sales_speed, facing, road_width)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28)`,
       propertyId, toStr(data.sale_type), toInt(data.price) || 0, toStr(data.rate_unit), toStr(data.area_size),
       toStr(data.street_name_or_road_name), toStr(data.survey_number),
       toStr(data.boundary_north), toStr(data.boundary_south), toStr(data.boundary_east), toStr(data.boundary_west),
       toStr(data.sale_status), null, toInt(data.total_units_count) || 0,
       toStr(data.booked_units) || 0, toStr(data.open_units) || 0,
       toStr(data.alternate_contact_phone), toStr(data.alternate_seller_name),
-      toStr(data.layout_name), toStr(data.dtcp), toStr(data.parent_document),
+      toStr(data.listing_person_phone), toStr(data.layout_name), toStr(data.dtcp), toStr(data.parent_document),
       toStr(data.sub_registrar_office), toStr(data.gift_deed),
       toStr(data.legal_value) || 'A+', toFloat(data.area_sales_speed),
       toStr(data.facing), toStr(data.road_width)
@@ -179,6 +211,7 @@ export const updateSaleProperty = async (propertyId, data, files = {}) => {
         await tx.$executeRawUnsafe('UPDATE properties SET seller_id = $1 WHERE property_id = $2', ns[0].seller_id, propertyId);
       }
     }
+    await assertUniqueDtcp(tx, data.dtcp, propertyId);
     if (toInt(data.district_id) !== toInt(currentDistrictId)) {
       const newFormattedId = await allocateFormattedId(tx, data.district_id);
       await tx.$executeRawUnsafe('UPDATE properties SET formatted_id = $1 WHERE property_id = $2', newFormattedId, propertyId);
@@ -192,13 +225,13 @@ export const updateSaleProperty = async (propertyId, data, files = {}) => {
       propertyId
     );
     await tx.$executeRawUnsafe(
-      `UPDATE sale_properties SET sale_type=$1, price=$2, rate_unit=$3, area_size=$4, street_name_or_road_name=$5, survey_number=$6, boundary_north=$7, boundary_south=$8, boundary_east=$9, boundary_west=$10, sale_status=$11, total_units_count=$12, booked_units=$13, open_units=$14, drawing_image=$15, alternate_contact_phone=$16, alternate_seller_name=$17, layout_name=$18, dtcp=$19, parent_document=$20, sub_registrar_office=$21, gift_deed=$22, token_amount=$23, token_paid_to=$24, sold_rate=$25, sold_date=$26, advance_amount=$27, extension=$28, legal_value=$29, area_sales_speed=$30, facing=$31, road_width=$32 WHERE property_id=$33`,
+      `UPDATE sale_properties SET sale_type=$1, price=$2, rate_unit=$3, area_size=$4, street_name_or_road_name=$5, survey_number=$6, boundary_north=$7, boundary_south=$8, boundary_east=$9, boundary_west=$10, sale_status=$11, total_units_count=$12, booked_units=$13, open_units=$14, drawing_image=$15, alternate_contact_phone=$16, alternate_seller_name=$17, listing_person_phone=$18, layout_name=$19, dtcp=$20, parent_document=$21, sub_registrar_office=$22, gift_deed=$23, token_amount=$24, token_paid_to=$25, sold_rate=$26, sold_date=$27, advance_amount=$28, extension=$29, legal_value=$30, area_sales_speed=$31, facing=$32, road_width=$33 WHERE property_id=$34`,
       toStr(data.sale_type), toFloat(data.price) || 0, toStr(data.rate_unit), toStr(data.area_size), toStr(data.street_name_or_road_name),
       toStr(data.survey_number), toStr(data.boundary_north), toStr(data.boundary_south),
       toStr(data.boundary_east), toStr(data.boundary_west), toStr(data.sale_status),
       toInt(data.total_units_count) || 0, toStr(data.booked_units) || 0, toStr(data.open_units) || 0,
       drawingImageUrl, toStr(data.alternate_contact_phone), toStr(data.alternate_seller_name),
-      toStr(data.layout_name), toStr(data.dtcp), toStr(data.parent_document),
+      toStr(data.listing_person_phone), toStr(data.layout_name), toStr(data.dtcp), toStr(data.parent_document),
       toStr(data.sub_registrar_office), toStr(data.gift_deed),
       toFloat(data.token_amount), toStr(data.token_paid_to),
       toFloat(data.sold_rate), data.sold_date && data.sold_date !== '' ? new Date(data.sold_date) : null,

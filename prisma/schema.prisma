@@ -346,6 +346,7 @@ model sale_properties {
   drawing_image            String?
   alternate_contact_phone  String?    @db.VarChar(15)
   alternate_seller_name    String?    @db.VarChar(255)
+  listing_person_phone      String?    @db.VarChar(20)
   layout_name              String?    @db.VarChar(255)
   dtcp                     String?    @db.VarChar(255)
   parent_document          String?

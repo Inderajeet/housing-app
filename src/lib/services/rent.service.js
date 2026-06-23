@@ -12,6 +12,7 @@ export async function getAll(type) {
       d.district_id, d.district_name, t.taluk_id, t.taluk_name, v.village_id, v.village_name,
       r.bhk, r.rent_amount, r.advance_amount, r.property_use, r.furnished_status, r.rent_status,
       r.landmark, r.street_name, r.extent_area, r.extent_unit,
+      r.alternate_contact_phone,
       r.legal_value, r.area_sales_speed, r.facing, r.road_width,
       s.name AS seller_name,
       (SELECT JSON_AGG(JSON_BUILD_OBJECT('url', file_url)) FROM property_assets
@@ -48,8 +49,9 @@ export async function createRentProperty(data, files = {}) {
 
   const result = await prisma.$transaction(async (tx) => {
     const sellerCheck = await tx.$queryRawUnsafe('SELECT seller_id FROM sellers WHERE phone_number = $1 LIMIT 1', phone);
-    if (sellerCheck.length > 0) {
-      sellerId = sellerCheck[0].seller_id;
+    const existingOwner = sellerCheck.length > 0;
+    if (existingOwner) {
+        sellerId = sellerCheck[0].seller_id;
     } else {
       const newSeller = await tx.$queryRawUnsafe(
         'INSERT INTO sellers (name, phone_number) VALUES ($1, $2) RETURNING seller_id',
@@ -75,16 +77,16 @@ export async function createRentProperty(data, files = {}) {
       if (!(e.meta?.code === '23505' || e.code === 'P2002')) throw e;
     }
 
-    return { propertyId, sellerId };
+    return { propertyId, sellerId, existingOwner };
   });
 
-  const { propertyId } = result;
+  const { propertyId, existingOwner } = result;
   if (files.live_image) {
     const upload = await uploadToCloudflare(propertyId, 'live_image', files.live_image);
     await prisma.$executeRawUnsafe('UPDATE properties SET live_image = $1 WHERE property_id = $2', upload.url, propertyId);
   }
 
-  return { property_id: propertyId, seller_id: sellerId };
+  return { property_id: propertyId, seller_id: sellerId, existing_owner: existingOwner };
 }
 
 export async function updateRentProperty(propertyId, data, files = {}) {
@@ -120,16 +122,16 @@ export async function updateRentProperty(propertyId, data, files = {}) {
     const rentCheck = await tx.$queryRawUnsafe('SELECT 1 FROM rent_properties WHERE property_id = $1', propertyId);
     if (rentCheck.length === 0) {
       await tx.$executeRawUnsafe(
-        `INSERT INTO rent_properties (property_id, bhk, rent_amount, advance_amount, property_use, rent_status, landmark, street_name, extent_area, extent_unit)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-        propertyId, bhkNumber, rentAmount, advanceAmount, propertyUse || null, 'Nil Booking', data.landmark || null, data.street_name || null, extentArea, data.extent_unit || null
+        `INSERT INTO rent_properties (property_id, bhk, rent_amount, advance_amount, property_use, rent_status, landmark, street_name, extent_area, extent_unit, alternate_contact_phone)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+        propertyId, bhkNumber, rentAmount, advanceAmount, propertyUse || null, 'Nil Booking', data.landmark || null, data.street_name || null, extentArea, data.extent_unit || null, data.alternate_contact_phone || null
       );
     } else {
       await tx.$executeRawUnsafe(
         `UPDATE rent_properties SET bhk=$1, rent_amount=$2, advance_amount=$3, property_use=$4,
-         rent_status=$5, landmark=$6, street_name=$7, extent_area=$8, extent_unit=$9 WHERE property_id=$10`,
+         rent_status=$5, landmark=$6, street_name=$7, extent_area=$8, extent_unit=$9, alternate_contact_phone=$10 WHERE property_id=$11`,
         bhkNumber, rentAmount, advanceAmount, propertyUse || null, data.rent_status || 'Nil Booking',
-        data.landmark || null, data.street_name || null, extentArea, data.extent_unit || null, propertyId
+        data.landmark || null, data.street_name || null, extentArea, data.extent_unit || null, data.alternate_contact_phone || null, propertyId
       );
     }
 

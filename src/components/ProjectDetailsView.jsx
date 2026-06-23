@@ -98,7 +98,7 @@ export default function ProjectDetailsView({ routeIdentifier = '', routeMode = n
 
   const mediaTabs = useMemo(() => normalImages.map((img, idx) => ({
     id: `image-${idx + 1}`,
-    label: normalImages.length === 1 ? 'Images' : `Image ${idx + 1}`,
+    label: 'Photos',
     src: img.src,
   })), [normalImages]);
 
@@ -220,7 +220,7 @@ export default function ProjectDetailsView({ routeIdentifier = '', routeMode = n
       <div className="main-content-flow-wrapper">
         <div className="fullview-tab-layout">
           <div className="fullview-main-area">
-            <div className={`fullview-panel ${activePanel === 'map' ? 'map-active-panel' : ''}`}>
+            <div className={`fullview-panel ${activePanel === 'map' ? 'map-active-panel' : ''} ${activeMediaTab ? 'image-active-panel' : ''}`}>
               {activePanel === 'map' && (
                 <div className="panel-content map-panel-content">
                   <GalleryMap location={mapLocation} title={displayTitle} status={propertyStatus} propertyData={project} />
@@ -245,19 +245,14 @@ export default function ProjectDetailsView({ routeIdentifier = '', routeMode = n
 
               {activeMediaTab && (
                 <div className="panel-content single-image-panel-content">
-                  <div className="single-image-title-row">
-                    <h2 className="section-title">{activeMediaTab.label}</h2>
+                  <div className="single-image-frame-area">
+                    <img src={activeMediaTab.src} alt="Property photo" />
                     {!showImageDetails && (
-                      <button type="button" className="image-details-btn" onClick={() => setShowImageDetails(true)}>
+                      <button type="button" className="image-details-btn image-details-float-btn" onClick={() => setShowImageDetails(true)}>
                         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="8" strokeWidth="3"/><line x1="12" y1="12" x2="12" y2="16"/></svg>
                         Details
                       </button>
                     )}
-                  </div>
-                  <div className="single-image-frame-area">
-                    <div className="single-image-frame">
-                      <img src={activeMediaTab.src} alt={activeMediaTab.label} />
-                    </div>
                     {showImageDetails && (
                       <div className="gallery-map-overlay-card image-panel-card">
                         <button className="popup-close-btn" onClick={() => setShowImageDetails(false)} aria-label="Close">✕</button>
@@ -385,12 +380,11 @@ export default function ProjectDetailsView({ routeIdentifier = '', routeMode = n
                   >
                     <div className="panel-thumb-media">
                       {tab.src ? (
-                        <img src={tab.src} alt={`${tab.label} preview`} />
+                        <img src={tab.src} alt="Property photo" />
                       ) : (
                         <div className="panel-thumb-fallback"><ImageIcon size={16} /></div>
                       )}
                     </div>
-                    <span>{tab.label}</span>
                   </button>
                 ))}
               </div>

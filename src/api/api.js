@@ -10,6 +10,10 @@ export const endpoints = {
   getDistricts: () => apiClient.get('/locations/districts'),
   getTaluks: (districtId) => apiClient.get(`/locations/taluks/${districtId}`),
   getVillages: (talukId) => apiClient.get(`/locations/villages/${talukId}`),
+  getAllDistrictsForPost: () => apiClient.get('/locations/districts?all=true'),
+  getAllTaluksForPost: (districtId) => apiClient.get(`/locations/taluks/${districtId}?all=true`),
+  getAllVillagesForPost: (talukId) => apiClient.get(`/locations/villages/${talukId}?all=true`),
+  checkRentOwner: (phone) => apiClient.get('/rent/check-owner', { params: { phone } }),
 
   getProperties: (mode, type = null) => {
     const normalizedMode = normalizeMode(mode);

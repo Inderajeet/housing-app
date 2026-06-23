@@ -28,7 +28,7 @@ const RATE_UNIT_OPTIONS = ['', 'sqft', 'cent'];
 const EXTENT_UNIT_OPTIONS = ['', 'sqft', 'cent', 'sq.m', 'acre', 'ground', 'guntha', 'kanal', 'marla'];
 
 const EMPTY_FORM = {
-  contact_phone: '', seller_name: '', alternate_contact_phone: '', alternate_seller_name: '',
+  contact_phone: '', seller_name: '', alternate_contact_phone: '', alternate_seller_name: '', listing_person_phone: '',
   title: '', address: '', latitude: '', longitude: '',
   district_id: '', taluk_id: '', village_id: '',
   status: 'pending', sale_type: SaleType.LAND, price: '', rate_unit: '', extension: '', area_size: '',
@@ -224,6 +224,7 @@ export default function SalePropertiesPage() {
       }
       return updated;
     });
+    if (key === 'dtcp') setError('');
   };
 
   const handleCoordBlur = useCallback(async (latVal, lngVal) => {
@@ -290,7 +291,11 @@ export default function SalePropertiesPage() {
       setMode('edit');
       setFormTab('seller');
     } catch (err) {
-      alert('Failed: ' + (err?.response?.data?.error || err.message));
+      if (err?.response?.data?.code === 'DTCP_EXISTS') {
+        setError('This DTCP number already exists for another property. Please enter a different number or close this form.');
+      } else {
+        alert('Failed: ' + (err?.response?.data?.error || err.message));
+      }
     }
     finally { setSubmitting(false); }
   };
@@ -302,7 +307,11 @@ export default function SalePropertiesPage() {
       await updateSaleProperty(selected.property_id, form);
       await fetchSale();
     } catch (err) {
-      alert('Failed: ' + (err?.response?.data?.error || err.message));
+      if (err?.response?.data?.code === 'DTCP_EXISTS') {
+        setError('This DTCP number already exists for another property. Please enter a different number or close this form.');
+      } else {
+        alert('Failed: ' + (err?.response?.data?.error || err.message));
+      }
     }
     finally { setSubmitting(false); }
   };
@@ -344,8 +353,9 @@ export default function SalePropertiesPage() {
 
   const handleExport = () => {
     const rows = filteredProperties.map(p => ({
-      'Contact Phone': p.contact_phone, 'Seller Name': p.seller_name || '',
-      'Alternate Contact Phone': p.alternate_contact_phone || '', 'Alternate Seller Name': p.alternate_seller_name || '',
+      'Seller Number': p.contact_phone, 'Seller Name': p.seller_name || '',
+      'Alternate Number': p.alternate_contact_phone || '', 'Alternate Name': p.alternate_seller_name || '',
+      'Listing Person Number': p.listing_person_phone || '',
       'Latitude': p.latitude, 'Longitude': p.longitude, 'Address': p.address,
       'District Name': p.district_name || '', 'Taluk Name': p.taluk_name || '', 'Village Name': p.village_name || '',
       'Status': p.status, 'Property Type': p.sale_type, 'Price': p.price,
@@ -370,7 +380,7 @@ export default function SalePropertiesPage() {
 
   const handleDownloadTemplate = () => {
     const headers = [
-      'Contact Phone', 'Seller Name', 'Alternate Contact Phone', 'Alternate Seller Name',
+      'Seller Number', 'Seller Name', 'Alternate Number', 'Alternate Name', 'Listing Person Number',
       'Latitude', 'Longitude', 'Address', 'District Name', 'Taluk Name', 'Village Name',
       'Status', 'Property Type', 'Price', 'Rate Unit', 'Extent Area', 'Extension Unit',
       'Survey Number', 'Landmark', 'Layout Name', 'Booking Status',
@@ -490,11 +500,12 @@ export default function SalePropertiesPage() {
           }
 
           const splitField = (val) => String(val || '').split(',').map(s => s.trim()).filter(Boolean);
-          const phones = splitField(row.contact_phone); const names = splitField(row.seller_name);
+          const phones = splitField(row.contact_phone || row.seller_number); const names = splitField(row.seller_name);
           const payload = {
             contact_phone: phones[0] || '', seller_name: names[0] || '',
-            alternate_contact_phone: row.alternate_contact_phone ? String(row.alternate_contact_phone).trim() : (phones[1] || ''),
+            alternate_contact_phone: row.alternate_contact_phone || row.alternate_number ? String(row.alternate_contact_phone || row.alternate_number).trim() : (phones[1] || ''),
             alternate_seller_name: row.alternate_seller_name ? String(row.alternate_seller_name).trim() : (names[1] || ''),
+            listing_person_phone: row.listing_person_phone ? String(row.listing_person_phone).trim() : String(row.listing_person_number || '').trim(),
             latitude: lat, longitude: lng, address, district_id, taluk_id, village_id,
             status: row.status || 'pending', sale_type: row.property_type || row.sale_type || SaleType.LAND,
             price: row.price || '',
@@ -661,8 +672,9 @@ export default function SalePropertiesPage() {
               editable: true, editType: 'select', editField: 'sale_status',
               editOptions: Object.values(SaleStatus).map(v => ({ value: v, label: v })),
             },
-            { header: 'Primary Phone', accessor: 'contact_phone', editable: true, filterable: true, filterKey: 'contact_phone', className: 'font-bold text-emerald-600' },
-            { header: 'Alt Phone', accessor: 'alternate_contact_phone', editable: true, filterable: true, filterKey: 'alternate_contact_phone' },
+            { header: 'Seller Number', accessor: 'contact_phone', editable: true, filterable: true, filterKey: 'contact_phone', className: 'font-bold text-emerald-600' },
+            { header: 'Alternate Number', accessor: 'alternate_contact_phone', editable: true, filterable: true, filterKey: 'alternate_contact_phone' },
+            { header: 'Listing Person Number', accessor: 'listing_person_phone', editable: true, filterable: true, filterKey: 'listing_person_phone' },
             { header: 'Primary Name', accessor: 'seller_name', editable: true, filterable: true, filterKey: 'seller_name' },
             { header: 'Alt Name', accessor: 'alternate_seller_name', editable: true, filterable: true, filterKey: 'alternate_seller_name' },
             { header: 'Rate (₹)', accessor: p => p.price ? `₹${Number(p.price).toLocaleString()}${p.rate_unit ? ' / ' + p.rate_unit : ''}` : '-', editable: true, editType: 'number', editField: 'price', filterable: true, filterKey: 'price' },
@@ -743,6 +755,11 @@ export default function SalePropertiesPage() {
               ))}
             </div>
             <div className="p-8 overflow-y-auto flex-1">
+              {error && (
+                <div className="mb-6 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                  {error}
+                </div>
+              )}
               {formTab === 'details' && (
                 <div className="space-y-6">
                   <div className={fw}>
@@ -779,17 +796,19 @@ export default function SalePropertiesPage() {
               {formTab === 'seller' && (
                 <div className="space-y-6">
                   <div className="grid grid-cols-2 gap-6">
-                    <div className={fw}><label className={lbl}>Primary Phone</label>
+                    <div className={fw}><label className={lbl}>Seller Number</label>
                       <input disabled={isReadOnly} value={form.contact_phone} onChange={e => handleChange('contact_phone', e.target.value.replace(/\D/g, '').slice(0, 10))} placeholder="10-digit number" className={inp()} /></div>
-                    <div className={fw}><label className={lbl}>Primary Name</label>
+                    <div className={fw}><label className={lbl}>Seller Name</label>
                       <input disabled={isReadOnly} value={form.seller_name} onChange={e => handleChange('seller_name', e.target.value)} className={inp()} /></div>
                   </div>
                   <div className="grid grid-cols-2 gap-6">
-                    <div className={fw}><label className={lbl}>Additional Phone</label>
+                    <div className={fw}><label className={lbl}>Alternate Number</label>
                       <input disabled={isReadOnly} value={form.alternate_contact_phone} onChange={e => handleChange('alternate_contact_phone', e.target.value.replace(/\D/g, '').slice(0, 10))} className={inp()} /></div>
-                    <div className={fw}><label className={lbl}>Additional Name</label>
+                    <div className={fw}><label className={lbl}>Alternate Name</label>
                       <input disabled={isReadOnly} value={form.alternate_seller_name} onChange={e => handleChange('alternate_seller_name', e.target.value)} className={inp()} /></div>
                   </div>
+                  <div className={fw}><label className={lbl}>Listing Person Number</label>
+                    <input disabled={isReadOnly} value={form.listing_person_phone || ''} onChange={e => handleChange('listing_person_phone', e.target.value.replace(/\D/g, '').slice(0, 10))} className={inp()} /></div>
                 </div>
               )}
               {formTab === 'property-info' && (

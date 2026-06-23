@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useCallback } from 'react';
+import { FaWhatsapp } from 'react-icons/fa';
 import '../styles/Modal.css';
 import { endpoints } from '../api/api';
 import RentPropertyForm from './RentPropertyForm';
@@ -84,10 +85,10 @@ const NumberCaptureModal = ({ data, onChange, onNext }) => (
     <div className="modal-content">
         <p>Please enter your number to get started. It will not be visible to the public.</p>
         <div className="form-group">
-            <label>Mobile Number</label>
+            <label>{data.transactionType === 'rent' ? 'Owner Number' : 'Seller Number'}</label>
             <input
                 type="tel"
-                placeholder="Enter 10 digit Mobile Number"
+                placeholder={data.transactionType === 'rent' ? 'Enter owner number' : 'Enter seller number'}
                 value={data.number}
                 onChange={(e) => onChange('number', e.target.value)}
                 maxLength={10}
@@ -101,7 +102,7 @@ const NumberCaptureModal = ({ data, onChange, onNext }) => (
 );
 
 const initialFormData = {
-    number: '', alternate_phone: '', latitude: '', longitude: '', address: '', liveImage: '',
+    number: '', alternate_phone: '', listing_person_number: '', dtcp: '', latitude: '', longitude: '', address: '', liveImage: '',
     transactionType: 'rent', propertyType: 'Residential', bhk: '', rentAmount: '', advanceAmount: '',
     premium_requested: false, extent_area: '', extent_unit: '', saleType: '', price: '',
     survey_number: '', area_size: '', street_name_or_road_name: '',
@@ -115,6 +116,8 @@ const PostPropertyFlow = ({ onClose, initialTransactionType = 'rent', onSuccessf
     const [currentStep, setCurrentStep] = useState(1);
     const [loading, setLoading] = useState(false);
     const [loadingMessage, setLoadingMessage] = useState('');
+    const [ownerNotice, setOwnerNotice] = useState(null);
+    const [saleError, setSaleError] = useState('');
     const [formData, setFormData] = useState(() => ({
         ...initialFormData,
         property_id: null,
@@ -130,6 +133,8 @@ const PostPropertyFlow = ({ onClose, initialTransactionType = 'rent', onSuccessf
             if (key === 'taluk') newState = { ...newState, village: '' };
             return newState;
         });
+        if (key === 'number') setOwnerNotice(null);
+        if (key === 'dtcp') setSaleError('');
     }, []);
 
     const resolveAddressFromCoordinates = useCallback(async (latitude, longitude) => {
@@ -192,8 +197,25 @@ const PostPropertyFlow = ({ onClose, initialTransactionType = 'rent', onSuccessf
         }
 
         setLoading(true);
-        setLoadingMessage(currentStep === 1 ? 'Opening location proof...' : 'Loading next step...');
-        setTimeout(() => {
+        setLoadingMessage('');
+        setTimeout(async () => {
+            if (currentStep === 1 && formData.transactionType === 'rent' && formData.number?.length === 10) {
+                try {
+                    const ownerLookup = await endpoints.checkRentOwner(formData.number);
+                    if (ownerLookup.data?.exists) {
+                        setOwnerNotice({
+                            phone: ownerLookup.data.phone_number || formData.number,
+                            message: 'This owner number is already linked to an existing property listing.',
+                        });
+                        setLoading(false);
+                        return;
+                    } else {
+                        setOwnerNotice(null);
+                    }
+                } catch {
+                    setOwnerNotice(null);
+                }
+            }
             setCurrentStep((prev) => prev + 1);
             setLoading(false);
             setLoadingMessage('');
@@ -211,7 +233,11 @@ const PostPropertyFlow = ({ onClose, initialTransactionType = 'rent', onSuccessf
                 village_id: formData.village_id,
                 street_name_or_road_name: formData.street_name_or_road_name,
                 premium_requested: formData.premium_requested === true,
-                alternate_phone: formData.alternate_phone || null,
+                alternate_contact_phone: formData.transactionType === 'rent'
+                    ? (formData.listing_person_number || formData.alternate_phone || null)
+                    : (formData.alternate_phone || null),
+                listing_person_phone: formData.listing_person_number || null,
+                dtcp: formData.dtcp || null,
                 latitude: formData.latitude || null,
                 longitude: formData.longitude || null,
                 address: formData.address || null,
@@ -229,6 +255,10 @@ const PostPropertyFlow = ({ onClose, initialTransactionType = 'rent', onSuccessf
                     extent_unit: formData.extent_unit || null,
                 };
             } else {
+                if (!String(formData.dtcp || '').trim()) {
+                    alert('DTCP number is required for sale listings.');
+                    return;
+                }
                 payload = {
                     ...payload,
                     sale_type: formData.saleType,
@@ -255,7 +285,11 @@ const PostPropertyFlow = ({ onClose, initialTransactionType = 'rent', onSuccessf
             } else {
                 onSuccessfulPost(formData.number);
             }
-        } catch {
+        } catch (err) {
+            if (err?.response?.data?.code === 'DTCP_EXISTS') {
+                setSaleError('This DTCP number already exists for another property. Please enter a different number or close this form.');
+                return;
+            }
             alert('Failed to post property details. Please check your connection.');
         } finally {
             setLoading(false);
@@ -275,14 +309,14 @@ const PostPropertyFlow = ({ onClose, initialTransactionType = 'rent', onSuccessf
             stepComponent = formData.transactionType === 'rent' ? (
                 <RentPropertyForm data={formData} onChange={handleDataChange} onNext={() => submitProperty({ advanceToAdditional: true })} onSubmit={() => submitProperty({ advanceToAdditional: false })} mode="details" />
             ) : (
-                <SalePropertyForm data={formData} onChange={handleDataChange} onNext={() => submitProperty({ advanceToAdditional: true })} onSubmit={() => submitProperty({ advanceToAdditional: false })} mode="details" />
+                <SalePropertyForm data={formData} onChange={handleDataChange} onNext={() => submitProperty({ advanceToAdditional: true })} onSubmit={() => submitProperty({ advanceToAdditional: false })} mode="details" validationError={saleError} />
             );
             break;
         case 4:
             stepComponent = formData.transactionType === 'rent' ? (
                 <RentPropertyForm data={formData} onChange={handleDataChange} onSubmit={() => submitProperty({ advanceToAdditional: false })} mode="additional" />
             ) : (
-                <SalePropertyForm data={formData} onChange={handleDataChange} onSubmit={() => submitProperty({ advanceToAdditional: false })} mode="additional" />
+                <SalePropertyForm data={formData} onChange={handleDataChange} onSubmit={() => submitProperty({ advanceToAdditional: false })} mode="additional" validationError={saleError} />
             );
             break;
         default:
@@ -299,7 +333,33 @@ const PostPropertyFlow = ({ onClose, initialTransactionType = 'rent', onSuccessf
                     <div className="modal-loading-overlay">
                         <div className="modal-loading-card">
                             <div className="modal-spinner" />
-                            <p>{loadingMessage || 'Please wait...'}</p>
+                            {loadingMessage ? <p>{loadingMessage}</p> : null}
+                        </div>
+                    </div>
+                )}
+                {ownerNotice && formData.transactionType === 'rent' && (
+                    <div className="modal-loading-overlay">
+                        <div className="modal-loading-card" style={{ gap: '12px', textAlign: 'center', maxWidth: '320px' }}>
+                            <FaWhatsapp size={32} style={{ color: '#16a34a', margin: '0 auto' }} />
+                            <p style={{ fontWeight: 600, fontSize: '15px', marginBottom: 0 }}>Number Already Registered</p>
+                            <p style={{ fontSize: '13px', color: '#555', marginBottom: 0 }}>{ownerNotice.message}</p>
+                            <p style={{ fontSize: '12px', color: '#777', marginBottom: 0 }}>Please connect with our team on WhatsApp for assistance.</p>
+                            <a
+                                href={`https://wa.me/${process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || '918220008733'}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="primary-button"
+                                style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: '#16a34a', textDecoration: 'none', justifyContent: 'center' }}
+                            >
+                                <FaWhatsapp size={14} />
+                                Chat on WhatsApp
+                            </a>
+                            <button
+                                onClick={() => { setOwnerNotice(null); handleDataChange('number', ''); }}
+                                style={{ background: 'none', border: '1px solid #ddd', borderRadius: '8px', padding: '8px 16px', fontSize: '13px', cursor: 'pointer', color: '#555' }}
+                            >
+                                Re-enter Number
+                            </button>
                         </div>
                     </div>
                 )}

@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { endpoints } from '../api/api';
 
-const SalePropertyForm = ({ data, onChange, onSubmit, onNext, mode = 'details' }) => {
+const SalePropertyForm = ({ data, onChange, onSubmit, onNext, mode = 'details', validationError = '' }) => {
     const [districtsList, setDistrictsList] = useState([]);
     const [taluksList, setTaluksList] = useState([]);
     const [villagesList, setVillagesList] = useState([]);
@@ -20,17 +20,17 @@ const SalePropertyForm = ({ data, onChange, onSubmit, onNext, mode = 'details' }
     ];
 
     useEffect(() => {
-        endpoints.getDistricts().then(res => setDistrictsList(res.data || []));
+        endpoints.getAllDistrictsForPost().then(res => setDistrictsList(res.data || []));
     }, []);
 
     useEffect(() => {
         if (!data.district_id) { setTaluksList([]); return; }
-        endpoints.getTaluks(data.district_id).then(res => setTaluksList(res.data || []));
+        endpoints.getAllTaluksForPost(data.district_id).then(res => setTaluksList(res.data || []));
     }, [data.district_id]);
 
     useEffect(() => {
         if (!data.taluk_id) { setVillagesList([]); return; }
-        endpoints.getVillages(data.taluk_id).then(res => setVillagesList(res.data || []));
+        endpoints.getAllVillagesForPost(data.taluk_id).then(res => setVillagesList(res.data || []));
     }, [data.taluk_id]);
 
     const getBookedSet = (input) => {
@@ -139,6 +139,13 @@ const SalePropertyForm = ({ data, onChange, onSubmit, onNext, mode = 'details' }
         return (
             <div className="modal-content property-form">
                 <h2>Property Details</h2>
+                {validationError && (
+                    <div className="form-group">
+                        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                            {validationError}
+                        </div>
+                    </div>
+                )}
 
                 <div className="form-group">
                     <label>Property Type</label>
@@ -150,8 +157,41 @@ const SalePropertyForm = ({ data, onChange, onSubmit, onNext, mode = 'details' }
                 </div>
 
                 <div className="form-group">
-                    <label>Owner Phone Number</label>
-                    <input type="tel" value={data.alternate_phone || ''} onChange={(e) => onChange('alternate_phone', e.target.value)} maxLength={10} className="input-field" />
+                    <label>Seller Number</label>
+                    <input type="tel" value={data.number || ''} disabled className="input-field" />
+                </div>
+
+                <div className="form-group">
+                    <label>Alternate Phone Number (Optional)</label>
+                    <input
+                        type="tel"
+                        value={data.alternate_phone || ''}
+                        onChange={(e) => onChange('alternate_phone', e.target.value.replace(/\D/g, '').slice(0, 10))}
+                        maxLength={10}
+                        className="input-field"
+                    />
+                </div>
+
+                <div className="form-group">
+                    <label>Listing Person Number (Optional)</label>
+                    <input
+                        type="tel"
+                        value={data.listing_person_number || ''}
+                        onChange={(e) => onChange('listing_person_number', e.target.value.replace(/\D/g, '').slice(0, 10))}
+                        maxLength={10}
+                        className="input-field"
+                    />
+                </div>
+
+                <div className="form-group">
+                    <label>DTCP Number *</label>
+                    <input
+                        type="text"
+                        value={data.dtcp || ''}
+                        onChange={(e) => onChange('dtcp', e.target.value)}
+                        className="input-field"
+                        placeholder="Enter DTCP number"
+                    />
                 </div>
 
                 <div className="form-group">
@@ -199,6 +239,14 @@ const SalePropertyForm = ({ data, onChange, onSubmit, onNext, mode = 'details' }
     return (
         <div className="modal-content property-form">
             <h2>Additional Details</h2>
+
+            {validationError && (
+                <div className="form-group">
+                    <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                        {validationError}
+                    </div>
+                </div>
+            )}
 
             <div className="form-group">
                 <label>Survey/S.No</label>

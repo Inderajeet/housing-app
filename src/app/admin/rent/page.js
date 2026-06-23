@@ -24,14 +24,14 @@ const STATUS_COLORS = {
 };
 
 const EMPTY_FORM = {
-  contact_phone: '', seller_name: '', alternate_contact_phone: '', alternate_seller_name: '',
+  contact_phone: '', seller_name: '', alternate_contact_phone: '', alternate_seller_name: '', listing_person_phone: '',
   title: '', address: '', latitude: '', longitude: '',
   district_id: '', taluk_id: '', village_id: '',
   status: 'pending', bhk: '', rent_amount: '', advance_amount: '',
   property_use: PropertyType.RESIDENTIAL, rent_status: BookingStatus.NIL_BOOKING,
   landmark: '', extent_area: '', extent_unit: '', description: '',
   token_amount: '', token_paid_to: '', rent_out_rate: '', rent_out_date: '',
-  legal_value: 'A+', area_sales_speed: '', facing: '', road_width: '',
+  amenities_rating: '', utilities_rating: '',
 };
 
 const FORM_TABS = [
@@ -43,8 +43,6 @@ const FORM_TABS = [
   { key: 'documents', label: 'Documents' },
 ];
 
-const LEGAL_VALUE_OPTIONS = ['A+', 'A', 'B', 'C'];
-const FACING_OPTIONS = ['', 'North', 'South', 'East', 'West', 'North-East', 'North-West', 'South-East', 'South-West'];
 
 const lbl = 'text-[10px] font-bold uppercase tracking-widest text-gray-500';
 const fw = 'flex flex-col space-y-2';
@@ -228,8 +226,8 @@ export default function RentPropertiesPage() {
 
   const handleExport = () => {
     const rows = filteredProperties.map(p => ({
-      'formatted_id': p.formatted_id, 'contact_phone': p.contact_phone || '',
-      'seller_name': p.seller_name || '', 'alternate_contact_phone': p.alternate_contact_phone || '',
+      'formatted_id': p.formatted_id, 'Owner Number': p.contact_phone || '',
+      'Owner Name': p.seller_name || '', 'Listing Person Number': p.alternate_contact_phone || '',
       'alternate_seller_name': p.alternate_seller_name || '', 'latitude': p.latitude, 'longitude': p.longitude,
       'address': p.address || '', 'district_id': p.district_id, 'taluk_id': p.taluk_id, 'village_id': p.village_id,
       'status': p.status, 'property_use': p.property_use, 'rent_status': p.rent_status,
@@ -385,8 +383,8 @@ export default function RentPropertiesPage() {
               editable: true, editType: 'select', editField: 'rent_status',
               editOptions: Object.values(BookingStatus).map(v => ({ value: v, label: v })),
             },
-            { header: 'Primary Phone', accessor: 'contact_phone', editable: true, filterable: true, filterKey: 'contact_phone', className: 'font-bold text-emerald-600' },
-            { header: 'Alt Phone', accessor: 'alternate_contact_phone', editable: true, filterable: true, filterKey: 'alternate_contact_phone' },
+            { header: 'Owner Number', accessor: 'contact_phone', editable: true, filterable: true, filterKey: 'contact_phone', className: 'font-bold text-emerald-600' },
+            { header: 'Listing Person Number', accessor: 'alternate_contact_phone', editable: true, filterable: true, filterKey: 'alternate_contact_phone' },
             { header: 'Primary Name', accessor: 'seller_name', editable: true, filterable: true, filterKey: 'seller_name' },
             { header: 'Alt Name', accessor: 'alternate_seller_name', editable: true, filterable: true, filterKey: 'alternate_seller_name' },
             { header: 'Rent Amount (₹)', accessor: p => p.rent_amount ? `₹${Number(p.rent_amount).toLocaleString()}` : '-', editable: true, editType: 'number', editField: 'rent_amount', filterable: true, filterKey: 'rent_amount' },
@@ -488,17 +486,13 @@ export default function RentPropertiesPage() {
               {formTab === 'seller' && (
                 <div className="space-y-6">
                   <div className="grid grid-cols-2 gap-6">
-                    <div className={fw}><label className={lbl}>Primary Phone</label>
+                    <div className={fw}><label className={lbl}>Owner Number</label>
                       <input disabled={isReadOnly} value={form.contact_phone || ''} onChange={e => handleChange('contact_phone', e.target.value.replace(/\D/g, '').slice(0, 10))} placeholder="10-digit number" className={inp} /></div>
-                    <div className={fw}><label className={lbl}>Primary Name</label>
+                    <div className={fw}><label className={lbl}>Owner Name</label>
                       <input disabled={isReadOnly} value={form.seller_name || ''} onChange={e => handleChange('seller_name', e.target.value)} className={inp} /></div>
                   </div>
-                  <div className="grid grid-cols-2 gap-6">
-                    <div className={fw}><label className={lbl}>Additional Phone</label>
-                      <input disabled={isReadOnly} value={form.alternate_contact_phone || ''} onChange={e => handleChange('alternate_contact_phone', e.target.value.replace(/\D/g, '').slice(0, 10))} className={inp} /></div>
-                    <div className={fw}><label className={lbl}>Additional Name</label>
-                      <input disabled={isReadOnly} value={form.alternate_seller_name || ''} onChange={e => handleChange('alternate_seller_name', e.target.value)} className={inp} /></div>
-                  </div>
+                  <div className={fw}><label className={lbl}>Listing Person Number (Optional)</label>
+                    <input disabled={isReadOnly} value={form.alternate_contact_phone || ''} onChange={e => handleChange('alternate_contact_phone', e.target.value.replace(/\D/g, '').slice(0, 10))} className={inp} /></div>
                 </div>
               )}
               {formTab === 'property-info' && (
@@ -552,26 +546,12 @@ export default function RentPropertiesPage() {
                     <p className="text-xs font-bold uppercase tracking-widest text-violet-700 mb-4">Property Custom Fields</p>
                     <div className="grid grid-cols-2 gap-6">
                       <div className={fw}>
-                        <label className={lbl}>Legal Value</label>
-                        <select disabled={isReadOnly} value={form.legal_value || 'A+'} onChange={e => handleChange('legal_value', e.target.value)}
-                          className="w-full px-4 py-2.5 rounded-xl border border-gray-300 font-semibold text-sm">
-                          {LEGAL_VALUE_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
-                        </select>
+                        <label className={lbl}>Amenities Rating (0–10)</label>
+                        <input type="number" min="0" max="10" step="0.1" disabled={isReadOnly} value={form.amenities_rating || ''} onChange={e => handleChange('amenities_rating', e.target.value)} placeholder="e.g. 7.5" className={inp} />
                       </div>
                       <div className={fw}>
-                        <label className={lbl}>Area Sales Speed (rentals/month)</label>
-                        <input type="number" step="0.01" disabled={isReadOnly} value={form.area_sales_speed || ''} onChange={e => handleChange('area_sales_speed', e.target.value)} placeholder="Auto-calculated or manual" className={inp} />
-                      </div>
-                      <div className={fw}>
-                        <label className={lbl}>Facing</label>
-                        <select disabled={isReadOnly} value={form.facing || ''} onChange={e => handleChange('facing', e.target.value)}
-                          className="w-full px-4 py-2.5 rounded-xl border border-gray-300 font-semibold text-sm">
-                          {FACING_OPTIONS.map(o => <option key={o} value={o}>{o || '— Select —'}</option>)}
-                        </select>
-                      </div>
-                      <div className={fw}>
-                        <label className={lbl}>Road Width</label>
-                        <input type="text" disabled={isReadOnly} value={form.road_width || ''} onChange={e => handleChange('road_width', e.target.value)} placeholder="e.g. 30 ft, 9 m" className={inp} />
+                        <label className={lbl}>Utilities Rating (0–10)</label>
+                        <input type="number" min="0" max="10" step="0.1" disabled={isReadOnly} value={form.utilities_rating || ''} onChange={e => handleChange('utilities_rating', e.target.value)} placeholder="e.g. 8.0" className={inp} />
                       </div>
                     </div>
                   </div>

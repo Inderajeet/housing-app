@@ -40,6 +40,7 @@ export function toApiError(error) {
     return {
       status: 503,
       body: {
+        code: prismaCode || code || 'NETWORK_ERROR',
         error:
           'Database/API connection failed. Check DATABASE_URL network access (VPN/firewall) or configure NEXT_PUBLIC_ADMIN_API_URL to a reachable backend.',
         details: nestedMessage ? `${message} | ${nestedMessage}` : message,
@@ -47,5 +48,5 @@ export function toApiError(error) {
     };
   }
 
-  return { status: 500, body: { error: message } };
+  return { status: 500, body: { error: message, code: prismaCode || code } };
 }

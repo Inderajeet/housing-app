@@ -4,6 +4,29 @@ import { uploadToCloudflare, deleteFromCloudflare } from '../uploadToCloudflare'
 const toInt = (v) => (v === '' || v == null ? null : parseInt(v, 10));
 const toFloat = (v) => (v === '' || v == null ? null : parseFloat(v));
 const toStr = (v) => (v === '' || v == null ? null : v);
+const normalizeDtcp = (value) => String(value || '').trim();
+
+const assertUniqueDtcp = async (tx, dtcp, propertyId = null) => {
+  const normalized = normalizeDtcp(dtcp);
+  if (!normalized) return;
+
+  const rows = propertyId
+    ? await tx.$queryRawUnsafe(
+        `SELECT property_id FROM sale_properties WHERE LOWER(TRIM(dtcp)) = LOWER($1) AND property_id <> $2 LIMIT 1`,
+        normalized,
+        propertyId
+      )
+    : await tx.$queryRawUnsafe(
+        `SELECT property_id FROM sale_properties WHERE LOWER(TRIM(dtcp)) = LOWER($1) LIMIT 1`,
+        normalized
+      );
+
+  if (rows.length) {
+    const error = new Error('DTCP number already exists for another property');
+    error.code = 'DTCP_EXISTS';
+    throw error;
+  }
+};
 
 export async function getAll(type) {
   let query = `
@@ -20,6 +43,7 @@ export async function getAll(type) {
       s.sale_status, s.legal_value, s.area_sales_speed, s.facing, s.road_width,
       CASE WHEN LOWER(COALESCE(s.sale_type, '')) IN ('plot', 'flat') THEN s.drawing_image ELSE NULL END AS drawing_image,
       s.total_units_count, s.booked_units, s.open_units,
+      s.alternate_contact_phone, s.alternate_seller_name, s.listing_person_phone, s.dtcp,
       sel.name AS seller_name,
       (SELECT JSON_AGG(JSON_BUILD_OBJECT('url', file_url)) FROM property_assets
        WHERE property_id = p.property_id AND asset_type = 'image') AS images
@@ -54,20 +78,14 @@ export async function create(data, files = {}) {
       sellerId = newSeller[0].seller_id;
     }
 
+    await assertUniqueDtcp(tx, data.dtcp);
+
     const propRes = await tx.$queryRawUnsafe(
       `INSERT INTO properties (property_type, seller_id, contact_phone, address, latitude, longitude, status, live_image)
        VALUES ('sale', $1, $2, $3, $4, $5, 'Draft', $6) RETURNING property_id`,
       sellerId, phone, data.address || null, data.latitude || null, data.longitude || null, null
     );
     const propertyId = propRes[0].property_id;
-    const saleType = toStr(data.sale_type)?.toLowerCase();
-
-    await tx.$executeRawUnsafe(
-      `INSERT INTO sale_properties (property_id, sale_type, boundary_north, boundary_south, boundary_east, boundary_west, drawing_image)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-      propertyId, data.sale_type || null, data.boundary_north || null, data.boundary_south || null,
-      data.boundary_east || null, data.boundary_west || null, null
-    );
 
     try {
       await tx.$executeRawUnsafe(
@@ -79,19 +97,14 @@ export async function create(data, files = {}) {
       if (!(e.meta?.code === '23505' || e.code === 'P2002')) throw e;
     }
 
-    return { propertyId, sellerId, saleType };
+    return { propertyId, sellerId };
   });
 
-  const { propertyId, saleType } = result;
-  const shouldStoreDrawing = saleType === 'plot' || saleType === 'flat';
+  const { propertyId } = result;
 
   if (files.live_image) {
     const upload = await uploadToCloudflare(propertyId, 'live_image', files.live_image);
     await prisma.$executeRawUnsafe('UPDATE properties SET live_image = $1 WHERE property_id = $2', upload.url, propertyId);
-  }
-  if (files.drawing_image && shouldStoreDrawing) {
-    const upload = await uploadToCloudflare(propertyId, 'drawing_image', files.drawing_image);
-    await prisma.$executeRawUnsafe('UPDATE sale_properties SET drawing_image = $1 WHERE property_id = $2', upload.url, propertyId);
   }
 
   return { property_id: propertyId, seller_id: sellerId };
@@ -129,6 +142,8 @@ export async function update(propertyId, data, files = {}) {
   if (!shouldStoreDrawing && currentDrawingImage) filesToDelete.push(currentDrawingImage);
 
   await prisma.$transaction(async (tx) => {
+    await assertUniqueDtcp(tx, data.dtcp, propertyId);
+
     await tx.$executeRawUnsafe(
       `UPDATE properties SET district_id=$1, taluk_id=$2, village_id=$3, area_id=$4, title=$5,
        description=$6, contact_phone=$7, address=$8, latitude=$9, longitude=$10,
@@ -143,24 +158,27 @@ export async function update(propertyId, data, files = {}) {
       await tx.$executeRawUnsafe(
         `INSERT INTO sale_properties (property_id, sale_type, price, area_size, street_name_or_road_name,
          survey_number, boundary_north, boundary_south, boundary_east, boundary_west, sale_status,
-         drawing_image, total_units_count, booked_units, open_units)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`,
+         drawing_image, total_units_count, booked_units, open_units, alternate_contact_phone, alternate_seller_name, listing_person_phone, dtcp)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)`,
         propertyId, data.sale_type || null, price, data.area_size || null, data.street_name_or_road_name || null,
         data.survey_number || null, data.boundary_north || null, data.boundary_south || null,
         data.boundary_east || null, data.boundary_west || null, data.sale_status || 'Nil Booking',
-        drawingImageUrl, toInt(data.total_units_count) || 0, toStr(data.booked_units) || 0, toStr(data.open_units) || 0
+        drawingImageUrl, toInt(data.total_units_count) || 0, toStr(data.booked_units) || 0, toStr(data.open_units) || 0,
+        toStr(data.alternate_contact_phone), toStr(data.alternate_seller_name), toStr(data.listing_person_phone), toStr(data.dtcp)
       );
     } else {
       await tx.$executeRawUnsafe(
         `UPDATE sale_properties SET sale_type=$1, price=$2, area_size=$3, street_name_or_road_name=$4,
          survey_number=$5, boundary_north=$6, boundary_south=$7, boundary_east=$8, boundary_west=$9,
-         sale_status=$10, total_units_count=$11, booked_units=$12, open_units=$13, drawing_image=$14
-         WHERE property_id=$15`,
+         sale_status=$10, total_units_count=$11, booked_units=$12, open_units=$13, drawing_image=$14,
+         alternate_contact_phone=$15, alternate_seller_name=$16, listing_person_phone=$17, dtcp=$18
+         WHERE property_id=$19`,
         data.sale_type || null, price, data.area_size || null, data.street_name_or_road_name || null,
         data.survey_number || null, data.boundary_north || null, data.boundary_south || null,
         data.boundary_east || null, data.boundary_west || null, data.sale_status || 'Nil Booking',
         toInt(data.total_units_count) || 0, toStr(data.booked_units) || 0, toStr(data.open_units) || 0,
-        drawingImageUrl, propertyId
+        drawingImageUrl, toStr(data.alternate_contact_phone), toStr(data.alternate_seller_name),
+        toStr(data.listing_person_phone), toStr(data.dtcp), propertyId
       );
     }
 
