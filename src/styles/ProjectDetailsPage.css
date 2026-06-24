@@ -20,9 +20,7 @@
     box-sizing: border-box;
 }
 
-/* ========================================================== */
-/* --- MAIN CONTENT: TWO COLUMNS (Map/Gallery & Booking Flow) --- */
-/* ========================================================== */
+/* Main content: two columns (map/gallery & booking flow) */
 .main-content-flow-wrapper {
     height: 100%;
     min-height: 0;
@@ -487,7 +485,7 @@
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
 }
 
-/* --- Booking Flow (Initial State - Phone Input Area) --- */
+/* Booking flow - phone input */
 .phone-submit-form h4 {
     color: #8b5cf6;
     margin-top: 0;
@@ -568,25 +566,24 @@
     color: #e74c3c;
 }
 
-/* --- CSS for Tracker Colors (Green Status) --- */
+/* Tracker step colors */
 
-/* Base Step Styling */
+/* Base step styling */
 .tracker-step.general-step {
     color: #4b5563; /* Default text color for visibility */
 }
 
-/* 🟢 Styling for COMPLETED Steps (General Tracker) */
-/* Apply 'completed' class when registered/confirmed counts are met. */
+/* Completed steps */
 .tracker-step.completed .tracker-icon {
     color: #047857; /* Darker Green Icon */
 }
 
-/* 🟢 Styling for the Line connecting COMPLETED Steps */
+/* Line connecting completed steps */
 .tracker-line.completed-line {
     background-color: #047857; /* Darker Green Line */
 }
 
-/* Overriding the default gray icon color when completed */
+/* Override gray icon when completed */
 .tracker-step.completed .tracker-icon svg {
     color: #047857;
 }
@@ -598,7 +595,7 @@
     border: 1px solid #f87171;
 }
 
-/* --- User Flow Display Styles (For the right column user view) --- */
+/* User flow display styles */
 .flow-step {
     border-left: 3px solid #eee;
     padding-left: 20px;
@@ -647,7 +644,7 @@
     font-weight: 600;
 }
 
-/* --- USER STATUS VIEW (Post-Submission - Uses Simple Steps) --- */
+/* User status view (post-submission) */
 .user-status-view {
     padding: 0;
 }
@@ -691,7 +688,7 @@
     margin-bottom: 20px;
 }
 
-/* Simple Step Flow Styling (Reused from previous iteration) */
+/* Simple step flow */
 .booking-flow-stages {
     display: flex;
     flex-direction: column;
@@ -787,7 +784,7 @@
     border-top: 1px dashed #eee;
 }
 
-/* --- Uniform Square Grid --- */
+/* Uniform square grid */
 .uniform-photo-grid {
     display: grid;
     /* This creates a responsive grid where boxes are at least 180px wide */

@@ -272,6 +272,38 @@ export default function FlatLayoutEditorPage() {
         Object.keys(newGrid).forEach(k => {
           if (newGrid[k]?.merged && !newGrid[newGrid[k].anchorKey]) delete newGrid[k];
         });
+      } else if (type === 'MERGE') {
+        const fRows = keys.map(k => parseInt(k.split('-')[0]));
+        const fCols = keys.map(k => parseInt(k.split('-')[1]));
+        const fRMin = Math.min(...fRows), fRMax = Math.max(...fRows);
+        const fCMin = Math.min(...fCols), fCMax = Math.max(...fCols);
+        const anchorKey = `${fRMin}-${fCMin}`;
+        // find existing FLAT in selection to carry over its data
+        let src = null;
+        for (let r = fRMin; r <= fRMax && !src; r++)
+          for (let c = fCMin; c <= fCMax && !src; c++) {
+            const cell = newGrid[`${r}-${c}`];
+            if (cell?.merged) src = newGrid[cell.anchorKey];
+            else if (cell?.type === 'FLAT') src = cell;
+          }
+        for (let r = fRMin; r <= fRMax; r++)
+          for (let c = fCMin; c <= fCMax; c++) delete newGrid[`${r}-${c}`];
+        newGrid[anchorKey] = {
+          type: 'FLAT', row: fRMin, col: fCMin,
+          merged: false, anchorKey: null,
+          colSpan: fCMax - fCMin + 1, rowSpan: fRMax - fRMin + 1,
+          display_name: src?.display_name || '',
+          bhk: src?.bhk || '', isManual: src?.isManual ?? false,
+          status: src?.status || 'Nil Booking',
+          rotation: src?.rotation || 0, color: src?.color || '#ffffff',
+          font_size: src?.font_size || 10, font_weight: src?.font_weight || '900',
+          token_paid_to: src?.token_paid_to || '',
+        };
+        for (let r = fRMin; r <= fRMax; r++)
+          for (let c = fCMin; c <= fCMax; c++) {
+            if (r === fRMin && c === fCMin) continue;
+            newGrid[`${r}-${c}`] = { merged: true, anchorKey };
+          }
       } else {
         keys.forEach(k => {
           const [r, c] = k.split('-').map(Number);
@@ -303,6 +335,34 @@ export default function FlatLayoutEditorPage() {
       Object.keys(newGrid).forEach(k => {
         if (newGrid[k]?.merged && !newGrid[newGrid[k].anchorKey]) delete newGrid[k];
       });
+    } else if (type === 'MERGE') {
+      const anchorKey = `${rMin}-${cMin}`;
+      // find existing FLAT in selection to carry over its data
+      let src = null;
+      for (let r = rMin; r <= rMax && !src; r++)
+        for (let c = cMin; c <= cMax && !src; c++) {
+          const cell = newGrid[`${r}-${c}`];
+          if (cell?.merged) src = newGrid[cell.anchorKey];
+          else if (cell?.type === 'FLAT') src = cell;
+        }
+      for (let r = rMin; r <= rMax; r++)
+        for (let c = cMin; c <= cMax; c++) delete newGrid[`${r}-${c}`];
+      newGrid[anchorKey] = {
+        type: 'FLAT', row: rMin, col: cMin,
+        merged: false, anchorKey: null,
+        colSpan: cMax - cMin + 1, rowSpan: rMax - rMin + 1,
+        display_name: src?.display_name || '',
+        bhk: src?.bhk || '', isManual: src?.isManual ?? false,
+        status: src?.status || 'Nil Booking',
+        rotation: src?.rotation || 0, color: src?.color || '#ffffff',
+        font_size: src?.font_size || 10, font_weight: src?.font_weight || '900',
+        token_paid_to: src?.token_paid_to || '',
+      };
+      for (let r = rMin; r <= rMax; r++)
+        for (let c = cMin; c <= cMax; c++) {
+          if (r === rMin && c === cMin) continue;
+          newGrid[`${r}-${c}`] = { merged: true, anchorKey };
+        }
     } else {
       const isText = type === 'TEXT';
       const shouldMerge = type !== 'FLAT';
@@ -603,6 +663,7 @@ export default function FlatLayoutEditorPage() {
           <button onClick={() => applyAction('FLAT')} className="px-7 py-3.5 bg-emerald-500 text-white text-[11px] font-black rounded-2xl uppercase hover:scale-105 active:scale-95 transition-all">Add Flats</button>
           <button onClick={() => applyAction('ROAD')} className="px-7 py-3.5 bg-slate-900 text-white text-[11px] font-black rounded-2xl uppercase hover:scale-105 active:scale-95 transition-all">Road</button>
           <button onClick={() => applyAction('TEXT')} className="px-7 py-3.5 bg-blue-600 text-white text-[11px] font-black rounded-2xl uppercase hover:scale-105 active:scale-95 transition-all">Text</button>
+          <button onClick={() => applyAction('MERGE')} className="px-7 py-3.5 bg-amber-500 text-white text-[11px] font-black rounded-2xl uppercase hover:scale-105 active:scale-95 transition-all">Merge</button>
           <div className="w-px h-8 bg-slate-200 mx-2" />
           <button onClick={() => applyAction('CLEAR')} className="px-7 py-3.5 bg-slate-50 text-slate-400 text-[11px] font-black rounded-2xl uppercase hover:text-red-500 hover:bg-red-50 transition-all">Clear</button>
           <div className="w-px h-8 bg-slate-200 mx-2" />

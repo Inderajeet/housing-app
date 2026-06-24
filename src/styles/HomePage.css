@@ -56,7 +56,7 @@
     }
 }
 
-/* --- Main Map Area (Fills available viewport area) --- */
+/* Main map area */
 .main-map-area {
     position: relative;
     flex-grow: 1;
@@ -75,7 +75,7 @@
     z-index: 1;
 }
 
-/* --- Floating Panel Base Styles --- */
+/* Floating panel base styles */
 .floating-filter-panel,
 .floating-listings-panel {
     position: absolute;
@@ -154,7 +154,7 @@
     position: static;
 }
 
-/* --- Property Listings Content (Scrolling Fix) --- */
+/* Property listings content */
 .property-listings-container {
     flex-grow: 1;
     overflow-y: auto;
@@ -171,7 +171,7 @@
     display: none;
 }
 
-/* --- Minimized State (Both Panels) --- */
+/* Minimized state (both panels) */
 .floating-filter-panel.minimized,
 .floating-listings-panel.minimized {
     top: auto;
@@ -196,7 +196,7 @@
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 }
 
-/* --- Basic Filter Section (Location Dropdowns) --- */
+/* Basic filter section */
 .basic-filter-section {
     padding: 10px;
     position: relative;
@@ -217,7 +217,7 @@
     z-index: 10;
 }
 
-/* --- Location Filter Group Styles --- */
+/* Location filter group */
 .location-filter-group {
     display: flex;
     gap: 10px;
@@ -234,9 +234,7 @@
     font-size: 13px;
 }
 
-/* ===========================
-   MOBILE RESPONSIVE STYLES
-   =========================== */
+/* Mobile responsive styles */
 
 /* Tablets and smaller laptops */
 @media (max-width: 1024px) {

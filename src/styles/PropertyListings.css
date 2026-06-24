@@ -1,8 +1,6 @@
 /* src/styles/PropertyListings.css */
 
-/* ------------------------------------------------------------------- */
-/* --- 1. GENERAL LISTINGS VIEW (Non-Side Panel, Full Width) --- */
-/* ------------------------------------------------------------------- */
+/* 1. General listings view (non-side panel, full width) */
 
 .property-listings-container.general-view {
     padding: 20px 40px;
@@ -15,9 +13,7 @@
     gap: 8px;
 }
 
-/* ------------------------------------------------------------------- */
-/* --- 2. LISTING HEADER AND FILTERS --- */
-/* ------------------------------------------------------------------- */
+/* 2. Listing header and filters */
 
 .listing-header-area {
     background-color: #fff;
@@ -65,7 +61,7 @@
     font-weight: 500;
 }
 
-/* --- Filter Chips Row --- */
+/* Filter chips row */
 .filter-chips-row {
     display: flex;
     flex-wrap: wrap;
@@ -117,7 +113,7 @@
     background-color: #f3e5f5;
 }
 
-/* --- Search Bar & Ad Container --- */
+/* Search bar and ad container */
 .search-and-ad-container {
     display: flex;
     gap: 20px;
@@ -223,9 +219,7 @@
     font-weight: 600;
 }
 
-/* ------------------------------------------------------------------- */
-/* --- 3. COMPACT PROPERTY CARD (For Stacked General View) --- */
-/* ------------------------------------------------------------------- */
+/* 3. Compact property card (for stacked general view) */
 
 .compact-property-card {
     display: flex;
@@ -477,9 +471,7 @@
     color: #777;
 }
 
-/* ------------------------------------------------------------------- */
-/* --- 5. SELLER FILTER & PROMOTED STRIP --- */
-/* ------------------------------------------------------------------- */
+/* 5. Seller filter and promoted strip */
 
 .seller-filter-row {
     display: flex;
@@ -580,9 +572,7 @@
     white-space: nowrap;
 }
 
-/* ===========================
-   MOBILE RESPONSIVE STYLES
-   =========================== */
+/* Mobile responsive styles */
 
 /* Tablets */
 @media (max-width: 1024px) {

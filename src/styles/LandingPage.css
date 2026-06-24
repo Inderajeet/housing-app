@@ -20,7 +20,7 @@
     padding: 0;
 }
 
-/* --- Map Background Overlay --- */
+/* Map background overlay */
 .map-background-overlay {
     position: absolute;
     top: 0;
@@ -37,7 +37,7 @@
     pointer-events: none;
 }
 
-/* --- Content Wrapper (Sits Above Map) --- */
+/* Content wrapper, sits above map */
 .side-content-wrapper {
     position: relative;
     z-index: 5;
@@ -51,7 +51,7 @@
     padding: 20px;
 }
 
-/* --- Structural Styles --- */
+/* Structural styles */
 
 /* Sketch Area Styling */
 .map-sketch-area {
@@ -243,9 +243,7 @@
     z-index: 2;
 }
 
-/* ============================= */
-/* 📱 Mobile & Tablet Responsive */
-/* ============================= */
+/* Mobile & tablet responsive */
 
 @media (max-width: 1024px) {
     .landing-container {
@@ -282,9 +280,7 @@
     }
 }
 
-/* ============================= */
-/* 📱 Small Mobile Devices */
-/* ============================= */
+/* Small mobile devices */
 
 @media (max-width: 600px) {
     .landing-side {
