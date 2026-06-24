@@ -57,12 +57,14 @@ const UnifiedMap = ({ properties = [], mapCenter, mapZoom }) => {
     return value.charAt(0).toUpperCase() + value.slice(1);
   };
 
-  const getMarkerColor = (status) => {
+  const getMarkerColor = (status, isRent = false) => {
     const normalized = String(status || '').toLowerCase().replace(/[\s_-]/g, '');
-    if (normalized === 'nilbooking' || normalized === 'nil' || normalized === 'available') return '#22c55e';
+    if (normalized === 'nilbooking' || normalized === 'nil' || normalized === 'available' || normalized === '') {
+      return isRent ? '#3b82f6' : '#22c55e';
+    }
     if (normalized === 'onbooking') return '#f59e0b';
-    if (normalized === 'sold' || normalized === 'rented' || normalized === 'booked') return '#ef4444';
-    return '#3b82f6';
+    if (normalized === 'sold' || normalized === 'rented' || normalized === 'booked' || normalized === 'confirmed') return '#ef4444';
+    return isRent ? '#3b82f6' : '#22c55e';
   };
 
   const createMarkerIcon = (color) => ({
@@ -206,7 +208,7 @@ const UnifiedMap = ({ properties = [], mapCenter, mapZoom }) => {
 
           const isRent = !!property.rent_amount;
           const statusValue = isRent ? property.rent_status : property.sale_status;
-          const color = getMarkerColor(statusValue);
+          const color = getMarkerColor(statusValue, isRent);
 
           return (
             <Marker

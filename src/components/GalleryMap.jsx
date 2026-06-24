@@ -22,11 +22,14 @@ const GalleryMap = ({ location, status, title, propertyData = null }) => {
   const hidePopupTimeoutRef = useRef(null);
 
   const getMarkerColor = () => {
+    const isRent = !!(propertyData?.rent_amount);
     const normalized = String(status || '').toLowerCase().replace(/[\s_-]/g, '');
-    if (normalized === 'nilbooking' || normalized === 'nil' || normalized === 'available') return '#22c55e';
+    if (normalized === 'nilbooking' || normalized === 'nil' || normalized === 'available' || normalized === '') {
+      return isRent ? '#3b82f6' : '#22c55e';
+    }
     if (normalized === 'onbooking') return '#f59e0b';
-    if (normalized === 'sold' || normalized === 'rented' || normalized === 'booked') return '#ef4444';
-    return '#3b82f6';
+    if (normalized === 'sold' || normalized === 'rented' || normalized === 'booked' || normalized === 'confirmed') return '#ef4444';
+    return isRent ? '#3b82f6' : '#22c55e';
   };
 
   const position = useMemo(() => {

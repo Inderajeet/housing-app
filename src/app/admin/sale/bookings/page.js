@@ -14,6 +14,17 @@ const BOOKING_STATUSES = [
   { value: 'expired', label: 'Expired', color: 'bg-gray-100 text-gray-800 border-gray-200' },
 ];
 
+const getUnitTypeStyle = (type) => {
+  if (type === 'plot') return 'bg-purple-100 text-purple-700';
+  return 'bg-blue-100 text-blue-700';
+};
+
+const getUnitTypeLabel = (type) => {
+  if (type === 'sale') return 'Sale';
+  if (type === 'plot') return 'Plot';
+  return type?.toUpperCase() || 'N/A';
+};
+
 const formatDateShort = (d) => {
   if (!d) return '-';
   return new Intl.DateTimeFormat('en-IN', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata' }).format(new Date(d));
@@ -34,30 +45,34 @@ const formatCurrency = (amount) => {
 
 const dropdownClass = 'px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold uppercase outline-none focus:ring-2 focus:ring-blue-500/20 transition-all';
 
-export default function RentBookingsPage() {
+export default function SaleBookingsPage() {
   const [bookings, setBookings] = useState([]);
   const [filteredBookings, setFilteredBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(null);
   const [isViewOpen, setIsViewOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filters, setFilters] = useState({ dateRange: 'all', startDate: '', endDate: '', status: 'all' });
+  const [filters, setFilters] = useState({ dateRange: 'all', startDate: '', endDate: '', status: 'all', unit_type: 'all' });
 
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
       const statusFilter = filters.status !== 'all' ? filters.status : null;
-      const response = await getBookings('rent', statusFilter);
-      const data = response.data || response;
-      setBookings(Array.isArray(data) ? data : []);
-      setFilteredBookings(Array.isArray(data) ? data : []);
+      const typeFilter = filters.unit_type !== 'all' ? filters.unit_type : null;
+      const response = await getBookings(typeFilter, statusFilter);
+      let data = response.data || response;
+      if (!Array.isArray(data)) data = [];
+      // When fetching all types, keep only sale + plot
+      if (!typeFilter) data = data.filter(b => b.unit_type === 'sale' || b.unit_type === 'plot');
+      setBookings(data);
+      setFilteredBookings(data);
     } catch {
       setBookings([]);
       setFilteredBookings([]);
     } finally {
       setLoading(false);
     }
-  }, [filters.status]);
+  }, [filters.status, filters.unit_type]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
@@ -85,7 +100,8 @@ export default function RentBookingsPage() {
       result = result.filter((b) =>
         (b.buyer_name || '').toLowerCase().includes(q) ||
         (b.buyer_phone || '').includes(q) ||
-        (b.formatted_id || b.property_id || '').toLowerCase().includes(q)
+        (b.formatted_id || b.property_id || '').toLowerCase().includes(q) ||
+        (b.plot_number ? String(b.plot_number).includes(q) : false)
       );
     }
     setFilteredBookings(result);
@@ -95,6 +111,8 @@ export default function RentBookingsPage() {
     const data = filteredBookings.map((b) => ({
       'Booking ID': `BK-${b.booking_id}`,
       'Property ID': b.formatted_id || b.property_id,
+      'Type': getUnitTypeLabel(b.unit_type),
+      'Plot #': b.plot_number || '-',
       'Buyer': b.buyer_name || b.buyer_phone || '-',
       'Phone': b.buyer_phone || '-',
       'Status': b.status?.toUpperCase() || '-',
@@ -103,8 +121,8 @@ export default function RentBookingsPage() {
     }));
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Rent_Bookings');
-    XLSX.writeFile(wb, `Rent_Bookings_${new Date().toLocaleDateString()}.xlsx`);
+    XLSX.utils.book_append_sheet(wb, ws, 'Sale_Bookings');
+    XLSX.writeFile(wb, `Sale_Bookings_${new Date().toLocaleDateString()}.xlsx`);
   };
 
   const handleView = useCallback((row) => { setSelected(row); setIsViewOpen(true); }, []);
@@ -112,6 +130,20 @@ export default function RentBookingsPage() {
   const columns = useMemo(() => [
     { header: 'Booking ID', accessor: (b) => `BK-${b.booking_id}`, className: 'font-semibold text-blue-600 font-mono text-xs' },
     { header: 'Property ID', accessor: (b) => b.formatted_id || b.property_id, className: 'font-mono text-sm font-semibold' },
+    {
+      header: 'Type',
+      accessor: (b) => (
+        <span className={`px-2 py-1 rounded-lg text-[10px] font-bold uppercase ${getUnitTypeStyle(b.unit_type)}`}>
+          {getUnitTypeLabel(b.unit_type)}
+        </span>
+      ),
+    },
+    {
+      header: 'Plot #',
+      accessor: (b) => b.plot_number ? (
+        <span className="font-bold text-gray-800">{b.plot_number}</span>
+      ) : <span className="text-gray-300 text-xs">—</span>,
+    },
     {
       header: 'Buyer',
       accessor: (b) => (
@@ -134,12 +166,29 @@ export default function RentBookingsPage() {
     {
       header: 'Actions',
       accessor: (b) => (
-        <button onClick={(e) => { e.stopPropagation(); handleView(b); }} className="p-2 hover:bg-gray-100 rounded-lg text-gray-600 transition-colors" title="View">
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-          </svg>
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={(e) => { e.stopPropagation(); handleView(b); }} className="p-2 hover:bg-gray-100 rounded-lg text-gray-600 transition-colors" title="View">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+            </svg>
+          </button>
+          {(b.buyer_phone) && (
+            <a
+              href={`https://wa.me/${(b.buyer_phone || '').replace(/\D/g, '')}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="p-2 rounded-lg text-green-500 hover:bg-green-50 transition-colors"
+              title="WhatsApp"
+              onClick={e => e.stopPropagation()}
+            >
+              <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
+                <path d="M12 0C5.373 0 0 5.373 0 12c0 2.127.558 4.126 1.534 5.858L.057 23.215a.75.75 0 00.928.928l5.357-1.477A11.953 11.953 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.9 0-3.676-.523-5.193-1.432l-.372-.22-3.863 1.065 1.065-3.863-.22-.372A9.959 9.959 0 012 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/>
+              </svg>
+            </a>
+          )}
+        </div>
       ),
     },
   ], [handleView]);
@@ -148,8 +197,8 @@ export default function RentBookingsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-800">Rent Bookings</h2>
-          <p className="text-gray-500 text-xs uppercase tracking-widest font-bold mt-1">Manage rental property bookings</p>
+          <h2 className="text-2xl font-bold text-gray-800">Sale Bookings</h2>
+          <p className="text-gray-500 text-xs uppercase tracking-widest font-bold mt-1">Manage sale property bookings</p>
         </div>
         <button onClick={handleExport} disabled={filteredBookings.length === 0} className="bg-white border border-gray-300 text-gray-700 px-6 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
           Export Excel ({filteredBookings.length})
@@ -161,9 +210,17 @@ export default function RentBookingsPage() {
           <div className="flex flex-col space-y-2">
             <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Search</label>
             <div className="relative">
-              <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Buyer, phone, property ID..." className="pl-9 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold uppercase outline-none focus:ring-2 focus:ring-blue-500/20 w-52" />
+              <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Buyer, phone, property ID, plot #..." className="pl-9 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold uppercase outline-none focus:ring-2 focus:ring-blue-500/20 w-60" />
               <svg className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
             </div>
+          </div>
+          <div className="flex flex-col space-y-2">
+            <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Unit Type</label>
+            <select value={filters.unit_type} onChange={(e) => setFilters({ ...filters, unit_type: e.target.value })} className={dropdownClass}>
+              <option value="all">Sale + Plot</option>
+              <option value="sale">Sale Only</option>
+              <option value="plot">Plot Only</option>
+            </select>
           </div>
           <div className="flex flex-col space-y-2">
             <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Status</label>
@@ -181,7 +238,7 @@ export default function RentBookingsPage() {
               <option value="custom">Custom Range</option>
             </select>
           </div>
-          <button onClick={() => setFilters({ dateRange: 'all', startDate: '', endDate: '', status: 'all' })} className="text-[10px] font-bold text-red-500 uppercase pb-3 hover:underline">Reset</button>
+          <button onClick={() => setFilters({ dateRange: 'all', startDate: '', endDate: '', status: 'all', unit_type: 'all' })} className="text-[10px] font-bold text-red-500 uppercase pb-3 hover:underline">Reset</button>
         </div>
         {filters.dateRange === 'custom' && (
           <div className="flex gap-4 pt-2 border-t border-gray-50 mt-4">
@@ -193,7 +250,7 @@ export default function RentBookingsPage() {
 
       {loading ? <Loader /> : (
         <div className="overflow-x-auto">
-          <DataTable columns={columns} data={filteredBookings} emptyMessage="No rent bookings found" onRowClick={handleView} />
+          <DataTable columns={columns} data={filteredBookings} emptyMessage="No sale bookings found" onRowClick={handleView} />
         </div>
       )}
 
@@ -208,6 +265,24 @@ export default function RentBookingsPage() {
               <div className="grid grid-cols-2 gap-6">
                 <div><p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Booking ID</p><p className="font-bold font-mono text-lg text-blue-700">BK-{selected.booking_id}</p></div>
                 <div><p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Property ID</p><p className="font-semibold font-mono">{selected.formatted_id || selected.property_id}</p></div>
+              </div>
+              <div className="grid grid-cols-2 gap-6">
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Unit Type</p>
+                  <span className={`inline-block px-3 py-1.5 rounded-lg text-xs font-bold uppercase w-fit ${getUnitTypeStyle(selected.unit_type)}`}>
+                    {getUnitTypeLabel(selected.unit_type)}
+                  </span>
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">
+                    {selected.unit_type === 'plot' ? 'Plot Number' : 'Unit ID'}
+                  </p>
+                  <p className="font-semibold font-mono text-gray-800">
+                    {selected.unit_type === 'plot'
+                      ? (selected.plot_number || selected.unit_id || '-')
+                      : (selected.unit_id || '-')}
+                  </p>
+                </div>
               </div>
               <div className="p-5 bg-gradient-to-br from-gray-50 to-white rounded-2xl border border-gray-200 space-y-2">
                 <p className="text-xs font-bold uppercase tracking-widest text-gray-500">Buyer Information</p>

@@ -14,7 +14,7 @@ const BookingStatus = { NIL_BOOKING: 'Nil Booking', ON_BOOKING: 'ON_BOOKING', BO
 const PropertyType = { RESIDENTIAL: 'residential', COMMERCIAL: 'commercial' };
 const TOKEN_PAID_TO_OPTIONS = ['', 'Paid Us', 'Paid to Owner', 'Owner returned', 'Returned to buyer'];
 const STATUS_COLORS = {
-  'Nil Booking': 'bg-emerald-100 text-emerald-700',
+  'Nil Booking': 'bg-blue-100 text-blue-700',
   'ON_BOOKING':  'bg-yellow-100 text-yellow-800',
   'CONFIRMED':   'bg-red-100 text-red-800',
   'UNREGISTERED':'bg-red-100 text-red-800',

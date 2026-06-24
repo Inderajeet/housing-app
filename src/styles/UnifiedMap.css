@@ -81,6 +81,7 @@
   gap: 5px;
   margin-bottom: 6px;
   flex-wrap: wrap;
+  min-width: 0;
 }
 
 .popup-location svg {
@@ -90,6 +91,7 @@
 
 .popup-loc-text {
   flex-shrink: 0;
+  max-width: 100%;
 }
 
 .popup-loc-sep {
@@ -103,6 +105,9 @@
   font-weight: 700;
   color: #0f172a;
   word-break: break-word;
+  overflow-wrap: break-word;
+  min-width: 0;
+  flex: 1 1 auto;
 }
 
 /* Marker status colors are handled inline via SVG */

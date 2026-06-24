@@ -79,9 +79,9 @@ function ContactNotesModal({ target, onClose }) {
 
 const BOOKING_STATUSES = [
   { value: 'booked', label: 'Booked', color: 'bg-amber-100 text-amber-800 border-amber-200' },
-  { value: 'token_paid', label: 'Token Paid', color: 'bg-blue-100 text-blue-800 border-blue-200' },
-  { value: 'advance_paid', label: 'Advance Paid', color: 'bg-indigo-100 text-indigo-800 border-indigo-200' },
-  { value: 'closed', label: 'Closed', color: 'bg-emerald-100 text-emerald-800 border-emerald-200' },
+  { value: 'token_paid', label: 'Token Paid', color: 'bg-amber-100 text-amber-800 border-amber-200' },
+  { value: 'advance_paid', label: 'Advance Paid', color: 'bg-amber-100 text-amber-800 border-amber-200' },
+  { value: 'closed', label: 'Closed', color: 'bg-red-100 text-red-800 border-red-200' },
   { value: 'cancelled', label: 'Cancelled', color: 'bg-red-100 text-red-800 border-red-200' },
   { value: 'expired', label: 'Expired', color: 'bg-gray-100 text-gray-800 border-gray-200' },
 ];
@@ -453,8 +453,14 @@ export default function BookingsPage() {
                   </span>
                 </div>
                 <div className="flex flex-col space-y-1">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Unit ID</p>
-                  <p className="font-semibold font-mono text-gray-800">{selected.unit_id || '-'}</p>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">
+                    {selected.unit_type === 'plot' ? 'Plot Number' : 'Unit ID'}
+                  </p>
+                  <p className="font-semibold font-mono text-gray-800">
+                    {selected.unit_type === 'plot'
+                      ? (selected.plot_number || selected.unit_id || '-')
+                      : (selected.unit_id || '-')}
+                  </p>
                 </div>
               </div>
 
