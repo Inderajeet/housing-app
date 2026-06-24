@@ -34,6 +34,28 @@ const formatCurrency = (amount) => {
 
 const dropdownClass = 'px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold uppercase outline-none focus:ring-2 focus:ring-blue-500/20 transition-all';
 
+const RENT_PROPERTY_TYPES = [
+  { value: 'all', label: 'All Types' },
+  { value: '1', label: '1 BHK' },
+  { value: '2', label: '2 BHK' },
+  { value: '3', label: '3 BHK' },
+  { value: 'commercial', label: 'Commercial' },
+];
+
+const getRentTypeLabel = (bhk, propertyUse) => {
+  if ((propertyUse || '').toLowerCase() === 'commercial') return 'Commercial';
+  if (bhk) return `${bhk} BHK`;
+  return '-';
+};
+
+const getRentTypeStyle = (bhk, propertyUse) => {
+  if ((propertyUse || '').toLowerCase() === 'commercial') return 'bg-orange-100 text-orange-700';
+  if (bhk == 1) return 'bg-blue-100 text-blue-700';
+  if (bhk == 2) return 'bg-indigo-100 text-indigo-700';
+  if (bhk == 3) return 'bg-purple-100 text-purple-700';
+  return 'bg-gray-100 text-gray-700';
+};
+
 export default function RentBookingsPage() {
   const [bookings, setBookings] = useState([]);
   const [filteredBookings, setFilteredBookings] = useState([]);
@@ -41,7 +63,7 @@ export default function RentBookingsPage() {
   const [selected, setSelected] = useState(null);
   const [isViewOpen, setIsViewOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filters, setFilters] = useState({ dateRange: 'all', startDate: '', endDate: '', status: 'all' });
+  const [filters, setFilters] = useState({ dateRange: 'all', startDate: '', endDate: '', status: 'all', property_type: 'all' });
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -65,6 +87,13 @@ export default function RentBookingsPage() {
     let result = [...bookings];
     const now = new Date();
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    if (filters.property_type !== 'all') {
+      if (filters.property_type === 'commercial') {
+        result = result.filter(b => (b.property_use || '').toLowerCase() === 'commercial');
+      } else {
+        result = result.filter(b => String(b.bhk) === filters.property_type);
+      }
+    }
     if (filters.dateRange !== 'all') {
       result = result.filter((b) => {
         if (!b.locked_at) return false;
@@ -112,6 +141,14 @@ export default function RentBookingsPage() {
   const columns = useMemo(() => [
     { header: 'Booking ID', accessor: (b) => `BK-${b.booking_id}`, className: 'font-semibold text-blue-600 font-mono text-xs' },
     { header: 'Property ID', accessor: (b) => b.formatted_id || b.property_id, className: 'font-mono text-sm font-semibold' },
+    {
+      header: 'Type',
+      accessor: (b) => (
+        <span className={`px-2 py-1 rounded-lg text-[10px] font-bold uppercase ${getRentTypeStyle(b.bhk, b.property_use)}`}>
+          {getRentTypeLabel(b.bhk, b.property_use)}
+        </span>
+      ),
+    },
     {
       header: 'Buyer',
       accessor: (b) => (
@@ -166,6 +203,12 @@ export default function RentBookingsPage() {
             </div>
           </div>
           <div className="flex flex-col space-y-2">
+            <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Property Type</label>
+            <select value={filters.property_type} onChange={(e) => setFilters({ ...filters, property_type: e.target.value })} className={dropdownClass}>
+              {RENT_PROPERTY_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+            </select>
+          </div>
+          <div className="flex flex-col space-y-2">
             <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Status</label>
             <select value={filters.status} onChange={(e) => setFilters({ ...filters, status: e.target.value })} className={dropdownClass}>
               <option value="all">All Status</option>
@@ -181,7 +224,7 @@ export default function RentBookingsPage() {
               <option value="custom">Custom Range</option>
             </select>
           </div>
-          <button onClick={() => setFilters({ dateRange: 'all', startDate: '', endDate: '', status: 'all' })} className="text-[10px] font-bold text-red-500 uppercase pb-3 hover:underline">Reset</button>
+          <button onClick={() => setFilters({ dateRange: 'all', startDate: '', endDate: '', status: 'all', property_type: 'all' })} className="text-[10px] font-bold text-red-500 uppercase pb-3 hover:underline">Reset</button>
         </div>
         {filters.dateRange === 'custom' && (
           <div className="flex gap-4 pt-2 border-t border-gray-50 mt-4">
@@ -208,6 +251,14 @@ export default function RentBookingsPage() {
               <div className="grid grid-cols-2 gap-6">
                 <div><p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Booking ID</p><p className="font-bold font-mono text-lg text-blue-700">BK-{selected.booking_id}</p></div>
                 <div><p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Property ID</p><p className="font-semibold font-mono">{selected.formatted_id || selected.property_id}</p></div>
+              </div>
+              <div className="grid grid-cols-2 gap-6">
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Property Type</p>
+                  <span className={`inline-block px-3 py-1.5 rounded-lg text-xs font-bold uppercase w-fit ${getRentTypeStyle(selected.bhk, selected.property_use)}`}>
+                    {getRentTypeLabel(selected.bhk, selected.property_use)}
+                  </span>
+                </div>
               </div>
               <div className="p-5 bg-gradient-to-br from-gray-50 to-white rounded-2xl border border-gray-200 space-y-2">
                 <p className="text-xs font-bold uppercase tracking-widest text-gray-500">Buyer Information</p>

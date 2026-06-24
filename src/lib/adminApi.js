@@ -8,7 +8,7 @@ const API_BASE_URL =
 
 export const adminApi = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 15000,
+  timeout: 60000,
 });
 
 adminApi.interceptors.request.use((config) => {

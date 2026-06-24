@@ -133,6 +133,8 @@ export default function BookingsPage() {
   const [isViewOpen, setIsViewOpen] = useState(false);
   const [notesTarget, setNotesTarget] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [expiryRunning, setExpiryRunning] = useState(false);
+  const [expiryResult, setExpiryResult] = useState(null);
   const [filters, setFilters] = useState({
     dateRange: 'all', startDate: '', endDate: '', status: 'all', unit_type: 'all',
   });
@@ -155,6 +157,21 @@ export default function BookingsPage() {
   }, [filters.unit_type, filters.status]);
 
   useEffect(() => { loadData(); }, [loadData]);
+
+  const handleRunExpiryCheck = useCallback(async () => {
+    setExpiryRunning(true);
+    setExpiryResult(null);
+    try {
+      const res = await fetch('/api/cron/expire-bookings', { method: 'POST' });
+      const data = await res.json();
+      setExpiryResult(data);
+      if (data.expired > 0) loadData();
+    } catch {
+      setExpiryResult({ error: 'Failed to run expiry check' });
+    } finally {
+      setExpiryRunning(false);
+    }
+  }, [loadData]);
 
   useEffect(() => {
     let result = [...bookings];
@@ -339,18 +356,36 @@ export default function BookingsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h2 className="text-2xl font-bold text-gray-800">All Bookings</h2>
           <p className="text-gray-500 text-xs uppercase tracking-widest font-bold mt-1">View all property bookings</p>
         </div>
-        <button
-          onClick={handleExport}
-          disabled={filteredBookings.length === 0}
-          className="bg-white border border-gray-300 text-gray-700 px-6 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          Export Excel ({filteredBookings.length})
-        </button>
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex flex-col items-end gap-1">
+            <button
+              onClick={handleRunExpiryCheck}
+              disabled={expiryRunning}
+              className="bg-orange-50 border border-orange-200 text-orange-700 px-5 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-orange-100 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {expiryRunning ? 'Checking…' : 'Run Expiry Check'}
+            </button>
+            {expiryResult && (
+              <p className={`text-[10px] font-bold ${expiryResult.error ? 'text-red-500' : 'text-gray-500'}`}>
+                {expiryResult.error
+                  ? expiryResult.error
+                  : `${expiryResult.expired} booking(s) expired, ${expiryResult.reset?.length ?? 0} unit(s) reset`}
+              </p>
+            )}
+          </div>
+          <button
+            onClick={handleExport}
+            disabled={filteredBookings.length === 0}
+            className="bg-white border border-gray-300 text-gray-700 px-6 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Export Excel ({filteredBookings.length})
+          </button>
+        </div>
       </div>
 
       <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 space-y-4">

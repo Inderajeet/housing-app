@@ -14,15 +14,25 @@ const BOOKING_STATUSES = [
   { value: 'expired', label: 'Expired', color: 'bg-gray-100 text-gray-800 border-gray-200' },
 ];
 
-const getUnitTypeStyle = (type) => {
-  if (type === 'plot') return 'bg-purple-100 text-purple-700';
-  return 'bg-blue-100 text-blue-700';
+const SALE_PROPERTY_TYPES = [
+  { value: 'all', label: 'All Types' },
+  { value: 'plot', label: 'Plot' },
+  { value: 'flat', label: 'Flat' },
+  { value: 'house', label: 'House' },
+  { value: 'land', label: 'Land' },
+];
+
+const getPropertyTypeStyle = (saleType) => {
+  if (saleType === 'plot') return 'bg-purple-100 text-purple-700';
+  if (saleType === 'flat') return 'bg-indigo-100 text-indigo-700';
+  if (saleType === 'house') return 'bg-blue-100 text-blue-700';
+  if (saleType === 'land') return 'bg-green-100 text-green-700';
+  return 'bg-gray-100 text-gray-700';
 };
 
-const getUnitTypeLabel = (type) => {
-  if (type === 'sale') return 'Sale';
-  if (type === 'plot') return 'Plot';
-  return type?.toUpperCase() || 'N/A';
+const getPropertyTypeLabel = (saleType) => {
+  if (!saleType) return 'Sale';
+  return saleType.charAt(0).toUpperCase() + saleType.slice(1);
 };
 
 const formatDateShort = (d) => {
@@ -52,18 +62,19 @@ export default function SaleBookingsPage() {
   const [selected, setSelected] = useState(null);
   const [isViewOpen, setIsViewOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filters, setFilters] = useState({ dateRange: 'all', startDate: '', endDate: '', status: 'all', unit_type: 'all' });
+  const [expiryRunning, setExpiryRunning] = useState(false);
+  const [expiryResult, setExpiryResult] = useState(null);
+  const [filters, setFilters] = useState({ dateRange: 'all', startDate: '', endDate: '', status: 'all', property_type: 'all' });
 
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
       const statusFilter = filters.status !== 'all' ? filters.status : null;
-      const typeFilter = filters.unit_type !== 'all' ? filters.unit_type : null;
-      const response = await getBookings(typeFilter, statusFilter);
+      const response = await getBookings(null, statusFilter);
       let data = response.data || response;
       if (!Array.isArray(data)) data = [];
-      // When fetching all types, keep only sale + plot
-      if (!typeFilter) data = data.filter(b => b.unit_type === 'sale' || b.unit_type === 'plot');
+      // Keep only sale, plot, flat unit types (all sale-category bookings)
+      data = data.filter(b => b.unit_type === 'sale' || b.unit_type === 'plot' || b.unit_type === 'flat');
       setBookings(data);
       setFilteredBookings(data);
     } catch {
@@ -72,7 +83,7 @@ export default function SaleBookingsPage() {
     } finally {
       setLoading(false);
     }
-  }, [filters.status, filters.unit_type]);
+  }, [filters.status]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
@@ -80,6 +91,9 @@ export default function SaleBookingsPage() {
     let result = [...bookings];
     const now = new Date();
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    if (filters.property_type !== 'all') {
+      result = result.filter(b => (b.sale_type || '').toLowerCase() === filters.property_type);
+    }
     if (filters.dateRange !== 'all') {
       result = result.filter((b) => {
         if (!b.locked_at) return false;
@@ -127,14 +141,29 @@ export default function SaleBookingsPage() {
 
   const handleView = useCallback((row) => { setSelected(row); setIsViewOpen(true); }, []);
 
+  const handleRunExpiryCheck = useCallback(async () => {
+    setExpiryRunning(true);
+    setExpiryResult(null);
+    try {
+      const res = await fetch('/api/cron/expire-bookings', { method: 'POST' });
+      const data = await res.json();
+      setExpiryResult(data);
+      if (data.expired > 0) loadData();
+    } catch {
+      setExpiryResult({ error: 'Failed to run expiry check' });
+    } finally {
+      setExpiryRunning(false);
+    }
+  }, [loadData]);
+
   const columns = useMemo(() => [
     { header: 'Booking ID', accessor: (b) => `BK-${b.booking_id}`, className: 'font-semibold text-blue-600 font-mono text-xs' },
     { header: 'Property ID', accessor: (b) => b.formatted_id || b.property_id, className: 'font-mono text-sm font-semibold' },
     {
       header: 'Type',
       accessor: (b) => (
-        <span className={`px-2 py-1 rounded-lg text-[10px] font-bold uppercase ${getUnitTypeStyle(b.unit_type)}`}>
-          {getUnitTypeLabel(b.unit_type)}
+        <span className={`px-2 py-1 rounded-lg text-[10px] font-bold uppercase ${getPropertyTypeStyle(b.sale_type)}`}>
+          {getPropertyTypeLabel(b.sale_type)}
         </span>
       ),
     },
@@ -195,14 +224,32 @@ export default function SaleBookingsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h2 className="text-2xl font-bold text-gray-800">Sale Bookings</h2>
           <p className="text-gray-500 text-xs uppercase tracking-widest font-bold mt-1">Manage sale property bookings</p>
         </div>
-        <button onClick={handleExport} disabled={filteredBookings.length === 0} className="bg-white border border-gray-300 text-gray-700 px-6 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
-          Export Excel ({filteredBookings.length})
-        </button>
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex flex-col items-end gap-1">
+            <button
+              onClick={handleRunExpiryCheck}
+              disabled={expiryRunning}
+              className="bg-orange-50 border border-orange-200 text-orange-700 px-5 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-orange-100 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {expiryRunning ? 'Checking…' : 'Run Expiry Check'}
+            </button>
+            {expiryResult && (
+              <p className={`text-[10px] font-bold ${expiryResult.error ? 'text-red-500' : 'text-gray-500'}`}>
+                {expiryResult.error
+                  ? expiryResult.error
+                  : `${expiryResult.expired} booking(s) expired, ${expiryResult.reset?.length ?? 0} unit(s) reset`}
+              </p>
+            )}
+          </div>
+          <button onClick={handleExport} disabled={filteredBookings.length === 0} className="bg-white border border-gray-300 text-gray-700 px-6 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
+            Export Excel ({filteredBookings.length})
+          </button>
+        </div>
       </div>
 
       <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
@@ -215,11 +262,9 @@ export default function SaleBookingsPage() {
             </div>
           </div>
           <div className="flex flex-col space-y-2">
-            <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Unit Type</label>
-            <select value={filters.unit_type} onChange={(e) => setFilters({ ...filters, unit_type: e.target.value })} className={dropdownClass}>
-              <option value="all">Sale + Plot</option>
-              <option value="sale">Sale Only</option>
-              <option value="plot">Plot Only</option>
+            <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Property Type</label>
+            <select value={filters.property_type} onChange={(e) => setFilters({ ...filters, property_type: e.target.value })} className={dropdownClass}>
+              {SALE_PROPERTY_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
             </select>
           </div>
           <div className="flex flex-col space-y-2">
@@ -238,7 +283,7 @@ export default function SaleBookingsPage() {
               <option value="custom">Custom Range</option>
             </select>
           </div>
-          <button onClick={() => setFilters({ dateRange: 'all', startDate: '', endDate: '', status: 'all', unit_type: 'all' })} className="text-[10px] font-bold text-red-500 uppercase pb-3 hover:underline">Reset</button>
+          <button onClick={() => setFilters({ dateRange: 'all', startDate: '', endDate: '', status: 'all', property_type: 'all' })} className="text-[10px] font-bold text-red-500 uppercase pb-3 hover:underline">Reset</button>
         </div>
         {filters.dateRange === 'custom' && (
           <div className="flex gap-4 pt-2 border-t border-gray-50 mt-4">
@@ -268,9 +313,9 @@ export default function SaleBookingsPage() {
               </div>
               <div className="grid grid-cols-2 gap-6">
                 <div>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Unit Type</p>
-                  <span className={`inline-block px-3 py-1.5 rounded-lg text-xs font-bold uppercase w-fit ${getUnitTypeStyle(selected.unit_type)}`}>
-                    {getUnitTypeLabel(selected.unit_type)}
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Property Type</p>
+                  <span className={`inline-block px-3 py-1.5 rounded-lg text-xs font-bold uppercase w-fit ${getPropertyTypeStyle(selected.sale_type)}`}>
+                    {getPropertyTypeLabel(selected.sale_type)}
                   </span>
                 </div>
                 <div>

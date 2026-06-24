@@ -101,9 +101,15 @@ export async function updateStage({ propertyId, unitType, unitId, phone, stage, 
     }
   }
 
+  // Set expires_at = 14 days from now for initial on_booking stage only
+  const expiresAt = stage === 'VISIT_NEGOTIATE'
+    ? new Date(Date.now() + 14 * 24 * 60 * 60 * 1000)
+    : null;
+
   await prisma.$executeRawUnsafe(
-    `INSERT INTO bookings (property_id, unit_type, unit_id, buyer_id, status, token_paid_to) VALUES ($1,$2,$3,$4,$5,$6)`,
-    propertyId, unitType, unitId, buyerId, bookingStatus, tokenPaidTo
+    `INSERT INTO bookings (property_id, unit_type, unit_id, buyer_id, status, token_paid_to, expires_at)
+     VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+    propertyId, unitType, unitId, buyerId, bookingStatus, tokenPaidTo, expiresAt
   );
 
   // Sync enquiry record (best-effort — skip if columns missing until migration is run)

@@ -35,8 +35,7 @@ export const getAll = async () => {
     SELECT p.property_id, p.formatted_id, p.created_at, p.title,
       COALESCE(r.description, p.description) AS description,
       p.seller_id, p.contact_phone, p.address, p.status,
-      COALESCE((SELECT COUNT(DISTINCT b.buyer_id)::INT FROM bookings b
-        WHERE b.property_id = p.property_id AND b.unit_type = 'rent'), 0) AS booked_people_count,
+      COALESCE(bc.booked_people_count, 0) AS booked_people_count,
       p.live_image, p.latitude, p.longitude, p.district_id, p.taluk_id, p.village_id, p.area_id,
       p.amenities_rating, p.utilities_rating,
       r.bhk, r.rent_amount, r.advance_amount, r.property_use, r.furnished_status, r.rent_status,
@@ -48,6 +47,12 @@ export const getAll = async () => {
       d.district_name, t.taluk_name, v.village_name
     FROM properties p
     JOIN rent_properties r ON r.property_id = p.property_id
+    LEFT JOIN (
+      SELECT property_id, COUNT(DISTINCT buyer_id)::INT AS booked_people_count
+      FROM bookings
+      WHERE unit_type = 'rent'
+      GROUP BY property_id
+    ) bc ON bc.property_id = p.property_id
     LEFT JOIN sellers s ON s.seller_id = p.seller_id
     LEFT JOIN districts d ON d.district_id = p.district_id
     LEFT JOIN taluks t ON t.taluk_id = p.taluk_id
@@ -62,8 +67,7 @@ export const getById = async (propertyId) => {
     SELECT p.property_id, p.formatted_id, p.created_at, p.title,
       COALESCE(r.description, p.description) AS description,
       p.seller_id, p.contact_phone, p.address, p.status,
-      COALESCE((SELECT COUNT(DISTINCT b.buyer_id)::INT FROM bookings b
-        WHERE b.property_id = p.property_id AND b.unit_type = 'rent'), 0) AS booked_people_count,
+      COALESCE((SELECT COUNT(DISTINCT buyer_id)::INT FROM bookings WHERE property_id = p.property_id AND unit_type = 'rent'), 0) AS booked_people_count,
       p.live_image, p.latitude, p.longitude, p.district_id, p.taluk_id, p.village_id, p.area_id,
       p.amenities_rating, p.utilities_rating,
       r.bhk, r.rent_amount, r.advance_amount, r.property_use, r.furnished_status, r.rent_status,
