@@ -97,7 +97,7 @@ export default function PlotLayoutEditorPage() {
     showToast('Undo successful');
   };
 
-  const refreshPlotNumbers = useCallback((currentGrid) => {
+  const refreshPlotNumbers = useCallback((currentGrid, sortOpts = null) => {
     const newGrid = { ...currentGrid };
     const allKeys = Object.keys(newGrid).filter((k) => newGrid[k].type === 'PLOT' && !newGrid[k].merged);
 
@@ -115,6 +115,15 @@ export default function PlotLayoutEditorPage() {
     emptyKeys.sort((a, b) => {
       const [rA, cA] = a.split('-').map(Number);
       const [rB, cB] = b.split('-').map(Number);
+      if (sortOpts) {
+        const { rowDir, colDir, primary } = sortOpts;
+        if (primary === 'col') {
+          if (cA !== cB) return (cA - cB) * colDir;
+          return (rA - rB) * rowDir;
+        }
+        if (rA !== rB) return (rA - rB) * rowDir;
+        return (cA - cB) * colDir;
+      }
       return rA !== rB ? rA - rB : cA - cB;
     });
     let idx = maxNum + 1;
@@ -334,6 +343,10 @@ export default function PlotLayoutEditorPage() {
       recordHistory(gridData);
       if (type === 'CLEAR') {
         keys.forEach(k => { delete newGrid[k]; });
+        // Clean up orphaned merged cells whose anchor was just deleted
+        Object.keys(newGrid).forEach(k => {
+          if (newGrid[k]?.merged && !newGrid[newGrid[k].anchorKey]) delete newGrid[k];
+        });
       } else {
         keys.forEach(k => {
           const [r, c] = k.split('-').map(Number);
@@ -361,6 +374,10 @@ export default function PlotLayoutEditorPage() {
     if (type === 'CLEAR') {
       for (let r = rMin; r <= rMax; r++)
         for (let c = cMin; c <= cMax; c++) delete newGrid[`${r}-${c}`];
+      // Clean up orphaned merged cells whose anchor was just deleted
+      Object.keys(newGrid).forEach(k => {
+        if (newGrid[k]?.merged && !newGrid[newGrid[k].anchorKey]) delete newGrid[k];
+      });
     } else if (type === 'PLOT') {
       if (direction === 'horizontal') {
         for (let r = rMin; r <= rMax; r++) {
@@ -413,7 +430,12 @@ export default function PlotLayoutEditorPage() {
         }
       }
     }
-    setGridData(refreshPlotNumbers(newGrid));
+    const sortOpts = type === 'PLOT' ? {
+      rowDir: start.r <= end.r ? 1 : -1,
+      colDir: start.c <= end.c ? 1 : -1,
+      primary: direction === 'vertical' ? 'col' : 'row',
+    } : null;
+    setGridData(refreshPlotNumbers(newGrid, sortOpts));
     setSelection({ start: null, end: null });
   };
 

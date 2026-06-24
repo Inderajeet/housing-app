@@ -70,6 +70,7 @@ export default function FlatLayoutEditorPage() {
   const [svgBulkBhkValue, setSvgBulkBhkValue] = useState('');
   const [viewMode, setViewMode] = useState('grid');
   const [svgShapes, setSvgShapes] = useState([]);
+  const [direction, setDirection] = useState('horizontal'); // 'horizontal' | 'vertical'
 
   const showToast = (message, type = 'success') => setToast({ message, type });
   const recordHistory = (data) => setHistory((prev) => [...prev, JSON.stringify(data)].slice(-20));
@@ -87,12 +88,21 @@ export default function FlatLayoutEditorPage() {
     showToast('Undo successful');
   };
 
-  const refreshFlatNumbers = useCallback((currentGrid) => {
+  const refreshFlatNumbers = useCallback((currentGrid, sortOpts = null) => {
     const newGrid = { ...currentGrid };
     const flatKeys = Object.keys(newGrid).filter((k) => newGrid[k].type === 'FLAT' && !newGrid[k].merged);
     flatKeys.sort((a, b) => {
       const [rA, cA] = a.split('-').map(Number);
       const [rB, cB] = b.split('-').map(Number);
+      if (sortOpts) {
+        const { rowDir, colDir, primary } = sortOpts;
+        if (primary === 'col') {
+          if (cA !== cB) return (cA - cB) * colDir;
+          return (rA - rB) * rowDir;
+        }
+        if (rA !== rB) return (rA - rB) * rowDir;
+        return (cA - cB) * colDir;
+      }
       return rA !== rB ? rA - rB : cA - cB;
     });
     let idx = 1;
@@ -258,6 +268,10 @@ export default function FlatLayoutEditorPage() {
       recordHistory(gridData);
       if (type === 'CLEAR') {
         keys.forEach(k => { delete newGrid[k]; });
+        // Clean up orphaned merged cells whose anchor was just deleted
+        Object.keys(newGrid).forEach(k => {
+          if (newGrid[k]?.merged && !newGrid[newGrid[k].anchorKey]) delete newGrid[k];
+        });
       } else {
         keys.forEach(k => {
           const [r, c] = k.split('-').map(Number);
@@ -285,6 +299,10 @@ export default function FlatLayoutEditorPage() {
     if (type === 'CLEAR') {
       for (let r = rMin; r <= rMax; r++)
         for (let c = cMin; c <= cMax; c++) delete newGrid[`${r}-${c}`];
+      // Clean up orphaned merged cells whose anchor was just deleted
+      Object.keys(newGrid).forEach(k => {
+        if (newGrid[k]?.merged && !newGrid[newGrid[k].anchorKey]) delete newGrid[k];
+      });
     } else {
       const isText = type === 'TEXT';
       const shouldMerge = type !== 'FLAT';
@@ -306,7 +324,12 @@ export default function FlatLayoutEditorPage() {
         }
       }
     }
-    setGridData(refreshFlatNumbers(newGrid));
+    const sortOpts = type === 'FLAT' ? {
+      rowDir: start.r <= end.r ? 1 : -1,
+      colDir: start.c <= end.c ? 1 : -1,
+      primary: direction === 'vertical' ? 'col' : 'row',
+    } : null;
+    setGridData(refreshFlatNumbers(newGrid, sortOpts));
     setSelection({ start: null, end: null });
   };
 
@@ -364,6 +387,7 @@ export default function FlatLayoutEditorPage() {
     <div className="flex h-screen bg-[#f8fafc] overflow-hidden font-sans">
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
       {showDrawing && drawingImage && <DrawingModal url={drawingImage} onClose={() => setShowDrawing(false)} />}
+
       <div className="flex-1 flex flex-col min-w-0 relative">
         <div className="h-20 bg-white border-b flex items-center justify-between px-10 z-50 shrink-0">
           <div className="flex items-center gap-8">
@@ -586,6 +610,17 @@ export default function FlatLayoutEditorPage() {
             onClick={() => { setSelectionMode(m => m === 'rect' ? 'freeform' : 'rect'); setSelection({ start: null, end: null }); setFreeformKeys({}); }}
             className={`px-7 py-3.5 text-[11px] font-black rounded-2xl uppercase hover:scale-105 active:scale-95 transition-all ${selectionMode === 'freeform' ? 'bg-violet-600 text-white shadow-[0_8px_20px_-4px_rgba(124,58,237,0.4)]' : 'bg-slate-100 text-slate-500 hover:bg-violet-50 hover:text-violet-600'}`}
           >Free Select</button>
+          <div className="w-px h-8 bg-slate-200 mx-2" />
+          <div className="flex items-center bg-slate-100 rounded-2xl p-1 gap-1">
+            <button
+              onClick={() => setDirection('horizontal')}
+              className={`px-5 py-2.5 text-[11px] font-black rounded-xl uppercase transition-all ${direction === 'horizontal' ? 'bg-white text-blue-600 shadow' : 'text-slate-400 hover:text-slate-600'}`}
+            >⟷ Horizontal</button>
+            <button
+              onClick={() => setDirection('vertical')}
+              className={`px-5 py-2.5 text-[11px] font-black rounded-xl uppercase transition-all ${direction === 'vertical' ? 'bg-white text-blue-600 shadow' : 'text-slate-400 hover:text-slate-600'}`}
+            >↕ Vertical</button>
+          </div>
         </div>}
       </div>
 
