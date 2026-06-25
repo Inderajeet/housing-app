@@ -265,7 +265,7 @@ export default function ProjectDetailsView({ routeIdentifier = '', routeMode = n
       <div className="main-content-flow-wrapper">
         <div className="fullview-tab-layout">
           <div className="fullview-main-area">
-            <div className={`fullview-panel ${activePanel === 'map' ? 'map-active-panel' : ''} ${activeMediaTab ? 'image-active-panel' : ''} ${activePanel === 'media:video' ? 'video-active-panel' : ''}`}>
+            <div className={`fullview-panel ${activePanel === 'map' ? 'map-active-panel' : ''} ${activeMediaTab ? 'image-active-panel' : ''}`}>
               {activePanel === 'map' && (
                 <div className="panel-content map-panel-content">
                   <GalleryMap location={mapLocation} title={displayTitle} status={propertyStatus} propertyData={project} />
@@ -331,17 +331,17 @@ export default function ProjectDetailsView({ routeIdentifier = '', routeMode = n
                 return (
                   <div className="panel-content video-panel-content">
                     <div className="video-panel-frame">
-                      <iframe
-                        src={fbSrc}
-                        width={fbW}
-                        height={fbH}
-                        className="video-embed-iframe-natural"
-                        allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
-                        allowFullScreen
-                        title="Property video"
-                        frameBorder="0"
-                        scrolling="no"
-                      />
+                      <div className="video-aspect-box" style={{ aspectRatio: `${fbW}/${fbH}` }}>
+                        <iframe
+                          src={fbSrc}
+                          className="video-embed-iframe-natural"
+                          allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
+                          allowFullScreen
+                          title="Property video"
+                          frameBorder="0"
+                          scrolling="no"
+                        />
+                      </div>
                     </div>
                   </div>
                 );
