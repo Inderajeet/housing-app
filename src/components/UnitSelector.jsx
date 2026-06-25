@@ -15,6 +15,7 @@ const UnitSelector = ({ propertyId, onSelectUnit, saleType, onNoPlots, refreshKe
     const [loadError, setLoadError] = useState('');
     const [svgZoom, setSvgZoom] = useState(1);
     const [svgPan, setSvgPan] = useState({ x: 0, y: 0 });
+    const [gridZoom, setGridZoom] = useState(1);
     const [pendingCell, setPendingCell] = useState(null);
     const svgRef = useRef(null);
     const panStartRef = useRef(null);
@@ -348,7 +349,7 @@ const UnitSelector = ({ propertyId, onSelectUnit, saleType, onNoPlots, refreshKe
                         ? `Plot ${pendingCell.display_name} selected — proceeding…`
                         : `Select and Visit`}
                 </p>
-                <div className="unit-grid-scroll" style={{ height: 400, position: 'relative' }}>
+                <div style={{ position: 'relative' }}>
                     <div style={{ position: 'absolute', top: 8, right: 8, zIndex: 10, display: 'flex', alignItems: 'center', gap: 4, background: 'white', borderRadius: 8, padding: '4px 8px', border: '1px solid #e2e8f0', fontSize: 12, fontWeight: 700, color: '#334155', userSelect: 'none' }}>
                         <button onClick={() => setSvgZoom(z => Math.min(4, +(z + 0.25).toFixed(2)))} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 16, lineHeight: 1, color: '#334155', padding: '0 2px' }}>+</button>
                         <span style={{ minWidth: 36, textAlign: 'center' }}>{Math.round(svgZoom * 100)}%</span>
@@ -357,6 +358,7 @@ const UnitSelector = ({ propertyId, onSelectUnit, saleType, onNoPlots, refreshKe
                             <button onClick={() => setSvgPan({ x: 0, y: 0 })} style={{ border: 'none', background: '#f1f5f9', cursor: 'pointer', fontSize: 10, fontWeight: 900, color: '#64748b', padding: '2px 6px', borderRadius: 4, marginLeft: 4 }}>Reset</button>
                         )}
                     </div>
+                <div className="unit-grid-scroll" style={{ height: 400 }}>
                     <svg
                         ref={svgRef}
                         viewBox={vb}
@@ -438,6 +440,7 @@ const UnitSelector = ({ propertyId, onSelectUnit, saleType, onNoPlots, refreshKe
                         ))}
                     </svg>
                 </div>
+                </div>
                 <div className="unit-legend">
                     <div className="legend-item"><div className="legend-dot legend-available"></div> Available</div>
                     <div className="legend-item"><div className="legend-dot legend-on-booking"></div> On Booking</div>
@@ -453,12 +456,20 @@ const UnitSelector = ({ propertyId, onSelectUnit, saleType, onNoPlots, refreshKe
             <h2 className="unit-selector-title">{titleLabel}</h2>
             <p className="unit-selector-subtitle">Please click on an available {unitLabel} to continue</p>
 
+            <div style={{ position: 'relative' }}>
+                <div style={{ position: 'absolute', top: 8, right: 8, zIndex: 10, display: 'flex', alignItems: 'center', gap: 4, background: 'white', borderRadius: 8, padding: '4px 8px', border: '1px solid #e2e8f0', fontSize: 12, fontWeight: 700, color: '#334155', userSelect: 'none' }}>
+                    <button onClick={() => setGridZoom(z => Math.min(3, +(z + 0.25).toFixed(2)))} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 16, lineHeight: 1, color: '#334155', padding: '0 2px' }}>+</button>
+                    <span style={{ minWidth: 36, textAlign: 'center' }}>{Math.round(gridZoom * 100)}%</span>
+                    <button onClick={() => setGridZoom(z => Math.max(0.25, +(z - 0.25).toFixed(2)))} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 16, lineHeight: 1, color: '#334155', padding: '0 2px' }}>−</button>
+                </div>
             <div className="unit-grid-scroll">
                 <div
                     className="unit-grid-wrapper"
                     style={{
                         gridTemplateColumns: `repeat(${dims.cols}, var(--unit-cell))`,
                         gridAutoRows: 'var(--unit-cell)',
+                        transform: `scale(${gridZoom})`,
+                        transformOrigin: 'top left',
                     }}
                 >
                     {rowsArray.map((_, r) => (
@@ -541,6 +552,7 @@ const UnitSelector = ({ propertyId, onSelectUnit, saleType, onNoPlots, refreshKe
                         })
                     ))}
                 </div>
+            </div>
             </div>
 
             <div className="unit-legend">

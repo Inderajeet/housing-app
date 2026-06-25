@@ -41,6 +41,7 @@ export async function getAll(type) {
       s.street_name_or_road_name, s.layout_name,
       s.survey_number, s.boundary_north, s.boundary_south, s.boundary_east, s.boundary_west,
       s.sale_status, s.legal_value, s.area_sales_speed, s.facing, s.road_width,
+      s.videos->>'url' AS video_url,
       CASE WHEN LOWER(COALESCE(s.sale_type, '')) IN ('plot', 'flat') THEN s.drawing_image ELSE NULL END AS drawing_image,
       s.total_units_count, s.booked_units, s.open_units,
       s.alternate_contact_phone, s.alternate_seller_name, s.listing_person_phone, s.dtcp,

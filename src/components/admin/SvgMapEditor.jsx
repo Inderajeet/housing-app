@@ -42,9 +42,15 @@ const nextPlotLabel = (shapesArr) => {
   return String(maxL + 1);
 };
 
-export default function SvgMapEditor({ shapes, backgroundImage, unitType = 'PLOT', onChange }) {
+export default function SvgMapEditor({ shapes, backgroundImage, unitType = 'PLOT', onChange, zoom, onZoomChange }) {
   const svgRef = useRef(null);
-  const [scale, setScale] = useState(1);
+  const [localScale, setLocalScale] = useState(1);
+  const scale = zoom != null ? zoom : localScale;
+  const setScale = (updater) => {
+    const next = typeof updater === 'function' ? updater(scale) : updater;
+    if (onZoomChange) onZoomChange(next);
+    else setLocalScale(next);
+  };
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [tool, setTool] = useState('select');
   const [drawing, setDrawing] = useState(false);

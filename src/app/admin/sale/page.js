@@ -929,6 +929,11 @@ export default function SalePropertiesPage() {
                     onDrawingImageUpload={async (url) => {
                       await adminApi.put(`/sale/${selected.property_id}`, { drawing_image_url: url });
                       setSelected(prev => ({ ...prev, drawing_image: url }));
+                    }}
+                    videoUrl={selected?.video_url || ''}
+                    onVideoUrlSave={async (url) => {
+                      await adminApi.put(`/sale/${selected.property_id}`, { video_url: url });
+                      setSelected(prev => ({ ...prev, video_url: url }));
                     }} />
               )}
               {formTab === 'documents' && (

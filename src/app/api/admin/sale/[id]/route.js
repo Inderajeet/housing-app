@@ -3,7 +3,7 @@ import { toApiError } from '@/lib/apiError';
 import prisma from '@/lib/prisma';
 import {
   getById, updateSaleProperty, updateSaleStatus, removeSaleProperty,
-  updateDrawingImage, updateDrawingImageByUrl,
+  updateDrawingImage, updateDrawingImageByUrl, updateVideoUrl,
 } from '../../../../../lib/services/admin/sale.service.js';
 
 const SOLD_STATUSES = new Set(['SOLD', 'REGISTERED', 'UNREGISTERED']);
@@ -77,6 +77,11 @@ export async function PUT(request, { params }) {
 
     if ('drawing_image_url' in body && Object.keys(body).length === 1) {
       const result = await updateDrawingImageByUrl(id, body.drawing_image_url);
+      return NextResponse.json(result);
+    }
+
+    if ('video_url' in body && Object.keys(body).length === 1) {
+      const result = await updateVideoUrl(id, body.video_url);
       return NextResponse.json(result);
     }
 

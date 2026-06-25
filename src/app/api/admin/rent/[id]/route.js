@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { toApiError } from '@/lib/apiError';
-import { getById, updateRentProperty, updateRentStatus, deleteRentProperty } from '../../../../../lib/services/admin/rent.service.js';
+import { getById, updateRentProperty, updateRentStatus, deleteRentProperty, updateVideoUrl } from '../../../../../lib/services/admin/rent.service.js';
 
 export async function GET(request, { params }) {
   try {
@@ -31,6 +31,10 @@ export async function PUT(request, { params }) {
     const body = await request.json();
     if (body.status && Object.keys(body).length === 1) {
       const result = await updateRentStatus(id, body.status);
+      return NextResponse.json(result);
+    }
+    if ('video_url' in body && Object.keys(body).length === 1) {
+      const result = await updateVideoUrl(id, body.video_url);
       return NextResponse.json(result);
     }
     const result = await updateRentProperty(id, body);

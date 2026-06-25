@@ -43,6 +43,7 @@ export const getAll = async () => {
       r.alternate_contact_phone, r.alternate_seller_name,
       r.token_amount, r.token_paid_to, r.rent_out_rate, r.rent_out_date,
       r.legal_value, r.area_sales_speed, r.facing, r.road_width,
+      r.videos->>'url' AS video_url,
       s.name as seller_name, s.phone_number as seller_phone,
       d.district_name, t.taluk_name, v.village_name
     FROM properties p
@@ -75,6 +76,7 @@ export const getById = async (propertyId) => {
       r.alternate_contact_phone, r.alternate_seller_name,
       r.token_amount, r.token_paid_to, r.rent_out_rate, r.rent_out_date,
       r.legal_value, r.area_sales_speed, r.facing, r.road_width,
+      r.videos->>'url' AS video_url,
       s.name as seller_name, s.phone_number as seller_phone
     FROM properties p
     JOIN rent_properties r ON r.property_id = p.property_id
@@ -204,6 +206,15 @@ export const deleteRentProperty = async (propertyId) => {
     await tx.$executeRawUnsafe('DELETE FROM property_assets WHERE property_id = $1', propertyId);
     await tx.$executeRawUnsafe('DELETE FROM properties WHERE property_id = $1', propertyId);
   });
+};
+
+export const updateVideoUrl = async (propertyId, videoUrl) => {
+  const val = videoUrl ? JSON.stringify({ url: videoUrl }) : null;
+  await prisma.$executeRawUnsafe(
+    'UPDATE rent_properties SET videos = $1::jsonb WHERE property_id = $2',
+    val, propertyId
+  );
+  return { video_url: videoUrl };
 };
 
 export const updateRentStatus = async (propertyId, status) => {

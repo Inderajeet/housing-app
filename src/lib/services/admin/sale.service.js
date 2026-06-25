@@ -75,6 +75,7 @@ export const getAll = async () => {
       s.parent_document, s.sub_registrar_office, s.gift_deed,
       s.token_amount, s.token_paid_to, s.sold_rate, s.sold_date, s.advance_amount,
       s.legal_value, s.area_sales_speed, s.facing, s.road_width,
+      s.videos->>'url' AS video_url,
       seller.name AS seller_name, seller.phone_number AS seller_phone,
       d.district_name, t.taluk_name, v.village_name
     FROM properties p
@@ -109,6 +110,7 @@ export const getById = async (propertyId) => {
       s.parent_document, s.sub_registrar_office, s.gift_deed,
       s.token_amount, s.token_paid_to, s.sold_rate, s.sold_date, s.advance_amount,
       s.legal_value, s.area_sales_speed, s.facing, s.road_width,
+      s.videos->>'url' AS video_url,
       seller.name AS seller_name, seller.phone_number AS seller_phone
     FROM properties p
     INNER JOIN sale_properties s ON s.property_id = p.property_id
@@ -284,4 +286,13 @@ export const updateDrawingImageByUrl = async (propertyId, url) => {
     url || null, propertyId
   );
   return { drawing_image: url };
+};
+
+export const updateVideoUrl = async (propertyId, videoUrl) => {
+  const val = videoUrl ? JSON.stringify({ url: videoUrl }) : null;
+  await prisma.$executeRawUnsafe(
+    'UPDATE sale_properties SET videos = $1::jsonb WHERE property_id = $2',
+    val, propertyId
+  );
+  return { video_url: videoUrl };
 };

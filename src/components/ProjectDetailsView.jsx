@@ -96,11 +96,55 @@ export default function ProjectDetailsView({ routeIdentifier = '', routeMode = n
   // Drawing gets its own dedicated panel block for plots/flats
   const hasDrawing = drawingImages.length > 0;
 
-  const mediaTabs = useMemo(() => normalImages.map((img, idx) => ({
+  const videoUrl = project?.video_url || '';
+
+  /* Build the proxied FB thumbnail URL for the strip */
+  const fbThumbSrc = useMemo(() => {
+    if (!videoUrl) return null;
+    const srcMatch = videoUrl.match(/\bsrc=["']([^"']+)["']/i);
+    let canonical = videoUrl;
+    if (srcMatch) {
+      const hrefMatch = srcMatch[1].match(/[?&]href=([^&"']+)/i);
+      canonical = hrefMatch ? decodeURIComponent(hrefMatch[1]) : videoUrl;
+    }
+    return `/api/frontend/fb-thumbnail?url=${encodeURIComponent(canonical)}`;
+  }, [videoUrl]);
+
+  const getFbEmbedAttrs = (raw) => {
+    if (!raw) return { src: '', width: null, height: null };
+    /* Parse width/height from an iframe embed code */
+    const wMatch = raw.match(/\bwidth=["']?(\d+)["']?/i);
+    const hMatch = raw.match(/\bheight=["']?(\d+)["']?/i);
+    const w = wMatch ? parseInt(wMatch[1]) : null;
+    const h = hMatch ? parseInt(hMatch[1]) : null;
+    /* Extract src from iframe embed or determine embed URL from plain link */
+    const srcMatch = raw.match(/\bsrc=["']([^"']+)["']/i);
+    const src = srcMatch
+      ? srcMatch[1]
+      : raw.includes('facebook.com/plugins/video')
+        ? raw
+        : `https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(raw)}&show_text=false&autoplay=0&mute=0`;
+    /* If no explicit dimensions, guess aspect ratio from URL */
+    if (!w && !h) {
+      const isPortrait = /\/(reel|reels|stories)\//i.test(raw) || /[?&]reel/i.test(raw);
+      return isPortrait
+        ? { src, width: 314, height: 559 }
+        : { src, width: 476, height: 476 };
+    }
+    return { src, width: w, height: h };
+  };
+
+  /* When a video URL exists and there are 3+ images, cap displayed images at 2 */
+  const displayImages = useMemo(() => {
+    if (videoUrl && normalImages.length >= 3) return normalImages.slice(0, 2);
+    return normalImages;
+  }, [normalImages, videoUrl]);
+
+  const mediaTabs = useMemo(() => displayImages.map((img, idx) => ({
     id: `image-${idx + 1}`,
     label: 'Photos',
     src: img.src,
-  })), [normalImages]);
+  })), [displayImages]);
 
   const hasMediaTabs = mediaTabs.length > 0;
   const activeMediaTab = useMemo(
@@ -109,12 +153,13 @@ export default function ProjectDetailsView({ routeIdentifier = '', routeMode = n
   );
 
   useEffect(() => {
-    if (activePanel.startsWith('media:') && !activeMediaTab) {
+    if (activePanel.startsWith('media:') && !activeMediaTab && activePanel !== 'media:video') {
       setActivePanel('map');
       return;
     }
-    setShowImageDetails(activePanel.startsWith('media:'));
+    setShowImageDetails(activePanel.startsWith('media:') && activePanel !== 'media:video');
   }, [activePanel, activeMediaTab]);
+
 
   const handleStatusChange = (newStatus) => {
     setPropertyStatus(newStatus);
@@ -220,7 +265,7 @@ export default function ProjectDetailsView({ routeIdentifier = '', routeMode = n
       <div className="main-content-flow-wrapper">
         <div className="fullview-tab-layout">
           <div className="fullview-main-area">
-            <div className={`fullview-panel ${activePanel === 'map' ? 'map-active-panel' : ''} ${activeMediaTab ? 'image-active-panel' : ''}`}>
+            <div className={`fullview-panel ${activePanel === 'map' ? 'map-active-panel' : ''} ${activeMediaTab ? 'image-active-panel' : ''} ${activePanel === 'media:video' ? 'video-active-panel' : ''}`}>
               {activePanel === 'map' && (
                 <div className="panel-content map-panel-content">
                   <GalleryMap location={mapLocation} title={displayTitle} status={propertyStatus} propertyData={project} />
@@ -281,6 +326,27 @@ export default function ProjectDetailsView({ routeIdentifier = '', routeMode = n
                 </div>
               )}
 
+              {activePanel === 'media:video' && videoUrl && (() => {
+                const { src: fbSrc, width: fbW, height: fbH } = getFbEmbedAttrs(videoUrl);
+                return (
+                  <div className="panel-content video-panel-content">
+                    <div className="video-panel-frame">
+                      <iframe
+                        src={fbSrc}
+                        width={fbW}
+                        height={fbH}
+                        className="video-embed-iframe-natural"
+                        allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
+                        allowFullScreen
+                        title="Property video"
+                        frameBorder="0"
+                        scrolling="no"
+                      />
+                    </div>
+                  </div>
+                );
+              })()}
+
               {activePanel === 'boundary' && showBoundaryPanel && (
                 <div className="panel-content boundary-panel-content">
                   <h2 className="section-title">Boundary Details</h2>
@@ -312,8 +378,7 @@ export default function ProjectDetailsView({ routeIdentifier = '', routeMode = n
 
               {activePanel === 'drawing' && hasDrawing && (
                 <div className="panel-content single-image-panel-content">
-                  <h2 className="section-title">Layout Drawing</h2>
-                  <div className="single-image-frame">
+                  <div className="single-image-frame-area">
                     <img src={drawingImages[0].src} alt="Layout Drawing" />
                   </div>
                 </div>
@@ -360,17 +425,15 @@ export default function ProjectDetailsView({ routeIdentifier = '', routeMode = n
               </button>
             )}
 
-            {hasDrawing && (
-              <button type="button" className={`panel-thumb ${activePanel === 'drawing' ? 'active' : ''}`} onClick={() => setActivePanel('drawing')}>
-                <div className="panel-thumb-media">
-                  <img src={drawingImages[0].src} alt="Layout Drawing preview" />
-                </div>
-                <span>Drawing</span>
-              </button>
-            )}
-
-            {hasMediaTabs && (
+            {(hasMediaTabs || videoUrl || hasDrawing) && (
               <div className="media-thumbs-grid">
+                {hasDrawing && (
+                  <button type="button" className={`panel-thumb media-thumb ${activePanel === 'drawing' ? 'active' : ''}`} onClick={() => setActivePanel('drawing')}>
+                    <div className="panel-thumb-media">
+                      <img src={drawingImages[0].src} alt="Layout Drawing preview" />
+                    </div>
+                  </button>
+                )}
                 {mediaTabs.map((tab) => (
                   <button
                     key={tab.id}
@@ -387,6 +450,26 @@ export default function ProjectDetailsView({ routeIdentifier = '', routeMode = n
                     </div>
                   </button>
                 ))}
+                {videoUrl && (
+                  <button
+                    type="button"
+                    className={`panel-thumb media-thumb video-thumb ${activePanel === 'media:video' ? 'active' : ''}`}
+                    onClick={() => setActivePanel('media:video')}
+                  >
+                    <div className="panel-thumb-media video-thumb-media">
+                      {fbThumbSrc ? (
+                        <img src={fbThumbSrc} alt="Video" onError={e => { e.currentTarget.style.display = 'none'; }} />
+                      ) : displayImages[0]?.src ? (
+                        <img src={displayImages[0].src} alt="Video" />
+                      ) : (
+                        <div className="panel-thumb-fallback" />
+                      )}
+                      <span className="video-thumb-play-icon">
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none"><circle cx="12" cy="12" r="10" stroke="white" strokeWidth="1.5" fill="rgba(255,255,255,0.15)"/><polygon points="10,8 18,12 10,16" fill="white" /></svg>
+                      </span>
+                    </div>
+                  </button>
+                )}
               </div>
             )}
           </div>

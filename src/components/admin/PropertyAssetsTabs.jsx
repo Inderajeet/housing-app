@@ -11,7 +11,7 @@ const Spinner = () => (
   </svg>
 );
 
-export default function PropertyAssetsTabs({ propertyId, assets, setAssets, isReadOnly, propertyData, mode = 'edit', onDrawingImageUpload, onlyType = null }) {
+export default function PropertyAssetsTabs({ propertyId, assets, setAssets, isReadOnly, propertyData, mode = 'edit', onDrawingImageUpload, onlyType = null, videoUrl = '', onVideoUrlSave }) {
   const propertyType = String(propertyData?.sale_type || propertyData?.property_type || '').trim().toUpperCase();
   const isPlotOrFlat = propertyType === 'FLAT' || propertyType === 'PLOT';
   const liveImageUrl = propertyData?.live_image || '';
@@ -28,6 +28,17 @@ export default function PropertyAssetsTabs({ propertyId, assets, setAssets, isRe
   const [uploadingDrawing, setUploadingDrawing] = useState(false);
   const drawingFileRef = useRef();
   const [blurEditAsset, setBlurEditAsset] = useState(null);
+  const [videoUrlDraft, setVideoUrlDraft] = useState(videoUrl || '');
+  const [savingVideo, setSavingVideo] = useState(false);
+
+  useEffect(() => { setVideoUrlDraft(videoUrl || ''); }, [videoUrl]);
+
+  const handleVideoUrlSave = async () => {
+    if (!onVideoUrlSave) return;
+    setSavingVideo(true);
+    try { await onVideoUrlSave(videoUrlDraft.trim()); } catch {}
+    setSavingVideo(false);
+  };
 
   const tabClass = (tab) => `py-3 text-[10px] font-bold uppercase tracking-widest transition-all ${activeTab === tab ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-400 hover:text-gray-600'}`;
 
@@ -254,6 +265,29 @@ export default function PropertyAssetsTabs({ propertyId, assets, setAssets, isRe
                   )
                   : <p className="text-xs text-amber-400 font-bold uppercase">No drawing uploaded</p>
               )}
+            </div>
+          )}
+          {onVideoUrlSave && (
+            <div className="mb-6 rounded-2xl border border-blue-100 bg-blue-50/50 p-4">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-blue-600 mb-3">Video URL (FB link or iframe embed)</p>
+              <div className="flex items-center gap-3">
+                <input
+                  type="text"
+                  value={videoUrlDraft}
+                  onChange={e => setVideoUrlDraft(e.target.value)}
+                  placeholder="Paste FB video link or &lt;iframe&gt; embed code"
+                  disabled={isReadOnly || savingVideo}
+                  className="flex-1 px-3 py-2 rounded-xl border border-blue-200 text-sm font-medium outline-none focus:border-blue-500 bg-white disabled:opacity-60"
+                />
+                {!isReadOnly && (
+                  <button
+                    type="button"
+                    onClick={handleVideoUrlSave}
+                    disabled={savingVideo}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold uppercase rounded-xl transition-all disabled:opacity-50"
+                  >{savingVideo ? 'Saving…' : 'Save'}</button>
+                )}
+              </div>
             </div>
           )}
           {renderGrid(imageAssets, 'image')}

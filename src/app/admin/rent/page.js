@@ -558,7 +558,12 @@ export default function RentPropertiesPage() {
               {formTab === 'images' && (
                 assetLoading ? <Loader /> :
                   <PropertyAssetsTabs propertyId={selected?.property_id || null} assets={assets} setAssets={setAssets}
-                    isReadOnly={isReadOnly} propertyData={selected || form} mode={mode} onlyType="image" />
+                    isReadOnly={isReadOnly} propertyData={selected || form} mode={mode} onlyType="image"
+                    videoUrl={selected?.video_url || ''}
+                    onVideoUrlSave={async (url) => {
+                      await adminApi.put(`/rent/${selected.property_id}`, { video_url: url });
+                      setSelected(prev => ({ ...prev, video_url: url }));
+                    }} />
               )}
               {formTab === 'documents' && (
                 assetLoading ? <Loader /> :

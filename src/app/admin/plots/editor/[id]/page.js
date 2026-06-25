@@ -654,6 +654,8 @@ export default function PlotLayoutEditorPage() {
               backgroundImage={drawingImage}
               unitType="PLOT"
               onChange={setSvgShapes}
+              zoom={zoom}
+              onZoomChange={setZoom}
             />
           </div>
         ) : null}

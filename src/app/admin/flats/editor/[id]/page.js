@@ -578,6 +578,8 @@ export default function FlatLayoutEditorPage() {
               backgroundImage={drawingImage}
               unitType="FLAT"
               onChange={setSvgShapes}
+              zoom={zoom}
+              onZoomChange={setZoom}
             />
           </div>
         ) : null}

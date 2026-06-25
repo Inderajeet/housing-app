@@ -238,7 +238,7 @@ const GalleryMap = ({ location, status, title, propertyData = null }) => {
     <div
       className={`gallery-map-container status-${statusClass}`}
       data-streetview={isStreetViewMode ? 'true' : 'false'}
-      style={{ height: '400px', width: '100%', borderRadius: '12px', overflow: 'hidden' }}
+      style={{ height: '400px', width: '100%', overflow: 'hidden' }}
     >
       {/* Mobile info button — visible only when overlay card is closed */}
       {!showOverlayCard && (
