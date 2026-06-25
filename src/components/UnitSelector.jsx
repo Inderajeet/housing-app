@@ -492,7 +492,6 @@ const UnitSelector = ({ propertyId, onSelectUnit, saleType, onNoPlots, refreshKe
                                     cellClass += " unit-plot available";
                                 }
                                 cellStyle = {
-                                    fontSize: `${cell.font_size}px`,
                                     fontWeight: cell.font_weight,
                                     transform: `rotate(${cell.rotation}deg)`,
                                 };
