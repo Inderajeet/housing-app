@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import dynamic from 'next/dynamic';
 const UnifiedMap = dynamic(() => import('../../components/UnifiedMap'), { ssr: false, loading: () => <div className="map-container" /> });
@@ -33,6 +33,18 @@ export default function HomePage() {
   const [villagesList, setVillagesList] = useState([]);
   const [dbPremiumProperties, setDbPremiumProperties] = useState([]);
 
+  // Tracks, per location level, which URL slug value has already been through the resolve effect
+  // below (matched into filters, or confirmed unmatched). Using refs (not filters.district_id)
+  // keeps this fully decoupled from interactive dropdown selection — picking a district directly
+  // sets filters.district_id without ever changing queryDistrict, so comparing against filters
+  // state would wrongly treat that as "still pending" and deadlock the URL sync effect.
+  const resolvedQueryDistrictRef = useRef(undefined);
+  const resolvedQueryTalukRef = useRef(undefined);
+  const resolvedQueryVillageRef = useRef(undefined);
+  const districtPending = !!queryDistrict && resolvedQueryDistrictRef.current !== queryDistrict;
+  const talukPending = !!queryTaluk && resolvedQueryTalukRef.current !== queryTaluk;
+  const villagePending = !!queryVillage && resolvedQueryVillageRef.current !== queryVillage;
+
   const [filters, setFilters] = useState({
     state: 'TN',
     district: '',
@@ -56,6 +68,68 @@ export default function HomePage() {
   const [showListingsPanel, setShowListingsPanel] = useState(true);
   const [listingsPanelWide, setListingsPanelWide] = useState(false);
 
+  // Keeps the loading screen up while a saved location is being restored from sessionStorage,
+  // so the page never flashes the unfiltered list before jumping to the filtered one.
+  const [restoringSession, setRestoringSession] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    if (queryDistrict || queryTaluk || queryVillage) return false;
+    try {
+      const saved = JSON.parse(sessionStorage.getItem('search_location_filters') || 'null');
+      return !!(saved && (saved.district || saved.taluk || saved.village));
+    } catch { return false; }
+  });
+  const intendedRestoreRef = useRef(undefined); // undefined = not yet attempted, false = nothing to restore, object = in progress
+
+  // Restore last-used district/taluk/village from this tab's session if the URL arrived with none
+  // (e.g. coming back from a property detail page or the home page, which don't carry these params)
+  useEffect(() => {
+    if (intendedRestoreRef.current !== undefined) return;
+    if (queryDistrict || queryTaluk || queryVillage) {
+      intendedRestoreRef.current = false;
+      setRestoringSession(false);
+      return;
+    }
+    try {
+      const saved = JSON.parse(sessionStorage.getItem('search_location_filters') || 'null');
+      if (!saved || (!saved.district && !saved.taluk && !saved.village)) {
+        intendedRestoreRef.current = false;
+        setRestoringSession(false);
+        return;
+      }
+      intendedRestoreRef.current = saved;
+      const nextParams = new URLSearchParams(searchParams.toString());
+      if (saved.district) nextParams.set('district', saved.district);
+      if (saved.taluk) nextParams.set('taluk', saved.taluk);
+      if (saved.village) nextParams.set('village', saved.village);
+      router.replace(`${pathname}?${nextParams.toString()}`, { scroll: false });
+    } catch {
+      intendedRestoreRef.current = false;
+      setRestoringSession(false);
+    }
+  }, [queryDistrict, queryTaluk, queryVillage, searchParams, router, pathname]);
+
+  // Clear the restoring gate once the restored params have landed in the URL and resolved into
+  // filters (or the matching list has loaded and found no match, so there's nothing left to wait for)
+  useEffect(() => {
+    if (!restoringSession) return;
+    const intended = intendedRestoreRef.current;
+    if (!intended) return;
+    const urlMatches =
+      (!intended.district || queryDistrict === intended.district) &&
+      (!intended.taluk || queryTaluk === intended.taluk) &&
+      (!intended.village || queryVillage === intended.village);
+    if (!urlMatches) return;
+    if (districtPending || talukPending || villagePending) return;
+    setRestoringSession(false);
+  }, [restoringSession, queryDistrict, queryTaluk, queryVillage, districtPending, talukPending, villagePending]);
+
+  // Safety net: never let a restore attempt hold the loading screen indefinitely
+  useEffect(() => {
+    if (!restoringSession) return;
+    const t = setTimeout(() => setRestoringSession(false), 4000);
+    return () => clearTimeout(t);
+  }, [restoringSession]);
+
   // Sync URL type/category → filters
   useEffect(() => {
     setFilters((prev) => {
@@ -72,6 +146,7 @@ export default function HomePage() {
         prev.district_id === '' ? prev :
         { ...prev, district: '', district_id: '', taluk: '', taluk_id: '', village: '', village_id: '' }
       );
+      resolvedQueryDistrictRef.current = queryDistrict;
       return;
     }
     const found = districtsList.find(d => normalizeUrlName(d.district_name) === queryDistrict);
@@ -79,6 +154,7 @@ export default function HomePage() {
       prev.district_id === String(found.district_id) ? prev :
       { ...prev, district: found.district_name, district_id: String(found.district_id) }
     );
+    resolvedQueryDistrictRef.current = queryDistrict;
   }, [queryDistrict, districtsList]);
 
   // Resolve taluk name slug → taluk_id
@@ -89,6 +165,7 @@ export default function HomePage() {
         prev.taluk_id === '' ? prev :
         { ...prev, taluk: '', taluk_id: '', village: '', village_id: '' }
       );
+      resolvedQueryTalukRef.current = queryTaluk;
       return;
     }
     const found = taluksList.find(t => normalizeUrlName(t.taluk_name) === queryTaluk);
@@ -96,6 +173,7 @@ export default function HomePage() {
       prev.taluk_id === String(found.taluk_id) ? prev :
       { ...prev, taluk: found.taluk_name, taluk_id: String(found.taluk_id) }
     );
+    resolvedQueryTalukRef.current = queryTaluk;
   }, [queryTaluk, taluksList]);
 
   // Resolve village name slug → village_id
@@ -106,6 +184,7 @@ export default function HomePage() {
         prev.village_id === '' ? prev :
         { ...prev, village: '', village_id: '' }
       );
+      resolvedQueryVillageRef.current = queryVillage;
       return;
     }
     const found = villagesList.find(v => normalizeUrlName(v.village_name) === queryVillage);
@@ -113,6 +192,7 @@ export default function HomePage() {
       prev.village_id === String(found.village_id) ? prev :
       { ...prev, village: found.village_name, village_id: String(found.village_id) }
     );
+    resolvedQueryVillageRef.current = queryVillage;
   }, [queryVillage, villagesList]);
 
   useEffect(() => {
@@ -134,6 +214,22 @@ export default function HomePage() {
 
   // Sync filters → URL (writes name slugs, not IDs)
   useEffect(() => {
+    // While a sessionStorage restore is in flight, its own router.replace hasn't landed in the
+    // URL yet (queryDistrict etc. are still empty for this render), so the pending checks below
+    // wouldn't catch it — this effect would otherwise fire its own replace with the current
+    // (still-empty) filters.district/taluk and immediately clobber the restore's replace. Just
+    // wait for the restore to settle (or determine there's nothing to restore) before syncing.
+    if (restoringSession) return;
+
+    // Don't strip a location param that's still in the URL but hasn't been resolved into
+    // filters yet (district/taluk/village lists load async) — otherwise a restored or
+    // freshly-typed URL param gets wiped out before it has a chance to resolve. This is based
+    // on the resolve effects' own per-slug ref tracking, not filters state, so it never conflicts
+    // with interactive dropdown selection (which sets filters directly, without a queryDistrict
+    // change). Once the list has loaded and truly found no match (stale/invalid slug), the ref
+    // still gets marked and pending falls to false, so the sync can clean up the URL.
+    if (districtPending || talukPending || villagePending) return;
+
     const nextParams = new URLSearchParams(searchParams.toString());
     nextParams.set('type', filters.lookingTo);
     if (filters.type) nextParams.set('category', filters.type); else nextParams.delete('category');
@@ -148,7 +244,18 @@ export default function HomePage() {
     if (searchParams.toString() !== nextQuery) {
       router.replace(`${pathname}?${nextQuery}`, { scroll: false });
     }
-  }, [filters.lookingTo, filters.type, filters.district, filters.taluk, filters.village, searchParams, router, pathname]);
+  }, [filters.lookingTo, filters.type, filters.district, filters.taluk, filters.village, restoringSession, districtPending, talukPending, villagePending, searchParams, router, pathname]);
+
+  // Remember the last-used location filters for this tab so they survive navigating away and back
+  useEffect(() => {
+    try {
+      sessionStorage.setItem('search_location_filters', JSON.stringify({
+        district: filters.district ? normalizeUrlName(filters.district) : '',
+        taluk: filters.taluk ? normalizeUrlName(filters.taluk) : '',
+        village: filters.village ? normalizeUrlName(filters.village) : '',
+      }));
+    } catch {}
+  }, [filters.district, filters.taluk, filters.village]);
 
   useEffect(() => {
     const params = { property_type: filters.lookingTo };
@@ -223,7 +330,7 @@ export default function HomePage() {
     setMenuPremiumProperties(premiumProperties);
   }, [premiumProperties, setMenuPremiumProperties]);
 
-  if (loading) {
+  if (loading || restoringSession) {
     return (
       <div className="home-container home-loading-screen">
         <div className="home-loader-card">

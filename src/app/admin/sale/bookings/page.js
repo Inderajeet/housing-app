@@ -1,9 +1,81 @@
 'use client';
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import DataTable from '@/components/admin/DataTable';
 import Loader from '@/components/admin/Loader';
-import { getBookings } from '@/lib/adminApi';
+import { getBookings, markBookingRead, getContactNotes, createContactNote, deleteContactNote } from '@/lib/adminApi';
+
+function ContactNotesModal({ target, onClose }) {
+  const [notes, setNotes] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [text, setText] = useState('');
+  const [sending, setSending] = useState(false);
+  const bottomRef = useRef(null);
+
+  const loadNotes = useCallback(async () => {
+    setLoading(true);
+    try { const res = await getContactNotes(target.params); setNotes(res.data || []); } catch { setNotes([]); }
+    setLoading(false);
+  }, [target.params]);
+
+  useEffect(() => { loadNotes(); }, [loadNotes]);
+  useEffect(() => { if (!loading) bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [notes, loading]);
+
+  const handleAdd = async () => {
+    if (!text.trim()) return;
+    setSending(true);
+    try { await createContactNote({ note_text: text.trim(), ...target.params }); setText(''); await loadNotes(); } catch {}
+    setSending(false);
+  };
+
+  const handleDelete = async (id) => {
+    if (!confirm('Delete this note?')) return;
+    try { await deleteContactNote(id); await loadNotes(); } catch {}
+  };
+
+  return (
+    <div className="!m-0 fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] flex items-center justify-center p-4 md:p-10">
+      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg flex flex-col" style={{ maxHeight: '80vh' }}>
+        <div className="flex items-center justify-between px-6 py-4 border-b bg-gray-50/50 rounded-t-3xl">
+          <div>
+            <h3 className="text-base font-bold text-gray-800">Contact Notes</h3>
+            <p className="text-xs text-gray-500 font-medium mt-0.5">{target.title}</p>
+          </div>
+          <button onClick={onClose} className="text-xl text-gray-400 hover:text-gray-600">✕</button>
+        </div>
+        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
+          {loading ? <Loader text="Loading notes..." /> : notes.length === 0 ? (
+            <p className="text-center text-gray-400 text-sm font-medium py-8">No notes yet.</p>
+          ) : notes.map(n => (
+            <div key={n.id} className="bg-gray-50 rounded-2xl px-4 py-3 flex gap-3">
+              <div className="flex-1">
+                <p className="text-sm text-gray-800">{n.note_text}</p>
+                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1">
+                  {new Date(n.note_date).toLocaleString()}
+                  {n.properties && <span className="ml-2 text-emerald-600">#{n.properties.formatted_id}</span>}
+                </p>
+              </div>
+              <button onClick={() => handleDelete(n.id)} className="text-gray-300 hover:text-red-500 text-lg leading-none self-start mt-0.5">✕</button>
+            </div>
+          ))}
+          <div ref={bottomRef} />
+        </div>
+        <div className="px-6 py-4 border-t bg-gray-50/50 rounded-b-3xl flex gap-3">
+          <input
+            className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-medium outline-none focus:ring-2 focus:ring-emerald-500/20"
+            placeholder="Add a note…"
+            value={text}
+            onChange={e => setText(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleAdd()}
+          />
+          <button onClick={handleAdd} disabled={sending || !text.trim()} className="bg-emerald-600 text-white px-5 py-2 rounded-xl font-bold text-xs uppercase shadow-md hover:bg-emerald-700 disabled:opacity-50">
+            {sending ? '…' : 'Add'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 const BOOKING_STATUSES = [
   { value: 'booked', label: 'Booked', color: 'bg-amber-100 text-amber-800 border-amber-200' },
@@ -64,6 +136,7 @@ export default function SaleBookingsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [expiryRunning, setExpiryRunning] = useState(false);
   const [expiryResult, setExpiryResult] = useState(null);
+  const [notesTarget, setNotesTarget] = useState(null);
   const [filters, setFilters] = useState({ dateRange: 'all', startDate: '', endDate: '', status: 'all', property_type: 'all' });
 
   const loadData = useCallback(async () => {
@@ -139,7 +212,16 @@ export default function SaleBookingsPage() {
     XLSX.writeFile(wb, `Sale_Bookings_${new Date().toLocaleDateString()}.xlsx`);
   };
 
-  const handleView = useCallback((row) => { setSelected(row); setIsViewOpen(true); }, []);
+  const handleView = useCallback((row) => {
+    setSelected(row);
+    setIsViewOpen(true);
+    if (!row.is_read) {
+      const markLocalRead = (list) => list.map((b) => (b.booking_id === row.booking_id ? { ...b, is_read: true } : b));
+      setBookings((prev) => markLocalRead(prev));
+      setFilteredBookings((prev) => markLocalRead(prev));
+      markBookingRead(row.booking_id).catch(() => {});
+    }
+  }, []);
 
   const handleRunExpiryCheck = useCallback(async () => {
     setExpiryRunning(true);
@@ -192,35 +274,47 @@ export default function SaleBookingsPage() {
     },
     { header: 'Token Amount', accessor: (b) => formatCurrency(b.token_amount), className: 'font-semibold' },
     { header: 'Booking Date', accessor: (b) => formatDateShort(b.locked_at), className: 'text-xs text-gray-600' },
-    {
-      header: 'Actions',
-      accessor: (b) => (
-        <div className="flex items-center gap-2">
-          <button onClick={(e) => { e.stopPropagation(); handleView(b); }} className="p-2 hover:bg-gray-100 rounded-lg text-gray-600 transition-colors" title="View">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-            </svg>
-          </button>
-          {(b.buyer_phone) && (
-            <a
-              href={`https://wa.me/${(b.buyer_phone || '').replace(/\D/g, '')}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="p-2 rounded-lg text-green-500 hover:bg-green-50 transition-colors"
-              title="WhatsApp"
-              onClick={e => e.stopPropagation()}
-            >
-              <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
-                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
-                <path d="M12 0C5.373 0 0 5.373 0 12c0 2.127.558 4.126 1.534 5.858L.057 23.215a.75.75 0 00.928.928l5.357-1.477A11.953 11.953 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.9 0-3.676-.523-5.193-1.432l-.372-.22-3.863 1.065 1.065-3.863-.22-.372A9.959 9.959 0 012 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/>
-              </svg>
-            </a>
-          )}
-        </div>
-      ),
-    },
-  ], [handleView]);
+  ], []);
+
+  const renderRowActions = useCallback((b) => (
+    <>
+      {(b.buyer_phone) && (
+        <a
+          href={`https://wa.me/${(b.buyer_phone || '').replace(/\D/g, '')}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="p-1.5 rounded-lg text-green-500 hover:bg-green-50 transition-colors"
+          title="WhatsApp"
+          onClick={e => e.stopPropagation()}
+        >
+          <svg viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5">
+            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
+            <path d="M12 0C5.373 0 0 5.373 0 12c0 2.127.558 4.126 1.534 5.858L.057 23.215a.75.75 0 00.928.928l5.357-1.477A11.953 11.953 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.9 0-3.676-.523-5.193-1.432l-.372-.22-3.863 1.065 1.065-3.863-.22-.372A9.959 9.959 0 012 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/>
+          </svg>
+        </a>
+      )}
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          const buyer = b.buyer_name || b.buyer_phone || `Booking BK-${b.booking_id}`;
+          setNotesTarget({
+            title: `${buyer} · BK-${b.booking_id}`,
+            params: {
+              booking_id: b.booking_id,
+              ...(b.buyer_id ? { buyer_id: b.buyer_id } : {}),
+              ...(b.property_id ? { property_id: b.property_id } : {}),
+            },
+          });
+        }}
+        className="p-1.5 hover:bg-indigo-50 rounded-lg text-indigo-500 transition-colors"
+        title="Contact Notes"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3.5 h-3.5">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M7 8h10M7 12h6m-6 4h10M5 4h14a2 2 0 012 2v12a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2z" />
+        </svg>
+      </button>
+    </>
+  ), [setNotesTarget]);
 
   return (
     <div className="space-y-6">
@@ -295,7 +389,15 @@ export default function SaleBookingsPage() {
 
       {loading ? <Loader /> : (
         <div className="overflow-x-auto">
-          <DataTable columns={columns} data={filteredBookings} emptyMessage="No sale bookings found" onRowClick={handleView} />
+          <DataTable
+            columns={columns}
+            data={filteredBookings}
+            emptyMessage="No sale bookings found"
+            onRowClick={handleView}
+            onView={handleView}
+            actions={renderRowActions}
+            rowClassName={(b) => !b.is_read ? 'bg-green-50 hover:bg-green-100' : 'hover:bg-blue-50/20'}
+          />
         </div>
       )}
 
@@ -348,12 +450,33 @@ export default function SaleBookingsPage() {
                 <div><p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Expiry Date</p><p className="font-semibold">{formatDate(selected.expires_at) || '-'}</p></div>
               </div>
             </div>
-            <div className="px-8 py-6 border-t flex justify-end bg-gray-50 shrink-0">
+            <div className="px-8 py-6 border-t flex justify-between items-center bg-gray-50 shrink-0">
+              <button
+                onClick={() => {
+                  const buyer = selected.buyer_name || selected.buyer_phone || `BK-${selected.booking_id}`;
+                  setNotesTarget({
+                    title: `${buyer} · BK-${selected.booking_id}`,
+                    params: {
+                      booking_id: selected.booking_id,
+                      ...(selected.buyer_id ? { buyer_id: selected.buyer_id } : {}),
+                      ...(selected.property_id ? { property_id: selected.property_id } : {}),
+                    },
+                  });
+                }}
+                className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest text-indigo-600 hover:text-indigo-800"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M7 8h10M7 12h6m-6 4h10M5 4h14a2 2 0 012 2v12a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2z" />
+                </svg>
+                Notes
+              </button>
               <button onClick={() => setIsViewOpen(false)} className="px-6 py-2 rounded-xl border border-gray-300 font-bold text-xs uppercase text-gray-600 hover:bg-gray-100">Close</button>
             </div>
           </div>
         </div>
       )}
+
+      {notesTarget && <ContactNotesModal target={notesTarget} onClose={() => setNotesTarget(null)} />}
     </div>
   );
 }

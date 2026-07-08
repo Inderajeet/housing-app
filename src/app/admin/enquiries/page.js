@@ -4,7 +4,7 @@ import * as XLSX from 'xlsx';
 import DataTable from '@/components/admin/DataTable';
 import Loader from '@/components/admin/Loader';
 import SearchSelect from '@/components/admin/SearchSelect';
-import { getEnquiries, createEnquiry, updateEnquiry, getSaleProperties, getRentProperties, getContactNotes, createContactNote, deleteContactNote } from '@/lib/adminApi';
+import { getEnquiries, createEnquiry, updateEnquiry, markEnquiryRead, getSaleProperties, getRentProperties, getContactNotes, createContactNote, deleteContactNote } from '@/lib/adminApi';
 import { adminApi } from '@/lib/adminApi';
 
 function ContactNotesModal({ target, onClose }) {
@@ -186,6 +186,12 @@ export default function EnquiriesPage() {
     setSelected(row);
     setContacted(row.contacted);
     setIsViewOpen(true);
+    if (!row.is_read) {
+      const markLocalRead = (list) => list.map((e) => (e.enquiry_id === row.enquiry_id ? { ...e, is_read: true } : e));
+      setEnquiries((prev) => markLocalRead(prev));
+      setFilteredEnquiries((prev) => markLocalRead(prev));
+      markEnquiryRead(row.enquiry_id).catch(() => {});
+    }
   }, []);
 
   const handleUpdate = async () => {
@@ -390,7 +396,7 @@ export default function EnquiriesPage() {
       {loading ? (
         <Loader />
       ) : (
-        <DataTable columns={columns} data={filteredEnquiries} emptyMessage={`No ${enquiryType} enquiries found`} onRowClick={handleView} />
+        <DataTable columns={columns} data={filteredEnquiries} emptyMessage={`No ${enquiryType} enquiries found`} onRowClick={handleView} rowClassName={(e) => !e.is_read ? 'bg-green-50 hover:bg-green-100' : 'hover:bg-blue-50/20'} />
       )}
 
       {/* View Modal */}

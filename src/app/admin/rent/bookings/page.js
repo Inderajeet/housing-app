@@ -1,9 +1,81 @@
 'use client';
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import DataTable from '@/components/admin/DataTable';
 import Loader from '@/components/admin/Loader';
-import { getBookings } from '@/lib/adminApi';
+import { getBookings, markBookingRead, getContactNotes, createContactNote, deleteContactNote } from '@/lib/adminApi';
+
+function ContactNotesModal({ target, onClose }) {
+  const [notes, setNotes] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [text, setText] = useState('');
+  const [sending, setSending] = useState(false);
+  const bottomRef = useRef(null);
+
+  const loadNotes = useCallback(async () => {
+    setLoading(true);
+    try { const res = await getContactNotes(target.params); setNotes(res.data || []); } catch { setNotes([]); }
+    setLoading(false);
+  }, [target.params]);
+
+  useEffect(() => { loadNotes(); }, [loadNotes]);
+  useEffect(() => { if (!loading) bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [notes, loading]);
+
+  const handleAdd = async () => {
+    if (!text.trim()) return;
+    setSending(true);
+    try { await createContactNote({ note_text: text.trim(), ...target.params }); setText(''); await loadNotes(); } catch {}
+    setSending(false);
+  };
+
+  const handleDelete = async (id) => {
+    if (!confirm('Delete this note?')) return;
+    try { await deleteContactNote(id); await loadNotes(); } catch {}
+  };
+
+  return (
+    <div className="!m-0 fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] flex items-center justify-center p-4 md:p-10">
+      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg flex flex-col" style={{ maxHeight: '80vh' }}>
+        <div className="flex items-center justify-between px-6 py-4 border-b bg-gray-50/50 rounded-t-3xl">
+          <div>
+            <h3 className="text-base font-bold text-gray-800">Contact Notes</h3>
+            <p className="text-xs text-gray-500 font-medium mt-0.5">{target.title}</p>
+          </div>
+          <button onClick={onClose} className="text-xl text-gray-400 hover:text-gray-600">✕</button>
+        </div>
+        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
+          {loading ? <Loader text="Loading notes..." /> : notes.length === 0 ? (
+            <p className="text-center text-gray-400 text-sm font-medium py-8">No notes yet.</p>
+          ) : notes.map(n => (
+            <div key={n.id} className="bg-gray-50 rounded-2xl px-4 py-3 flex gap-3">
+              <div className="flex-1">
+                <p className="text-sm text-gray-800">{n.note_text}</p>
+                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1">
+                  {new Date(n.note_date).toLocaleString()}
+                  {n.properties && <span className="ml-2 text-emerald-600">#{n.properties.formatted_id}</span>}
+                </p>
+              </div>
+              <button onClick={() => handleDelete(n.id)} className="text-gray-300 hover:text-red-500 text-lg leading-none self-start mt-0.5">✕</button>
+            </div>
+          ))}
+          <div ref={bottomRef} />
+        </div>
+        <div className="px-6 py-4 border-t bg-gray-50/50 rounded-b-3xl flex gap-3">
+          <input
+            className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-medium outline-none focus:ring-2 focus:ring-emerald-500/20"
+            placeholder="Add a note…"
+            value={text}
+            onChange={e => setText(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleAdd()}
+          />
+          <button onClick={handleAdd} disabled={sending || !text.trim()} className="bg-emerald-600 text-white px-5 py-2 rounded-xl font-bold text-xs uppercase shadow-md hover:bg-emerald-700 disabled:opacity-50">
+            {sending ? '…' : 'Add'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 const BOOKING_STATUSES = [
   { value: 'booked', label: 'Booked', color: 'bg-amber-100 text-amber-800 border-amber-200' },
@@ -63,6 +135,7 @@ export default function RentBookingsPage() {
   const [selected, setSelected] = useState(null);
   const [isViewOpen, setIsViewOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [notesTarget, setNotesTarget] = useState(null);
   const [filters, setFilters] = useState({ dateRange: 'all', startDate: '', endDate: '', status: 'all', property_type: 'all' });
 
   const loadData = useCallback(async () => {
@@ -136,7 +209,16 @@ export default function RentBookingsPage() {
     XLSX.writeFile(wb, `Rent_Bookings_${new Date().toLocaleDateString()}.xlsx`);
   };
 
-  const handleView = useCallback((row) => { setSelected(row); setIsViewOpen(true); }, []);
+  const handleView = useCallback((row) => {
+    setSelected(row);
+    setIsViewOpen(true);
+    if (!row.is_read) {
+      const markLocalRead = (list) => list.map((b) => (b.booking_id === row.booking_id ? { ...b, is_read: true } : b));
+      setBookings((prev) => markLocalRead(prev));
+      setFilteredBookings((prev) => markLocalRead(prev));
+      markBookingRead(row.booking_id).catch(() => {});
+    }
+  }, []);
 
   const columns = useMemo(() => [
     { header: 'Booking ID', accessor: (b) => `BK-${b.booking_id}`, className: 'font-semibold text-blue-600 font-mono text-xs' },
@@ -168,18 +250,30 @@ export default function RentBookingsPage() {
     },
     { header: 'Token Amount', accessor: (b) => formatCurrency(b.token_amount), className: 'font-semibold' },
     { header: 'Booking Date', accessor: (b) => formatDateShort(b.locked_at), className: 'text-xs text-gray-600' },
-    {
-      header: 'Actions',
-      accessor: (b) => (
-        <button onClick={(e) => { e.stopPropagation(); handleView(b); }} className="p-2 hover:bg-gray-100 rounded-lg text-gray-600 transition-colors" title="View">
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-          </svg>
-        </button>
-      ),
-    },
-  ], [handleView]);
+  ], []);
+
+  const renderRowActions = useCallback((b) => (
+    <button
+      onClick={(e) => {
+        e.stopPropagation();
+        const buyer = b.buyer_name || b.buyer_phone || `Booking BK-${b.booking_id}`;
+        setNotesTarget({
+          title: `${buyer} · BK-${b.booking_id}`,
+          params: {
+            booking_id: b.booking_id,
+            ...(b.buyer_id ? { buyer_id: b.buyer_id } : {}),
+            ...(b.property_id ? { property_id: b.property_id } : {}),
+          },
+        });
+      }}
+      className="p-1.5 hover:bg-indigo-50 rounded-lg text-indigo-500 transition-colors"
+      title="Contact Notes"
+    >
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3.5 h-3.5">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M7 8h10M7 12h6m-6 4h10M5 4h14a2 2 0 012 2v12a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2z" />
+      </svg>
+    </button>
+  ), [setNotesTarget]);
 
   return (
     <div className="space-y-6">
@@ -236,7 +330,15 @@ export default function RentBookingsPage() {
 
       {loading ? <Loader /> : (
         <div className="overflow-x-auto">
-          <DataTable columns={columns} data={filteredBookings} emptyMessage="No rent bookings found" onRowClick={handleView} />
+          <DataTable
+            columns={columns}
+            data={filteredBookings}
+            emptyMessage="No rent bookings found"
+            onRowClick={handleView}
+            onView={handleView}
+            actions={renderRowActions}
+            rowClassName={(b) => !b.is_read ? 'bg-green-50 hover:bg-green-100' : 'hover:bg-blue-50/20'}
+          />
         </div>
       )}
 
@@ -279,12 +381,33 @@ export default function RentBookingsPage() {
                 <div><p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Expiry Date</p><p className="font-semibold">{formatDate(selected.expires_at) || '-'}</p></div>
               </div>
             </div>
-            <div className="px-8 py-6 border-t flex justify-end bg-gray-50 shrink-0">
+            <div className="px-8 py-6 border-t flex justify-between items-center bg-gray-50 shrink-0">
+              <button
+                onClick={() => {
+                  const buyer = selected.buyer_name || selected.buyer_phone || `BK-${selected.booking_id}`;
+                  setNotesTarget({
+                    title: `${buyer} · BK-${selected.booking_id}`,
+                    params: {
+                      booking_id: selected.booking_id,
+                      ...(selected.buyer_id ? { buyer_id: selected.buyer_id } : {}),
+                      ...(selected.property_id ? { property_id: selected.property_id } : {}),
+                    },
+                  });
+                }}
+                className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest text-indigo-600 hover:text-indigo-800"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M7 8h10M7 12h6m-6 4h10M5 4h14a2 2 0 012 2v12a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2z" />
+                </svg>
+                Notes
+              </button>
               <button onClick={() => setIsViewOpen(false)} className="px-6 py-2 rounded-xl border border-gray-300 font-bold text-xs uppercase text-gray-600 hover:bg-gray-100">Close</button>
             </div>
           </div>
         </div>
       )}
+
+      {notesTarget && <ContactNotesModal target={notesTarget} onClose={() => setNotesTarget(null)} />}
     </div>
   );
 }

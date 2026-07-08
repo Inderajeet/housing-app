@@ -86,7 +86,10 @@ const PremiumProperties = ({
 
   const imageAlt = activeProperty.formatted_id || activeProperty.title || 'Property Ad';
   const _landmark = activeProperty.street_name_or_road_name || activeProperty.landmark || activeProperty.street_name || '';
-  const sponsoredLabel = activeProperty.layout_name || activeProperty.title || _landmark || activeProperty.formatted_id || 'Sponsored';
+  const propertyName = activeProperty.layout_name || activeProperty.title || _landmark || activeProperty.formatted_id || 'Sponsored';
+  const sponsoredLabel = layout === 'landing' && activeProperty.formatted_id && activeProperty.formatted_id !== propertyName
+    ? `${activeProperty.formatted_id} ${propertyName}`
+    : propertyName;
 
   const ImageContent = () => imageUrl ? (
     <img src={imageUrl} alt={imageAlt} className="premium-ads-image" />

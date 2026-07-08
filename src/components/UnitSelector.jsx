@@ -17,9 +17,11 @@ const UnitSelector = ({ propertyId, onSelectUnit, saleType, onNoPlots, refreshKe
     const [svgPan, setSvgPan] = useState({ x: 0, y: 0 });
     const [gridZoom, setGridZoom] = useState(1);
     const [pendingCell, setPendingCell] = useState(null);
+    const [isMobile, setIsMobile] = useState(false);
     const svgRef = useRef(null);
     const panStartRef = useRef(null);
     const pendingTimerRef = useRef(null);
+    const mobileDefaultAppliedRef = useRef(null);
 
     const normalizedSaleType = (saleType || '').toLowerCase();
     const isFlat = normalizedSaleType === 'flat';
@@ -254,6 +256,39 @@ const UnitSelector = ({ propertyId, onSelectUnit, saleType, onNoPlots, refreshKe
         if (!loading && !loadError && !hasPlots) onNoPlots?.();
     }, [loading, hasPlots, loadError, onNoPlots]);
 
+    useEffect(() => {
+        const mq = window.matchMedia('(max-width: 768px)');
+        const update = () => setIsMobile(mq.matches);
+        update();
+        mq.addEventListener('change', update);
+        return () => mq.removeEventListener('change', update);
+    }, []);
+
+    // Mobile default: open zoomed to grid=20%/svg=80%, anchored at the top-left corner instead of centered.
+    // Applied once per property load so it doesn't fight the user's own zoom/pan afterward.
+    useEffect(() => {
+        if (!isMobile || mobileDefaultAppliedRef.current === propertyId) return;
+        if (svgItems.length > 0) {
+            const allPts = svgItems.flatMap(s => s.points || []);
+            if (allPts.length === 0) return;
+            const viewMinX = Math.min(...allPts.map(p => p.x)) - 10;
+            const viewMinY = Math.min(...allPts.map(p => p.y)) - 10;
+            const viewMaxX = Math.max(...allPts.map(p => p.x)) + 10;
+            const viewMaxY = Math.max(...allPts.map(p => p.y)) + 10;
+            const vbFullW = viewMaxX - viewMinX;
+            const vbFullH = viewMaxY - viewMinY;
+            const zoom = 0.8;
+            const vbW = vbFullW / zoom;
+            const vbH = vbFullH / zoom;
+            setSvgZoom(zoom);
+            setSvgPan({ x: vbW / 2 - vbFullW / 2, y: vbH / 2 - vbFullH / 2 });
+            mobileDefaultAppliedRef.current = propertyId;
+        } else if (hasPlots && !loading) {
+            setGridZoom(0.2);
+            mobileDefaultAppliedRef.current = propertyId;
+        }
+    }, [isMobile, svgItems, hasPlots, loading, propertyId]);
+
     const rowsArray = useMemo(() => Array.from({ length: dims.rows }), [dims.rows]);
     const colsArray = useMemo(() => Array.from({ length: dims.cols }), [dims.cols]);
 
@@ -351,9 +386,9 @@ const UnitSelector = ({ propertyId, onSelectUnit, saleType, onNoPlots, refreshKe
                 </p>
                 <div style={{ position: 'relative' }}>
                     <div style={{ position: 'absolute', top: 8, right: 8, zIndex: 10, display: 'flex', alignItems: 'center', gap: 4, background: 'white', borderRadius: 8, padding: '4px 8px', border: '1px solid #e2e8f0', fontSize: 12, fontWeight: 700, color: '#334155', userSelect: 'none' }}>
-                        <button onClick={() => setSvgZoom(z => Math.min(4, +(z + 0.25).toFixed(2)))} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 16, lineHeight: 1, color: '#334155', padding: '0 2px' }}>+</button>
+                        <button onClick={() => setSvgZoom(z => Math.min(4, +(z + 0.2).toFixed(2)))} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 16, lineHeight: 1, color: '#334155', padding: '0 2px' }}>+</button>
                         <span style={{ minWidth: 36, textAlign: 'center' }}>{Math.round(svgZoom * 100)}%</span>
-                        <button onClick={() => setSvgZoom(z => Math.max(0.25, +(z - 0.25).toFixed(2)))} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 16, lineHeight: 1, color: '#334155', padding: '0 2px' }}>−</button>
+                        <button onClick={() => setSvgZoom(z => Math.max(0.2, +(z - 0.2).toFixed(2)))} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 16, lineHeight: 1, color: '#334155', padding: '0 2px' }}>−</button>
                         {(svgPan.x !== 0 || svgPan.y !== 0) && (
                             <button onClick={() => setSvgPan({ x: 0, y: 0 })} style={{ border: 'none', background: '#f1f5f9', cursor: 'pointer', fontSize: 10, fontWeight: 900, color: '#64748b', padding: '2px 6px', borderRadius: 4, marginLeft: 4 }}>Reset</button>
                         )}
@@ -458,9 +493,9 @@ const UnitSelector = ({ propertyId, onSelectUnit, saleType, onNoPlots, refreshKe
 
             <div style={{ position: 'relative' }}>
                 <div style={{ position: 'absolute', top: 8, right: 8, zIndex: 10, display: 'flex', alignItems: 'center', gap: 4, background: 'white', borderRadius: 8, padding: '4px 8px', border: '1px solid #e2e8f0', fontSize: 12, fontWeight: 700, color: '#334155', userSelect: 'none' }}>
-                    <button onClick={() => setGridZoom(z => Math.min(3, +(z + 0.25).toFixed(2)))} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 16, lineHeight: 1, color: '#334155', padding: '0 2px' }}>+</button>
+                    <button onClick={() => setGridZoom(z => Math.min(3, +(z + 0.2).toFixed(2)))} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 16, lineHeight: 1, color: '#334155', padding: '0 2px' }}>+</button>
                     <span style={{ minWidth: 36, textAlign: 'center' }}>{Math.round(gridZoom * 100)}%</span>
-                    <button onClick={() => setGridZoom(z => Math.max(0.25, +(z - 0.25).toFixed(2)))} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 16, lineHeight: 1, color: '#334155', padding: '0 2px' }}>−</button>
+                    <button onClick={() => setGridZoom(z => Math.max(0.2, +(z - 0.2).toFixed(2)))} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 16, lineHeight: 1, color: '#334155', padding: '0 2px' }}>−</button>
                 </div>
             <div className="unit-grid-scroll">
                 <div

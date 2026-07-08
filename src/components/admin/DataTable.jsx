@@ -9,7 +9,7 @@ const DataTable = ({
   selectable = false, selectedIds = new Set(), onSelectionChange,
   expandedRowId = null, renderExpandedRow = null,
   editingRowId = null, editDraft = {}, onEditDraftChange = null,
-  onCellDoubleClick = null, cellSaving = false,
+  onCellDoubleClick = null, cellSaving = false, rowClassName = null,
 }) => {
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
   const [currentPage, setCurrentPage] = useState(1);
@@ -191,7 +191,7 @@ const DataTable = ({
               return (
                 <React.Fragment key={rowId}>
                   <tr
-                    className={`transition-colors ${onRowClick && !isRowEditing ? 'cursor-pointer' : ''} ${isSelected ? 'bg-emerald-50/30' : 'hover:bg-blue-50/20'} ${isExpanded ? 'bg-amber-50/40' : ''} ${isRowEditing ? '!bg-amber-50 ring-1 ring-inset ring-amber-300' : ''}`}
+                    className={`transition-colors ${onRowClick && !isRowEditing ? 'cursor-pointer' : ''} ${isSelected ? 'bg-emerald-50/30' : (rowClassName?.(item) || 'hover:bg-blue-50/20')} ${isExpanded ? 'bg-amber-50/40' : ''} ${isRowEditing ? '!bg-amber-50 ring-1 ring-inset ring-amber-300' : ''}`}
                     onClick={onRowClick && !isRowEditing ? () => onRowClick(item) : undefined}
                   >
                     {selectable && (

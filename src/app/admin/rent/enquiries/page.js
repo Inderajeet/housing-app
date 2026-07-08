@@ -1,10 +1,82 @@
 'use client';
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import DataTable from '@/components/admin/DataTable';
 import Loader from '@/components/admin/Loader';
 import SearchSelect from '@/components/admin/SearchSelect';
-import { getEnquiries, createEnquiry, updateEnquiry, getRentProperties, adminApi } from '@/lib/adminApi';
+import { getEnquiries, createEnquiry, updateEnquiry, markEnquiryRead, getRentProperties, getContactNotes, createContactNote, deleteContactNote, adminApi } from '@/lib/adminApi';
+
+function ContactNotesModal({ target, onClose }) {
+  const [notes, setNotes] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [text, setText] = useState('');
+  const [sending, setSending] = useState(false);
+  const bottomRef = useRef(null);
+
+  const loadNotes = useCallback(async () => {
+    setLoading(true);
+    try { const res = await getContactNotes(target.params); setNotes(res.data || []); } catch { setNotes([]); }
+    setLoading(false);
+  }, [target.params]);
+
+  useEffect(() => { loadNotes(); }, [loadNotes]);
+  useEffect(() => { if (!loading) bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [notes, loading]);
+
+  const handleAdd = async () => {
+    if (!text.trim()) return;
+    setSending(true);
+    try { await createContactNote({ note_text: text.trim(), ...target.params }); setText(''); await loadNotes(); } catch {}
+    setSending(false);
+  };
+
+  const handleDelete = async (id) => {
+    if (!confirm('Delete this note?')) return;
+    try { await deleteContactNote(id); await loadNotes(); } catch {}
+  };
+
+  return (
+    <div className="!m-0 fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] flex items-center justify-center p-4 md:p-10">
+      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg flex flex-col" style={{ maxHeight: '80vh' }}>
+        <div className="flex items-center justify-between px-6 py-4 border-b bg-gray-50/50 rounded-t-3xl">
+          <div>
+            <h3 className="text-base font-bold text-gray-800">Contact Notes</h3>
+            <p className="text-xs text-gray-500 font-medium mt-0.5">{target.title}</p>
+          </div>
+          <button onClick={onClose} className="text-xl text-gray-400 hover:text-gray-600">✕</button>
+        </div>
+        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
+          {loading ? <Loader text="Loading notes..." /> : notes.length === 0 ? (
+            <p className="text-center text-gray-400 text-sm font-medium py-8">No notes yet.</p>
+          ) : notes.map(n => (
+            <div key={n.id} className="bg-gray-50 rounded-2xl px-4 py-3 flex gap-3">
+              <div className="flex-1">
+                <p className="text-sm text-gray-800">{n.note_text}</p>
+                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1">
+                  {new Date(n.note_date).toLocaleString()}
+                  {n.properties && <span className="ml-2 text-emerald-600">#{n.properties.formatted_id}</span>}
+                </p>
+              </div>
+              <button onClick={() => handleDelete(n.id)} className="text-gray-300 hover:text-red-500 text-lg leading-none self-start mt-0.5">✕</button>
+            </div>
+          ))}
+          <div ref={bottomRef} />
+        </div>
+        <div className="px-6 py-4 border-t bg-gray-50/50 rounded-b-3xl flex gap-3">
+          <input
+            className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-medium outline-none focus:ring-2 focus:ring-emerald-500/20"
+            placeholder="Add a note…"
+            value={text}
+            onChange={e => setText(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleAdd()}
+          />
+          <button onClick={handleAdd} disabled={sending || !text.trim()} className="bg-emerald-600 text-white px-5 py-2 rounded-xl font-bold text-xs uppercase shadow-md hover:bg-emerald-700 disabled:opacity-50">
+            {sending ? '…' : 'Add'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 const EMPTY_FORM = { property_type: 'rent', property_id: '', buyer_name: '', buyer_phone: '', contacted: false };
 
@@ -30,6 +102,7 @@ export default function RentEnquiriesPage() {
   const [propModalOpen, setPropModalOpen] = useState(false);
   const [propData, setPropData] = useState(null);
   const [propLoading, setPropLoading] = useState(false);
+  const [notesTarget, setNotesTarget] = useState(null);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -94,7 +167,17 @@ export default function RentEnquiriesPage() {
     XLSX.writeFile(wb, `Rent_Enquiries_${enquiryType}_Export.xlsx`);
   };
 
-  const handleView = useCallback((row) => { setSelected(row); setContacted(row.contacted); setIsViewOpen(true); }, []);
+  const handleView = useCallback((row) => {
+    setSelected(row);
+    setContacted(row.contacted);
+    setIsViewOpen(true);
+    if (!row.is_read) {
+      const markLocalRead = (list) => list.map((e) => (e.enquiry_id === row.enquiry_id ? { ...e, is_read: true } : e));
+      setEnquiries((prev) => markLocalRead(prev));
+      setFilteredEnquiries((prev) => markLocalRead(prev));
+      markEnquiryRead(row.enquiry_id).catch(() => {});
+    }
+  }, []);
 
   const handleUpdate = async () => {
     if (!selected) return;
@@ -187,10 +270,31 @@ export default function RentEnquiriesPage() {
               <path d="M12 0C5.373 0 0 5.373 0 12c0 2.119.554 4.107 1.523 5.836L0 24l6.335-1.499A11.946 11.946 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.818 9.818 0 01-5.006-1.369l-.36-.214-3.732.883.936-3.619-.235-.372A9.818 9.818 0 1112 21.818z" />
             </svg>
           </button>
+          <button
+            onClick={(ev) => {
+              ev.stopPropagation();
+              const name = e.buyer_name || e.seller_name || e.buyer_phone || e.seller_phone || 'Enquiry';
+              setNotesTarget({
+                title: `${name} · Enquiry #${e.formatted_id || e.enquiry_id}`,
+                params: {
+                  enquiry_id: e.enquiry_id,
+                  ...(e.buyer_id ? { buyer_id: e.buyer_id } : {}),
+                  ...(e.seller_id ? { seller_id: e.seller_id } : {}),
+                  ...(e.property_id ? { property_id: e.property_id } : {}),
+                },
+              });
+            }}
+            className="p-2 hover:bg-indigo-50 rounded-lg text-indigo-500 transition-colors"
+            title="Contact Notes"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M7 8h10M7 12h6m-6 4h10M5 4h14a2 2 0 012 2v12a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2z" />
+            </svg>
+          </button>
         </div>
       ),
     },
-  ], [handleView]);
+  ], [handleView, setNotesTarget]);
 
   return (
     <div className="space-y-6">
@@ -241,7 +345,7 @@ export default function RentEnquiriesPage() {
         )}
       </div>
 
-      {loading ? <Loader /> : <DataTable columns={columns} data={filteredEnquiries} emptyMessage={`No rent ${enquiryType} enquiries found`} onRowClick={handleView} />}
+      {loading ? <Loader /> : <DataTable columns={columns} data={filteredEnquiries} emptyMessage={`No rent ${enquiryType} enquiries found`} onRowClick={handleView} rowClassName={(e) => !e.is_read ? 'bg-green-50 hover:bg-green-100' : 'hover:bg-blue-50/20'} />}
 
       {/* View Modal */}
       {isViewOpen && selected && (
@@ -362,6 +466,8 @@ export default function RentEnquiriesPage() {
           </div>
         </div>
       )}
+
+      {notesTarget && <ContactNotesModal target={notesTarget} onClose={() => setNotesTarget(null)} />}
     </div>
   );
 }

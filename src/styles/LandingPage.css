@@ -361,6 +361,8 @@
     }
 
     .landing-premium-mobile {
+        --ad-w: calc((100% - 14px) / 2);
+        --ad-h: 86px;
         display: block;
         position: absolute;
         inset: 10px;
@@ -374,8 +376,8 @@
     }
 
     .landing-premium-mobile .landing-mobile-premium.premium-ads-landing {
-        width: min(40vw, 120px);
-        height: 72px;
+        width: var(--ad-w);
+        height: var(--ad-h);
     }
 
     .landing-premium-mobile .landing-mobile-premium-left-top.premium-ads-top {
@@ -386,34 +388,30 @@
     }
 
     .landing-premium-mobile .landing-mobile-premium-left-bottom.premium-ads-bottom {
-        top: 75px;
-        height: 76px;
+        top: calc(var(--ad-h) + 2px);
         left: 0px;
         right: auto;
         bottom: auto;
+        width: calc((100% - 73px) / 2);
     }
 
     .landing-premium-mobile .landing-mobile-premium-right-top.premium-ads-right-top {
         top: -3px;
-        /* right: 94px; */
-        left: 124px;
+        left: calc(var(--ad-w) + 14px);
         bottom: auto;
-        height: 74px;
     }
 
     .landing-premium-mobile .landing-mobile-premium-right-bottom.premium-ads-right-bottom {
         right: 0px;
-        bottom: 56px;
+        bottom: 60px;
         left: auto;
         top: auto;
-        /* width: min(36vw, 166px);
-        height: 78px; */
         pointer-events: auto;
     }
 
     .landing-premium-mobile .landing-mobile-premium-right-bottom-left.premium-ads-right-bottom {
-        right: calc(10px + min(40vw, 104px) + 10px);
-        bottom: 56px;
+        right: calc(var(--ad-w) + 14px);
+        bottom: 60px;
         left: auto;
         top: auto;
         pointer-events: auto;
@@ -421,10 +419,11 @@
 
     .landing-premium-mobile .landing-mobile-premium-right-bottom-top.premium-ads-right-bottom {
         right: 0px;
-        bottom: calc(56px + 72px + 10px);
+        bottom: calc(56px + var(--ad-h) + 6px);
         left: auto;
         top: auto;
         pointer-events: auto;
+        width: calc((100% - 73px) / 2);
     }
 
     /* Make the map overlay darker for better button contrast */

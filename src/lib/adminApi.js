@@ -69,6 +69,7 @@ export const getEnquiries = (type, enquiryType) => {
 };
 export const createEnquiry = (data) => adminApi.post('/enquiries', data);
 export const updateEnquiry = (id, data) => adminApi.put(`/enquiries/${id}`, data);
+export const markEnquiryRead = (id) => adminApi.patch(`/enquiries/${id}`);
 
 // Bookings
 export const getBookings = (type, status) => {
@@ -77,6 +78,7 @@ export const getBookings = (type, status) => {
   if (status) params.status = status;
   return adminApi.get('/bookings', { params });
 };
+export const markBookingRead = (id) => adminApi.patch(`/bookings/${id}`);
 
 // Locations
 export const getAllDistricts = () => adminApi.get('/locations/districts');

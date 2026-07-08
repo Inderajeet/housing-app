@@ -12,7 +12,7 @@ export const getAll = async (type, enquiryType = null) => {
   }
   const rows = await prisma.$queryRawUnsafe(`
     SELECT e.enquiry_id, e.property_id, e.enquiry_date, e.enquiry_type, e.contacted, e.booking_status,
-      e.booking_date, e.confirmed_date,
+      e.booking_date, e.confirmed_date, e.is_read,
       b.phone_number AS buyer_phone, b.name AS buyer_name, b.email AS buyer_email,
       s.phone_number AS seller_phone, s.name AS seller_name,
       p.title, p.property_type, p.status as main_property_status, p.formatted_id, p.contact_phone,
@@ -45,6 +45,14 @@ export const update = async (enquiryId, data) => {
   const rows = await prisma.$queryRawUnsafe(
     `UPDATE enquiries SET contacted=$1, booking_status=$2, booking_date=$3, confirmed_date=$4 WHERE enquiry_id=$5 RETURNING *`,
     data.contacted, data.booking_status, data.booking_date || null, data.confirmed_date || null, enquiryId
+  );
+  return rows[0];
+};
+
+export const markRead = async (enquiryId) => {
+  const rows = await prisma.$queryRawUnsafe(
+    `UPDATE enquiries SET is_read=true WHERE enquiry_id=$1 RETURNING *`,
+    enquiryId
   );
   return rows[0];
 };

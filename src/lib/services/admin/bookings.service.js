@@ -45,3 +45,11 @@ export const update = async (bookingId, data) => {
   );
   return rows[0];
 };
+
+export const markRead = async (bookingId) => {
+  const rows = await prisma.$queryRawUnsafe(
+    `UPDATE bookings SET is_read=true WHERE booking_id=$1 RETURNING *`,
+    bookingId
+  );
+  return rows[0];
+};

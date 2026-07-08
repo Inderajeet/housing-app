@@ -11,7 +11,7 @@ export const getStats = async () => {
         WHERE p2.property_type = 'sale' AND e2.buyer_id IS NOT NULL) AS sale_buyers,
       (SELECT COUNT(*) FROM enquiries e3
         JOIN properties p3 ON p3.property_id = e3.property_id
-        WHERE p3.property_type = 'sale') AS sale_enquiries,
+        WHERE p3.property_type = 'sale' AND e3.is_read = false) AS sale_enquiries,
       COUNT(DISTINCT sp.property_id) FILTER (WHERE sp.sale_type = 'plot') AS sale_plot,
       COUNT(DISTINCT sp.property_id) FILTER (WHERE sp.sale_type = 'flat') AS sale_flat,
       COUNT(DISTINCT sp.property_id) FILTER (WHERE sp.sale_type = 'land') AS sale_land,
@@ -24,7 +24,7 @@ export const getStats = async () => {
         WHERE p4.property_type = 'rent' AND e4.buyer_id IS NOT NULL) AS rent_buyers,
       (SELECT COUNT(*) FROM enquiries e5
         JOIN properties p5 ON p5.property_id = e5.property_id
-        WHERE p5.property_type = 'rent') AS rent_enquiries,
+        WHERE p5.property_type = 'rent' AND e5.is_read = false) AS rent_enquiries,
       (SELECT COUNT(*) FROM rent_properties WHERE bhk = 1 AND property_use = 'residential') AS rent_1bhk,
       (SELECT COUNT(*) FROM rent_properties WHERE bhk = 2 AND property_use = 'residential') AS rent_2bhk,
       (SELECT COUNT(*) FROM rent_properties

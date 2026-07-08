@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { getDashboardStats, getRecentEnquiries } from '../../../lib/adminApi.js';
 
 const fmt = (n) => (n == null ? '—' : Number(n).toLocaleString());
@@ -13,22 +14,28 @@ const ICONS = {
   enquiries: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" /></svg>,
 };
 
-const StatCard = ({ label, count, color, icon }) => (
-  <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 hover:border-slate-300 transition-all">
-    <div className={`w-10 h-10 ${color} rounded-xl flex items-center justify-center text-white mb-4`}>
-      {icon}
+const StatCard = ({ label, count, color, icon, href }) => {
+  const card = (
+    <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 hover:border-slate-300 transition-all h-full">
+      <div className={`w-10 h-10 ${color} rounded-xl flex items-center justify-center text-white mb-4`}>
+        {icon}
+      </div>
+      <p className="text-slate-400 text-xs font-bold uppercase tracking-widest">{label}</p>
+      <h3 className="text-3xl font-bold mt-1 text-slate-800">{fmt(count)}</h3>
     </div>
-    <p className="text-slate-400 text-xs font-bold uppercase tracking-widest">{label}</p>
-    <h3 className="text-3xl font-bold mt-1 text-slate-800">{fmt(count)}</h3>
-  </div>
-);
+  );
+  return href ? <Link href={href} className="block h-full">{card}</Link> : card;
+};
 
-const SubTile = ({ label, value, color }) => (
-  <div className={`p-4 rounded-2xl border flex flex-col items-center justify-center text-center ${color}`}>
-    <span className="text-2xl font-bold">{fmt(value)}</span>
-    <span className="text-[10px] font-bold uppercase tracking-widest mt-1 opacity-80">{label}</span>
-  </div>
-);
+const SubTile = ({ label, value, color, href }) => {
+  const tile = (
+    <div className={`p-4 rounded-2xl border flex flex-col items-center justify-center text-center h-full transition-all ${href ? 'hover:shadow-md hover:brightness-95 cursor-pointer' : ''} ${color}`}>
+      <span className="text-2xl font-bold">{fmt(value)}</span>
+      <span className="text-[10px] font-bold uppercase tracking-widest mt-1 opacity-80">{label}</span>
+    </div>
+  );
+  return href ? <Link href={href} className="block h-full">{tile}</Link> : tile;
+};
 
 const Skeleton = ({ className = '' }) => <div className={`animate-pulse bg-slate-100 rounded-xl ${className}`} />;
 
@@ -78,31 +85,31 @@ export default function DashboardPage() {
   }, []);
 
   const saleTopStats = stats ? [
-    { label: 'Total Properties', count: stats.total_sale, color: 'bg-slate-500', icon: ICONS.properties },
-    { label: 'Sellers', count: stats.sale_sellers, color: 'bg-blue-500', icon: ICONS.sellers },
-    { label: 'Buyers', count: stats.sale_buyers, color: 'bg-emerald-500', icon: ICONS.buyers },
-    { label: 'Enquiries', count: stats.sale_enquiries, color: 'bg-purple-500', icon: ICONS.enquiries },
+    { label: 'Total Properties', count: stats.total_sale, color: 'bg-slate-500', icon: ICONS.properties, href: '/admin/sale' },
+    { label: 'Sellers', count: stats.sale_sellers, color: 'bg-blue-500', icon: ICONS.sellers, href: '/admin/sellers' },
+    { label: 'Buyers', count: stats.sale_buyers, color: 'bg-emerald-500', icon: ICONS.buyers, href: '/admin/buyers' },
+    { label: 'Unread Enquiries', count: stats.sale_enquiries, color: 'bg-purple-500', icon: ICONS.enquiries, href: '/admin/enquiries' },
   ] : [];
 
   const saleSubTiles = stats ? [
-    { label: 'Plots', value: stats.sale_plot, color: 'bg-blue-50 text-blue-700 border-blue-100' },
-    { label: 'Flats', value: stats.sale_flat, color: 'bg-emerald-50 text-emerald-700 border-emerald-100' },
-    { label: 'Land', value: stats.sale_land, color: 'bg-amber-50 text-amber-700 border-amber-100' },
-    { label: 'House', value: stats.sale_house, color: 'bg-purple-50 text-purple-700 border-purple-100' },
+    { label: 'Plots', value: stats.sale_plot, color: 'bg-blue-50 text-blue-700 border-blue-100', href: '/admin/sale?sale_type=plot' },
+    { label: 'Flats', value: stats.sale_flat, color: 'bg-emerald-50 text-emerald-700 border-emerald-100', href: '/admin/sale?sale_type=flat' },
+    { label: 'Land', value: stats.sale_land, color: 'bg-amber-50 text-amber-700 border-amber-100', href: '/admin/sale?sale_type=land' },
+    { label: 'House', value: stats.sale_house, color: 'bg-purple-50 text-purple-700 border-purple-100', href: '/admin/sale?sale_type=house' },
   ] : [];
 
   const rentTopStats = stats ? [
-    { label: 'Total Properties', count: stats.total_rent, color: 'bg-slate-500', icon: ICONS.properties },
-    { label: 'Sellers', count: stats.rent_sellers, color: 'bg-blue-500', icon: ICONS.sellers },
-    { label: 'Buyers', count: stats.rent_buyers, color: 'bg-emerald-500', icon: ICONS.buyers },
-    { label: 'Enquiries', count: stats.rent_enquiries, color: 'bg-purple-500', icon: ICONS.enquiries },
+    { label: 'Total Properties', count: stats.total_rent, color: 'bg-slate-500', icon: ICONS.properties, href: '/admin/rent' },
+    { label: 'Sellers', count: stats.rent_sellers, color: 'bg-blue-500', icon: ICONS.sellers, href: '/admin/rent/owners' },
+    { label: 'Buyers', count: stats.rent_buyers, color: 'bg-emerald-500', icon: ICONS.buyers, href: '/admin/buyers' },
+    { label: 'Unread Enquiries', count: stats.rent_enquiries, color: 'bg-purple-500', icon: ICONS.enquiries, href: '/admin/rent/enquiries' },
   ] : [];
 
   const rentSubTiles = stats ? [
-    { label: '1 BHK', value: stats.rent_1bhk, color: 'bg-blue-50 text-blue-700 border-blue-100' },
-    { label: '2 BHK', value: stats.rent_2bhk, color: 'bg-emerald-50 text-emerald-700 border-emerald-100' },
-    { label: '3+ BHK', value: stats.rent_3plus_bhk, color: 'bg-amber-50 text-amber-700 border-amber-100' },
-    { label: 'Commercial', value: stats.rent_commercial, color: 'bg-purple-50 text-purple-700 border-purple-100' },
+    { label: '1 BHK', value: stats.rent_1bhk, color: 'bg-blue-50 text-blue-700 border-blue-100', href: '/admin/rent?bhk=1' },
+    { label: '2 BHK', value: stats.rent_2bhk, color: 'bg-emerald-50 text-emerald-700 border-emerald-100', href: '/admin/rent?bhk=2' },
+    { label: '3+ BHK', value: stats.rent_3plus_bhk, color: 'bg-amber-50 text-amber-700 border-amber-100', href: '/admin/rent?bhk=3plus' },
+    { label: 'Commercial', value: stats.rent_commercial, color: 'bg-purple-50 text-purple-700 border-purple-100', href: '/admin/rent?property_use=commercial' },
   ] : [];
 
   if (error) return (

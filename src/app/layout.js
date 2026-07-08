@@ -5,6 +5,7 @@ import { AppProvider } from './AppContext';
 import AppShell from './AppShell';
 
 export const metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://tnpropertymandi.in'),
   title: 'TN Property Mandi | Buy, Sell & Rent Properties in Tamil Nadu',
   description: 'Find the best residential and commercial properties for sale or rent across Tamil Nadu.',
 };

@@ -10,6 +10,7 @@ import {
   uploadDrawingImage, getAllDistricts, getTaluksByDistrict, getVillagesByTaluk, adminApi,
 } from '@/lib/adminApi';
 import { reverseGeocodeDetailed } from '@/utils/geocode';
+import { downloadPropertyQr } from '@/lib/downloadPropertyQr';
 
 const SaleStatus = { NIL_BOOKING: 'Nil Booking', ON_BOOKING: 'ON_BOOKING', BOOKED: 'BOOKED', SOLD: 'SOLD' };
 const SaleType = { HOUSE: 'house', LAND: 'land', PLOT: 'plot', FLAT: 'flat' };
@@ -134,6 +135,10 @@ export default function SalePropertiesPage() {
 
   useEffect(() => { fetchSale(); }, []);
   useEffect(() => { getAllDistricts().then(r => setDistricts(r.data || [])).catch(() => {}); }, []);
+  useEffect(() => {
+    const saleType = new URLSearchParams(window.location.search).get('sale_type');
+    if (saleType) setFilters(f => ({ ...f, sale_type: saleType }));
+  }, []);
 
   useEffect(() => {
     if (!filters.district_id) { setFilterTaluks([]); setFilterVillages([]); return; }
@@ -726,6 +731,9 @@ export default function SalePropertiesPage() {
                 <>
                   <button onClick={() => openModal(p, 'edit')} className="p-1.5 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg border border-blue-100" title="Full Edit">
                     <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+                  </button>
+                  <button onClick={() => downloadPropertyQr(p, 'sale')} className="p-1.5 text-emerald-600 bg-emerald-50 hover:bg-emerald-100 rounded-lg border border-emerald-100" title="Download QR Code">
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2-9H8a2 2 0 00-2 2v14a2 2 0 002 2h8a2 2 0 002-2V6a2 2 0 00-2-2z" /></svg>
                   </button>
                   <button onClick={() => setDeleteTarget(p)} className="p-1.5 text-red-600 bg-red-50 hover:bg-red-100 rounded-lg border border-red-100" title="Delete">
                     <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>

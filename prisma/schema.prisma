@@ -29,6 +29,7 @@ model bookings {
   unit_id        Int?
   token_paid_to  String?    @db.VarChar(50)
   advance_amount Decimal?   @db.Decimal(15, 2)
+  is_read        Boolean    @default(false)
   contact_notes  contact_notes[]
   buyers         buyers     @relation(fields: [buyer_id], references: [buyer_id], onDelete: NoAction, onUpdate: NoAction)
   enquiries      enquiries? @relation(fields: [enquiry_id], references: [enquiry_id], onDelete: NoAction, onUpdate: NoAction)
@@ -92,6 +93,7 @@ model enquiries {
   confirmed_date DateTime?   @db.Timestamp(6)
   unit_type      String?     @db.VarChar(10)
   unit_id        Int?
+  is_read        Boolean     @default(false)
   bookings       bookings[]
   contact_notes  contact_notes[]
   buyers         buyers?     @relation(fields: [buyer_id], references: [buyer_id], onDelete: NoAction, onUpdate: NoAction)
