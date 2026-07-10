@@ -392,7 +392,6 @@
         left: 0px;
         right: auto;
         bottom: auto;
-        width: calc((100% - 73px) / 2);
     }
 
     .landing-premium-mobile .landing-mobile-premium-right-top.premium-ads-right-top {
@@ -423,7 +422,6 @@
         left: auto;
         top: auto;
         pointer-events: auto;
-        width: calc((100% - 73px) / 2);
     }
 
     /* Make the map overlay darker for better button contrast */
