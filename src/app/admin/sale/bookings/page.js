@@ -1,9 +1,11 @@
 'use client';
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import Link from 'next/link';
 import * as XLSX from 'xlsx';
 import DataTable from '@/components/admin/DataTable';
 import Loader from '@/components/admin/Loader';
 import { getBookings, markBookingRead, getContactNotes, createContactNote, deleteContactNote } from '@/lib/adminApi';
+import { formatPropertyId, getAdminPropertyHref } from '@/utils/propertyRouting';
 
 function ContactNotesModal({ target, onClose }) {
   const [notes, setNotes] = useState([]);
@@ -240,7 +242,13 @@ export default function SaleBookingsPage() {
 
   const columns = useMemo(() => [
     { header: 'Booking ID', accessor: (b) => `BK-${b.booking_id}`, className: 'font-semibold text-blue-600 font-mono text-xs' },
-    { header: 'Property ID', accessor: (b) => b.formatted_id || b.property_id, className: 'font-mono text-sm font-semibold' },
+    {
+      header: 'Property ID',
+      accessor: (b) => b.formatted_id
+        ? <Link href={getAdminPropertyHref(b.formatted_id)} target="_blank" onClick={(ev) => ev.stopPropagation()} className="hover:underline">{formatPropertyId(b.formatted_id)}</Link>
+        : b.property_id,
+      className: 'font-mono text-sm font-semibold',
+    },
     {
       header: 'Type',
       accessor: (b) => (

@@ -6,7 +6,7 @@ import '../styles/UnitSelector.css';
 
 const layoutCache = new Map();
 
-const UnitSelector = ({ propertyId, onSelectUnit, saleType, onNoPlots, refreshKey = 0 }) => {
+const UnitSelector = ({ propertyId, onSelectUnit, saleType, onNoPlots, onContactOwner, onFreeVisit, refreshKey = 0 }) => {
     const [dims, setDims] = useState({ rows: 40, cols: 60 });
     const [gridData, setGridData] = useState({});
     const [svgItems, setSvgItems] = useState([]); // shapes when SVG mode was saved
@@ -292,6 +292,18 @@ const UnitSelector = ({ propertyId, onSelectUnit, saleType, onNoPlots, refreshKe
     const rowsArray = useMemo(() => Array.from({ length: dims.rows }), [dims.rows]);
     const colsArray = useMemo(() => Array.from({ length: dims.cols }), [dims.cols]);
 
+    const renderHeaderBar = (centerText) => (
+        <div className="unit-selector-header-bar">
+            <button type="button" className="unit-selector-side-btn contact-owner-btn" onClick={() => onContactOwner?.()}>
+                Contact Owner
+            </button>
+            <p className="unit-selector-subtitle unit-selector-header-center">{centerText}</p>
+            <button type="button" className="unit-selector-side-btn free-visit-btn" onClick={() => onFreeVisit?.()}>
+                Free Visit
+            </button>
+        </div>
+    );
+
     if (loading) return <div className="unit-selector-subtitle">Loading Layout...</div>;
     if (loadError) {
         return (
@@ -302,8 +314,6 @@ const UnitSelector = ({ propertyId, onSelectUnit, saleType, onNoPlots, refreshKe
         );
     }
     if (!hasPlots) return null;
-
-    const titleLabel = normalizedSaleType === 'plot' ? 'Book Plots' : normalizedSaleType === 'flat' ? 'Book Flats' : 'Book Plots';
 
     const STATUS_SVG_COLORS = {
         'Nil Booking': '#22c55e', 'NIL_BOOKING': '#22c55e',
@@ -378,12 +388,11 @@ const UnitSelector = ({ propertyId, onSelectUnit, saleType, onNoPlots, refreshKe
 
         return (
             <div className="unit-selector-container">
-                <h2 className="unit-selector-title">{titleLabel}</h2>
-                <p className="unit-selector-subtitle">
-                    {pendingCell
-                        ? `Plot ${pendingCell.display_name} selected — proceeding…`
-                        : `Select and Visit`}
-                </p>
+                {renderHeaderBar(
+                    pendingCell
+                        ? `${isFlat ? 'Flat' : 'Plot'} ${pendingCell.display_name} selected — proceeding…`
+                        : `Select ${isFlat ? 'Flat' : 'Plot'} and visit`
+                )}
                 <div style={{ position: 'relative' }}>
                     <div style={{ position: 'absolute', top: 8, right: 8, zIndex: 10, display: 'flex', alignItems: 'center', gap: 4, background: 'white', borderRadius: 8, padding: '4px 8px', border: '1px solid #e2e8f0', fontSize: 12, fontWeight: 700, color: '#334155', userSelect: 'none' }}>
                         <button onClick={() => setSvgZoom(z => Math.min(4, +(z + 0.2).toFixed(2)))} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 16, lineHeight: 1, color: '#334155', padding: '0 2px' }}>+</button>
@@ -488,8 +497,7 @@ const UnitSelector = ({ propertyId, onSelectUnit, saleType, onNoPlots, refreshKe
 
     return (
         <div className="unit-selector-container">
-            <h2 className="unit-selector-title">{titleLabel}</h2>
-            <p className="unit-selector-subtitle">Please click on an available {unitLabel} to continue</p>
+            {renderHeaderBar(`Select ${isFlat ? 'Flat' : 'Plot'} and visit`)}
 
             <div style={{ position: 'relative' }}>
                 <div style={{ position: 'absolute', top: 8, right: 8, zIndex: 10, display: 'flex', alignItems: 'center', gap: 4, background: 'white', borderRadius: 8, padding: '4px 8px', border: '1px solid #e2e8f0', fontSize: 12, fontWeight: 700, color: '#334155', userSelect: 'none' }}>

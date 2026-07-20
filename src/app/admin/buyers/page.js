@@ -1,8 +1,10 @@
 'use client';
 import { useState, useEffect, useCallback, useRef } from 'react';
+import Link from 'next/link';
 import DataTable from '@/components/admin/DataTable';
 import Loader from '@/components/admin/Loader';
 import { getBuyers, updateBuyer, getBuyerEnquiries, getContactNotes, createContactNote, deleteContactNote } from '@/lib/adminApi';
+import { formatPropertyId, getAdminPropertyHref } from '@/utils/propertyRouting';
 
 const EMPTY_FORM = { name: '', phone_number: '', email: '', address: '' };
 
@@ -179,7 +181,12 @@ export default function BuyersPage() {
   ];
 
   const enquiryColumns = [
-    { header: 'Property', accessor: 'formatted_id' },
+    {
+      header: 'Property',
+      accessor: r => r.formatted_id
+        ? <Link href={getAdminPropertyHref(r.formatted_id)} target="_blank" className="font-semibold text-emerald-700 hover:underline">{formatPropertyId(r.formatted_id)}</Link>
+        : '-',
+    },
     { header: 'Type', accessor: 'enquiry_type' },
     { header: 'Status', accessor: r => <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${r.booking_status === 'BOOKED' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'}`}>{r.booking_status || '-'}</span> },
     { header: 'Date', accessor: r => r.created_at ? new Date(r.created_at).toLocaleDateString() : '-' },

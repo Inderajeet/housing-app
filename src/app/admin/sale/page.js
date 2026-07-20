@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect, useRef, useCallback } from 'react';
+import Link from 'next/link';
 import * as XLSX from 'xlsx';
 import DataTable from '@/components/admin/DataTable';
 import Loader from '@/components/admin/Loader';
@@ -11,6 +12,7 @@ import {
 } from '@/lib/adminApi';
 import { reverseGeocodeDetailed } from '@/utils/geocode';
 import { downloadPropertyQr } from '@/lib/downloadPropertyQr';
+import { formatPropertyId, getAdminPropertyHref } from '@/utils/propertyRouting';
 
 const SaleStatus = { NIL_BOOKING: 'Nil Booking', ON_BOOKING: 'ON_BOOKING', BOOKED: 'BOOKED', SOLD: 'SOLD' };
 const SaleType = { HOUSE: 'house', LAND: 'land', PLOT: 'plot', FLAT: 'flat' };
@@ -662,7 +664,12 @@ export default function SalePropertiesPage() {
           onCellDoubleClick={handleInlineEdit}
           cellSaving={inlineSaving}
           columns={[
-            { header: 'ID', accessor: 'formatted_id' },
+            {
+              header: 'ID',
+              accessor: p => p.formatted_id
+                ? <Link href={getAdminPropertyHref(p.formatted_id)} target="_blank" className="font-semibold text-emerald-700 hover:underline">{formatPropertyId(p.formatted_id)}</Link>
+                : '-',
+            },
             { header: 'Registered', accessor: p => new Date(p.created_at).toLocaleDateString(), sortable: true, sortBy: p => new Date(p.created_at).getTime() },
             { header: 'Type', accessor: 'sale_type', editable: true, editType: 'select', editOptions: Object.values(SaleType).map(v => ({ value: v, label: v })) },
             {

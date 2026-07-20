@@ -58,7 +58,7 @@ const allocateFormattedId = async (tx, districtId) => {
     did
   );
 
-  return `${districtCode}${String(nextNumber).padStart(4, '0')}`;
+  return `${districtCode}-${String(nextNumber).padStart(4, '0')}`;
 };
 
 export const getAll = async () => {

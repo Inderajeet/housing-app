@@ -407,7 +407,7 @@ export default function ProjectDetailsView({ routeIdentifier = '', routeMode = n
 
             <button type="button" className={`panel-thumb booking-thumb ${activePanel === 'booking' ? 'active' : ''}`} onClick={() => setActivePanel('booking')}>
               <CalendarCheck size={18} />
-              <span>Book Visit</span>
+              <span>Booking Status</span>
             </button>
 
             {showBoundaryPanel && (

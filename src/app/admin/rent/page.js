@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
+import Link from 'next/link';
 import * as XLSX from 'xlsx';
 import DataTable from '@/components/admin/DataTable';
 import Loader from '@/components/admin/Loader';
@@ -10,6 +11,7 @@ import {
   getAllDistricts, getTaluksByDistrict, getVillagesByTaluk, adminApi,
 } from '@/lib/adminApi';
 import { downloadPropertyQr } from '@/lib/downloadPropertyQr';
+import { formatPropertyId, getAdminPropertyHref } from '@/utils/propertyRouting';
 
 const BookingStatus = { NIL_BOOKING: 'Nil Booking', ON_BOOKING: 'ON_BOOKING', BOOKED: 'BOOKED', RENTED: 'RENTED' };
 const PropertyType = { RESIDENTIAL: 'residential', COMMERCIAL: 'commercial' };
@@ -384,7 +386,12 @@ export default function RentPropertiesPage() {
           onCellDoubleClick={handleInlineEdit}
           cellSaving={inlineSaving}
           columns={[
-            { header: 'ID', accessor: 'formatted_id' },
+            {
+              header: 'ID',
+              accessor: p => p.formatted_id
+                ? <Link href={getAdminPropertyHref(p.formatted_id)} target="_blank" className="font-semibold text-emerald-700 hover:underline">{formatPropertyId(p.formatted_id)}</Link>
+                : '-',
+            },
             { header: 'Registered', accessor: p => new Date(p.created_at).toLocaleDateString(), sortable: true, sortBy: p => new Date(p.created_at).getTime() },
             {
               header: 'Property Type', accessor: 'property_use',

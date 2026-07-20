@@ -1,9 +1,11 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import DataTable from '@/components/admin/DataTable';
 import Loader from '@/components/admin/Loader';
 import { getFlatProperties, getFlatLayout, getAllFlatUnits, updateFlatUnit, deleteFlatUnit } from '@/lib/adminApi';
+import { formatPropertyId, getAdminPropertyHref } from '@/utils/propertyRouting';
 
 const STATUS_COLORS = {
   'Nil Booking': 'bg-emerald-100 text-emerald-700',
@@ -131,7 +133,12 @@ export default function FlatsPage() {
   };
 
   const propertyColumns = [
-    { header: 'Property ID', accessor: 'formatted_id', className: 'font-mono font-semibold text-blue-600' },
+    {
+      header: 'Property ID',
+      accessor: p => p.formatted_id
+        ? <Link href={getAdminPropertyHref(p.formatted_id)} target="_blank" className="font-mono font-semibold text-blue-600 hover:underline">{formatPropertyId(p.formatted_id)}</Link>
+        : '-',
+    },
     { header: 'Layout Name', accessor: 'layout_name', className: 'font-semibold text-gray-700' },
     { header: 'Seller Phone', accessor: 'seller_phone', className: 'font-mono text-sm' },
     { header: 'Rate (₹)', accessor: p => p.price ? `₹${Number(p.price).toLocaleString()}${p.rate_unit ? ' / ' + p.rate_unit : ''}` : '-' },
@@ -193,7 +200,12 @@ export default function FlatsPage() {
 
   const unitColumns = [
     { header: 'Unit ID', accessor: 'flat_unit_id', className: 'font-mono text-xs text-gray-500' },
-    { header: 'Property', accessor: 'property_formatted_id', className: 'font-mono text-xs text-blue-600' },
+    {
+      header: 'Property',
+      accessor: u => u.property_formatted_id
+        ? <Link href={getAdminPropertyHref(u.property_formatted_id)} target="_blank" className="font-mono text-xs text-blue-600 hover:underline">{formatPropertyId(u.property_formatted_id)}</Link>
+        : '-',
+    },
     { header: 'Flat #', accessor: 'flat_number', className: 'font-bold' },
     {
       header: 'Status', sortable: true, sortBy: u => u.status || '',

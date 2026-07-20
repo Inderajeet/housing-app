@@ -100,6 +100,25 @@ export const getPropertyHref = (property) => {
   return `/property/${mode}/${descSlug}/${id}`;
 };
 
+// District codes are stored inconsistently in the DB (some with a trailing
+// hyphen, some without) - always render as PREFIX-0000 regardless of source.
+export const formatPropertyId = (formattedId) => {
+  const raw = String(formattedId ?? '').trim();
+  if (!raw) return '';
+  const match = raw.match(/^([A-Za-z]+)-?(\d+)$/);
+  if (!match) return raw;
+  return `${match[1]}-${match[2]}`;
+};
+
+// A URL with only 1 segment gives the page no mode/category, so it searches
+// both rent and sale automatically - a 3-segment URL would lock it to whatever
+// mode is in slug[0] and 404 for a property of the other type.
+export const getAdminPropertyHref = (formattedId) => {
+  const raw = String(formattedId ?? '').trim();
+  if (!raw) return null;
+  return `/property/${encodeURIComponent(raw)}`;
+};
+
 export const matchesPropertyIdentifier = (property, identifier) => {
   const normalizedIdentifier = normalizeText(identifier);
   if (!normalizedIdentifier) return false;

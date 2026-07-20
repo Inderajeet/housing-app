@@ -1,10 +1,12 @@
 'use client';
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
+import Link from 'next/link';
 import * as XLSX from 'xlsx';
 import DataTable from '@/components/admin/DataTable';
 import Loader from '@/components/admin/Loader';
 import SearchSelect from '@/components/admin/SearchSelect';
 import { getEnquiries, createEnquiry, updateEnquiry, markEnquiryRead, getRentProperties, getContactNotes, createContactNote, deleteContactNote, adminApi } from '@/lib/adminApi';
+import { formatPropertyId, getAdminPropertyHref } from '@/utils/propertyRouting';
 
 function ContactNotesModal({ target, onClose }) {
   const [notes, setNotes] = useState([]);
@@ -218,7 +220,13 @@ export default function RentEnquiriesPage() {
   };
 
   const columns = useMemo(() => [
-    { header: 'ID', accessor: (e) => e.formatted_id || 'N/A', className: 'font-semibold text-blue-600' },
+    {
+      header: 'ID',
+      accessor: (e) => e.formatted_id
+        ? <Link href={getAdminPropertyHref(e.formatted_id)} target="_blank" onClick={(ev) => ev.stopPropagation()} className="font-semibold text-blue-600 hover:underline">{formatPropertyId(e.formatted_id)}</Link>
+        : 'N/A',
+      className: 'font-semibold text-blue-600',
+    },
     {
       header: 'Type',
       accessor: (e) => (

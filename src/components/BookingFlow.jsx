@@ -35,6 +35,8 @@ const BookingFlow = ({
   const [modalMsg, setModalMsg] = useState('');
   const [selectedUnit, setSelectedUnit] = useState(null);
   const [skipUnitSelection, setSkipUnitSelection] = useState(false);
+  const [noUnitMode, setNoUnitMode] = useState(false);
+  const [contactSubmitted, setContactSubmitted] = useState(false);
   const [refreshLayoutKey, setRefreshLayoutKey] = useState(0);
   const [generalRefreshKey, setGeneralRefreshKey] = useState(0);
 
@@ -133,6 +135,8 @@ const BookingFlow = ({
   useEffect(() => {
     setSkipUnitSelection(false);
     setSelectedUnit(null);
+    setNoUnitMode(false);
+    setContactSubmitted(false);
   }, [propertyId, saleType, transactionType]);
 
   // Reset reminder modal when user picks a new unit so it doesn't flash on unit selection
@@ -189,6 +193,23 @@ const BookingFlow = ({
       if (res.data.status === 'closed') setIsFinalized(true);
     } catch {
       setIsSubmitted(true);
+    } finally {
+      setLoadingStage(false);
+    }
+  };
+
+  const handleContactSubmit = async () => {
+    if (phone.length !== 10) return;
+    try {
+      setLoadingStage(true);
+      await endpoints.submitContactRequest({ propertyId, phone });
+      setModalMsg('Thanks! Our team will contact you shortly.');
+      setShowReminderModal(true);
+      setContactSubmitted(true);
+    } catch {
+      setModalMsg('Thanks! Our team will contact you shortly.');
+      setShowReminderModal(true);
+      setContactSubmitted(true);
     } finally {
       setLoadingStage(false);
     }
@@ -271,7 +292,7 @@ const BookingFlow = ({
     ? (Number(selectedUnit.booked_people_count) || Number(bookedPeopleCountProp) || 0)
     : (Number(bookedPeopleCountProp) || 0);
 
-  const getPrimaryCtaLabel = () => "Book Visit";
+  const getPrimaryCtaLabel = () => "Book Free Visit";
 
   const getSubtitlePoints = (subtitle) => {
     if (Array.isArray(subtitle)) return subtitle.filter(Boolean);
@@ -362,6 +383,8 @@ const BookingFlow = ({
           refreshKey={refreshLayoutKey}
           onSelectUnit={(unit) => setSelectedUnit(unit)}
           onNoPlots={() => setSkipUnitSelection(true)}
+          onContactOwner={() => { setNoUnitMode(true); setSkipUnitSelection(true); }}
+          onFreeVisit={() => { setNoUnitMode(true); setSkipUnitSelection(true); }}
         />
       ) : (
         <>
@@ -376,6 +399,17 @@ const BookingFlow = ({
               <div className="badge">
                 {selectedUnitLabel}: {selectedUnitName}
               </div>
+            </div>
+          )}
+
+          {!isSubmitted && isSalePlotOrFlat && noUnitMode && (
+            <div className="selected-unit-header">
+              <button
+                onClick={() => { setNoUnitMode(false); setSkipUnitSelection(false); setContactSubmitted(false); }}
+                className="back-btn"
+              >
+                <ChevronLeft size={14} /> Back to {normalizedSaleType === 'flat' ? 'Flats' : 'Plots'}
+              </button>
             </div>
           )}
 
@@ -396,8 +430,8 @@ const BookingFlow = ({
                     </div>
                     <button
                       className="primary-btn saffron-btn"
-                      disabled={phone.length !== 10 || loadingStage}
-                      onClick={checkStageByPhone}
+                      disabled={phone.length !== 10 || loadingStage || (noUnitMode && contactSubmitted)}
+                      onClick={noUnitMode ? handleContactSubmit : checkStageByPhone}
                     >
                       {loadingStage ? "Checking..." : getPrimaryCtaLabel()}
                     </button>
@@ -410,7 +444,7 @@ const BookingFlow = ({
               <div className="overview-split-layout">
                 <div className="overview-heading-row">
                   <div className="overview-heading-col">
-                    <h2 className="compact-title overview-heading-title">{headings.booking_process_heading || 'Booking Process'}</h2>
+                    <h2 className="compact-title overview-heading-title">{headings.booking_process_heading || 'Booking Status'}</h2>
                     <p className="compact-subtitle-light overview-heading-subtitle">
                       {isFinalized
                         ? transactionType === 'rent' ? (headings.property_rented_label || 'Property Rented') : (headings.property_sold_label || 'Property Sold')

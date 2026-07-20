@@ -74,6 +74,38 @@ export async function getGeneralFlow({ propertyId, unitType, unitId }) {
   return { overallStageIndex: maxIndex, overallStatus: finalStatus };
 }
 
+// Contact Owner / Free Visit path - no unit selected, so only an enquiry is
+// logged (unit_type/unit_id stay null) and no bookings row is created.
+export async function submitContactRequest({ propertyId, phone }) {
+  let buyerRes = await prisma.$queryRawUnsafe('SELECT buyer_id FROM buyers WHERE phone_number=$1', phone);
+  let buyerId;
+  if (!buyerRes.length) {
+    const nb = await prisma.$queryRawUnsafe('INSERT INTO buyers(phone_number) VALUES ($1) RETURNING buyer_id', phone);
+    buyerId = nb[0].buyer_id;
+  } else {
+    buyerId = buyerRes[0].buyer_id;
+  }
+
+  const existing = await prisma.$queryRawUnsafe(
+    `SELECT enquiry_id FROM enquiries WHERE property_id=$1 AND buyer_id=$2 LIMIT 1`,
+    propertyId, buyerId
+  );
+  if (existing.length) {
+    await prisma.$executeRawUnsafe(
+      `UPDATE enquiries SET contacted=true WHERE enquiry_id=$1`,
+      existing[0].enquiry_id
+    );
+  } else {
+    await prisma.$executeRawUnsafe(
+      `INSERT INTO enquiries (property_id, buyer_id, enquiry_type, contacted)
+       VALUES ($1, $2, 'buyer', true)`,
+      propertyId, buyerId
+    );
+  }
+
+  return { buyerId };
+}
+
 export async function updateStage({ propertyId, unitType, unitId, phone, stage, tokenPaidTo = null }) {
   let buyerRes = await prisma.$queryRawUnsafe('SELECT buyer_id FROM buyers WHERE phone_number=$1', phone);
   let buyerId;

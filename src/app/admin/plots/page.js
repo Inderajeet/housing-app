@@ -1,9 +1,11 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import DataTable from '@/components/admin/DataTable';
 import Loader from '@/components/admin/Loader';
 import { getPlotProperties, getPlotLayout, getAllPlotUnits, updatePlotUnit, deletePlotUnit, updateSaleProperty, adminApi, bulkUpdatePlotStatuses } from '@/lib/adminApi';
+import { formatPropertyId, getAdminPropertyHref } from '@/utils/propertyRouting';
 
 const STATUS_COLORS = {
   'Nil Booking': 'bg-emerald-100 text-emerald-700',
@@ -168,7 +170,12 @@ export default function PlotsPage() {
         loading ? <Loader /> : (
           <DataTable
             columns={[
-              { header: 'Property ID', accessor: 'formatted_id', className: 'font-mono font-semibold text-blue-600' },
+              {
+                header: 'Property ID',
+                accessor: p => p.formatted_id
+                  ? <Link href={getAdminPropertyHref(p.formatted_id)} target="_blank" className="font-mono font-semibold text-blue-600 hover:underline">{formatPropertyId(p.formatted_id)}</Link>
+                  : '-',
+              },
               { header: 'Seller Name', accessor: 'seller_name', editable: true, filterable: true, filterKey: 'seller_name' },
               { header: 'Seller Phone', accessor: 'seller_phone', editable: true, editField: 'contact_phone', filterable: true, filterKey: 'seller_phone' },
               { header: 'Alt Phone', accessor: 'alternate_contact_phone', editable: true, filterable: true, filterKey: 'alternate_contact_phone' },
@@ -272,7 +279,12 @@ export default function PlotsPage() {
           <DataTable
             columns={[
               { header: 'Unit ID', accessor: 'plot_unit_id', className: 'font-mono text-xs text-gray-500' },
-              { header: 'Property', accessor: 'property_formatted_id', className: 'font-mono text-xs text-blue-600' },
+              {
+                header: 'Property',
+                accessor: u => u.property_formatted_id
+                  ? <Link href={getAdminPropertyHref(u.property_formatted_id)} target="_blank" className="font-mono text-xs text-blue-600 hover:underline">{formatPropertyId(u.property_formatted_id)}</Link>
+                  : '-',
+              },
               { header: 'Plot #', accessor: 'plot_number', className: 'font-bold' },
               {
                 header: 'Status', sortable: true, sortBy: u => u.status || '',

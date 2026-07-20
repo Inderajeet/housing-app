@@ -1,8 +1,10 @@
 'use client';
 import { useState, useEffect, useCallback, useRef } from 'react';
+import Link from 'next/link';
 import DataTable from '@/components/admin/DataTable';
 import Loader from '@/components/admin/Loader';
 import { getSellers, createSeller, updateSeller, getSellerProperties, getContactNotes, createContactNote, deleteContactNote } from '@/lib/adminApi';
+import { formatPropertyId, getAdminPropertyHref } from '@/utils/propertyRouting';
 
 function ContactNotesModal({ target, onClose }) {
   const [notes, setNotes] = useState([]);
@@ -51,7 +53,7 @@ function ContactNotesModal({ target, onClose }) {
                 <p className="text-sm text-gray-800">{n.note_text}</p>
                 <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1">
                   {new Date(n.note_date).toLocaleString()}
-                  {n.properties && <span className="ml-2 text-emerald-600">#{n.properties.formatted_id}</span>}
+                  {n.properties && <span className="ml-2 text-emerald-600">#{formatPropertyId(n.properties.formatted_id)}</span>}
                 </p>
               </div>
               <button onClick={() => handleDelete(n.id)} className="text-gray-300 hover:text-red-500 text-lg leading-none self-start mt-0.5">✕</button>
@@ -127,10 +129,24 @@ export default function RentOwnersPage() {
   };
 
   const columns = [
+    {
+      header: 'Property ID',
+      accessor: r => r.formatted_ids
+        ? (
+          <span className="flex flex-wrap gap-x-2 gap-y-1">
+            {r.formatted_ids.split(',').map(id => id.trim()).filter(Boolean).map((id, i) => (
+              <Link key={i} href={getAdminPropertyHref(id)} target="_blank" onClick={e => e.stopPropagation()} className="hover:underline">{formatPropertyId(id)}</Link>
+            ))}
+          </span>
+        )
+        : '-',
+      sortable: true, sortBy: r => r.formatted_ids || '',
+      className: 'font-mono font-semibold text-blue-600',
+    },
     { header: 'Name', accessor: 'name' },
     { header: 'Phone', accessor: r => <span className="text-blue-600 font-medium">{r.phone_number}</span> },
     { header: 'Property Count', accessor: r => <span className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded-full text-xs font-medium">{r.property_count || 0}</span> },
-    { header: 'Created At', accessor: r => r.created_at ? new Date(r.created_at).toLocaleDateString() : '-' },
+    { header: 'Created At', accessor: r => r.created_at ? new Date(r.created_at).toLocaleDateString() : '-', sortable: true, sortBy: r => r.created_at ? new Date(r.created_at).getTime() : 0, className: 'text-xs text-gray-500' },
   ];
 
   const renderRowActions = useCallback((r) => (
@@ -231,7 +247,9 @@ export default function RentOwnersPage() {
                         <tbody className="divide-y divide-gray-100">
                           {properties.map((p, i) => (
                             <tr key={i} className="hover:bg-gray-50">
-                              <td className="px-4 py-2.5 text-sm font-bold text-emerald-600">{p.formatted_id}</td>
+                              <td className="px-4 py-2.5 text-sm font-bold text-emerald-600">
+                                {p.formatted_id ? <Link href={getAdminPropertyHref(p.formatted_id)} target="_blank" className="hover:underline">{formatPropertyId(p.formatted_id)}</Link> : '-'}
+                              </td>
                               <td className="px-4 py-2.5 text-sm">{p.property_type || p.sale_type || '-'}</td>
                               <td className="px-4 py-2.5 text-sm">{p.status || '-'}</td>
                               <td className="px-4 py-2.5 text-sm">{p.created_at ? new Date(p.created_at).toLocaleDateString() : '-'}</td>

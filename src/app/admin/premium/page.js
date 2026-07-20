@@ -1,12 +1,14 @@
 'use client';
 import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import DataTable from '@/components/admin/DataTable';
 import Loader from '@/components/admin/Loader';
 import {
   getPremiumProperties, addPremiumProperty, requestPremiumProperty,
   updatePremiumProperty, removePremiumProperty, getRentProperties, getSaleProperties,
 } from '@/lib/adminApi';
+import { formatPropertyId, getAdminPropertyHref } from '@/utils/propertyRouting';
 
 const lbl = 'text-[10px] font-bold uppercase tracking-widest text-gray-500';
 const fw = 'flex flex-col space-y-2';
@@ -190,7 +192,12 @@ function PremiumPageInner() {
   const typeLabel = type === 'rent' ? 'Rent' : 'Sale';
 
   const requestedColumns = [
-    { header: 'Prop ID', accessor: 'formatted_id' },
+    {
+      header: 'Prop ID',
+      accessor: p => p.formatted_id
+        ? <Link href={getAdminPropertyHref(p.formatted_id)} target="_blank" className="font-semibold text-emerald-700 hover:underline">{formatPropertyId(p.formatted_id)}</Link>
+        : '-',
+    },
     { header: 'Phone', accessor: 'contact_phone' },
     { header: 'Location', accessor: p => [p.district_name, p.taluk_name, p.village_name].filter(Boolean).join(', ') || '-' },
     { header: 'Requested On', accessor: p => p.created_at ? formatDate(p.created_at) : '-' },
@@ -208,7 +215,12 @@ function PremiumPageInner() {
   ];
 
   const paidColumns = [
-    { header: 'ID', accessor: 'formatted_id' },
+    {
+      header: 'ID',
+      accessor: p => p.formatted_id
+        ? <Link href={getAdminPropertyHref(p.formatted_id)} target="_blank" className="font-semibold text-emerald-700 hover:underline">{formatPropertyId(p.formatted_id)}</Link>
+        : '-',
+    },
     { header: 'Priority', accessor: p => p.priority_order ?? '-', sortable: true, sortBy: p => p.priority_order ?? 0 },
     { header: 'Validity', accessor: p => `${formatDate(p.start_date)} – ${formatDate(p.end_date)}`, className: 'text-[11px]' },
     {

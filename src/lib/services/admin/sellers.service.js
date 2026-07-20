@@ -3,11 +3,11 @@ import prisma from '../../prisma.js';
 export const getAll = async (type = null) => {
   let query, params = [];
   if (type === 'rent') {
-    query = `SELECT s.*, COUNT(p.property_id)::INT AS property_count FROM sellers s INNER JOIN properties p ON p.seller_id = s.seller_id WHERE p.property_type = 'rent' GROUP BY s.seller_id ORDER BY s.name ASC`;
+    query = `SELECT s.*, COUNT(p.property_id)::INT AS property_count, STRING_AGG(p.formatted_id, ', ' ORDER BY p.property_id) AS formatted_ids FROM sellers s INNER JOIN properties p ON p.seller_id = s.seller_id WHERE p.property_type = 'rent' GROUP BY s.seller_id ORDER BY s.name ASC`;
   } else if (type === 'sale') {
-    query = `SELECT s.*, COUNT(p.property_id)::INT AS property_count FROM sellers s INNER JOIN properties p ON p.seller_id = s.seller_id WHERE p.property_type != 'rent' GROUP BY s.seller_id ORDER BY s.name ASC`;
+    query = `SELECT s.*, COUNT(p.property_id)::INT AS property_count, STRING_AGG(p.formatted_id, ', ' ORDER BY p.property_id) AS formatted_ids FROM sellers s INNER JOIN properties p ON p.seller_id = s.seller_id WHERE p.property_type != 'rent' GROUP BY s.seller_id ORDER BY s.name ASC`;
   } else {
-    query = `SELECT s.*, COUNT(p.property_id)::INT AS property_count FROM sellers s LEFT JOIN properties p ON p.seller_id = s.seller_id GROUP BY s.seller_id ORDER BY s.name ASC`;
+    query = `SELECT s.*, COUNT(p.property_id)::INT AS property_count, STRING_AGG(p.formatted_id, ', ' ORDER BY p.property_id) AS formatted_ids FROM sellers s LEFT JOIN properties p ON p.seller_id = s.seller_id GROUP BY s.seller_id ORDER BY s.name ASC`;
   }
   const rows = await prisma.$queryRawUnsafe(query, ...params);
   return rows;
