@@ -394,15 +394,24 @@ const UnitSelector = ({ propertyId, onSelectUnit, saleType, onNoPlots, onContact
                         : `Select ${isFlat ? 'Flat' : 'Plot'} and visit`
                 )}
                 <div style={{ position: 'relative' }}>
-                    <div style={{ position: 'absolute', top: 8, right: 8, zIndex: 10, display: 'flex', alignItems: 'center', gap: 4, background: 'white', borderRadius: 8, padding: '4px 8px', border: '1px solid #e2e8f0', fontSize: 12, fontWeight: 700, color: '#334155', userSelect: 'none' }}>
-                        <button onClick={() => setSvgZoom(z => Math.min(4, +(z + 0.2).toFixed(2)))} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 16, lineHeight: 1, color: '#334155', padding: '0 2px' }}>+</button>
-                        <span style={{ minWidth: 36, textAlign: 'center' }}>{Math.round(svgZoom * 100)}%</span>
-                        <button onClick={() => setSvgZoom(z => Math.max(0.2, +(z - 0.2).toFixed(2)))} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 16, lineHeight: 1, color: '#334155', padding: '0 2px' }}>−</button>
-                        {(svgPan.x !== 0 || svgPan.y !== 0) && (
-                            <button onClick={() => setSvgPan({ x: 0, y: 0 })} style={{ border: 'none', background: '#f1f5f9', cursor: 'pointer', fontSize: 10, fontWeight: 900, color: '#64748b', padding: '2px 6px', borderRadius: 4, marginLeft: 4 }}>Reset</button>
-                        )}
+                <div className="unit-grid-scroll" style={{ height: 400, display: 'flex', flexDirection: 'column' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6, marginBottom: 8, flexShrink: 0 }}>
+                        <div className="unit-legend" style={{ margin: 0, flexWrap: 'nowrap', background: 'white', borderRadius: 8, padding: '3px 8px', border: '1px solid #e2e8f0' }}>
+                            <div className="legend-item"><div className="legend-dot legend-available"></div> Available</div>
+                            <div className="legend-item"><div className="legend-dot legend-on-booking"></div> On Booking</div>
+                            <div className="legend-item"><div className="legend-dot legend-booked"></div> Confirmed/Sold</div>
+                            <div className="legend-item"><div className="legend-dot legend-bhk"></div> BHK</div>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 2, fontSize: 10, fontWeight: 700, color: '#334155', flexShrink: 0, background: 'white', borderRadius: 8, padding: '3px 6px', border: '1px solid #e2e8f0', userSelect: 'none' }}>
+                            <button onClick={() => setSvgZoom(z => Math.min(4, +(z + 0.2).toFixed(2)))} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 13, lineHeight: 1, color: '#334155', padding: '0 2px' }}>+</button>
+                            <span style={{ minWidth: 26, textAlign: 'center' }}>{Math.round(svgZoom * 100)}%</span>
+                            <button onClick={() => setSvgZoom(z => Math.max(0.2, +(z - 0.2).toFixed(2)))} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 13, lineHeight: 1, color: '#334155', padding: '0 2px' }}>−</button>
+                            {(svgPan.x !== 0 || svgPan.y !== 0) && (
+                                <button onClick={() => setSvgPan({ x: 0, y: 0 })} style={{ border: 'none', background: '#f1f5f9', cursor: 'pointer', fontSize: 9, fontWeight: 900, color: '#64748b', padding: '1px 4px', borderRadius: 4, marginLeft: 2 }}>Reset</button>
+                            )}
+                        </div>
                     </div>
-                <div className="unit-grid-scroll" style={{ height: 400 }}>
+                    <div style={{ flex: 1, minHeight: 0 }}>
                     <svg
                         ref={svgRef}
                         viewBox={vb}
@@ -483,13 +492,8 @@ const UnitSelector = ({ propertyId, onSelectUnit, saleType, onNoPlots, onContact
                             </text>
                         ))}
                     </svg>
+                    </div>
                 </div>
-                </div>
-                <div className="unit-legend">
-                    <div className="legend-item"><div className="legend-dot legend-available"></div> Available</div>
-                    <div className="legend-item"><div className="legend-dot legend-on-booking"></div> On Booking</div>
-                    <div className="legend-item"><div className="legend-dot legend-booked"></div> Confirmed/Sold</div>
-                    <div className="legend-item"><div className="legend-dot legend-bhk"></div> BHK</div>
                 </div>
             </div>
         );
@@ -500,12 +504,19 @@ const UnitSelector = ({ propertyId, onSelectUnit, saleType, onNoPlots, onContact
             {renderHeaderBar(`Select ${isFlat ? 'Flat' : 'Plot'} and visit`)}
 
             <div style={{ position: 'relative' }}>
-                <div style={{ position: 'absolute', top: 8, right: 8, zIndex: 10, display: 'flex', alignItems: 'center', gap: 4, background: 'white', borderRadius: 8, padding: '4px 8px', border: '1px solid #e2e8f0', fontSize: 12, fontWeight: 700, color: '#334155', userSelect: 'none' }}>
-                    <button onClick={() => setGridZoom(z => Math.min(3, +(z + 0.2).toFixed(2)))} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 16, lineHeight: 1, color: '#334155', padding: '0 2px' }}>+</button>
-                    <span style={{ minWidth: 36, textAlign: 'center' }}>{Math.round(gridZoom * 100)}%</span>
-                    <button onClick={() => setGridZoom(z => Math.max(0.2, +(z - 0.2).toFixed(2)))} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 16, lineHeight: 1, color: '#334155', padding: '0 2px' }}>−</button>
-                </div>
             <div className="unit-grid-scroll">
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6, marginBottom: 8 }}>
+                    <div className="unit-legend" style={{ margin: 0, flexWrap: 'nowrap', background: 'white', borderRadius: 8, padding: '3px 8px', border: '1px solid #e2e8f0' }}>
+                        <div className="legend-item"><div className="legend-dot legend-available"></div> Available</div>
+                        <div className="legend-item"><div className="legend-dot legend-on-booking"></div> On Booking</div>
+                        <div className="legend-item"><div className="legend-dot legend-booked"></div> Booked</div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 2, fontSize: 10, fontWeight: 700, color: '#334155', flexShrink: 0, background: 'white', borderRadius: 8, padding: '3px 6px', border: '1px solid #e2e8f0', userSelect: 'none' }}>
+                        <button onClick={() => setGridZoom(z => Math.min(3, +(z + 0.2).toFixed(2)))} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 13, lineHeight: 1, color: '#334155', padding: '0 2px' }}>+</button>
+                        <span style={{ minWidth: 26, textAlign: 'center' }}>{Math.round(gridZoom * 100)}%</span>
+                        <button onClick={() => setGridZoom(z => Math.max(0.2, +(z - 0.2).toFixed(2)))} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 13, lineHeight: 1, color: '#334155', padding: '0 2px' }}>−</button>
+                    </div>
+                </div>
                 <div
                     className="unit-grid-wrapper"
                     style={{
@@ -595,12 +606,6 @@ const UnitSelector = ({ propertyId, onSelectUnit, saleType, onNoPlots, onContact
                     ))}
                 </div>
             </div>
-            </div>
-
-            <div className="unit-legend">
-                <div className="legend-item"><div className="legend-dot legend-available"></div> Available</div>
-                <div className="legend-item"><div className="legend-dot legend-on-booking"></div> On Booking</div>
-                <div className="legend-item"><div className="legend-dot legend-booked"></div> Booked</div>
             </div>
         </div>
     );

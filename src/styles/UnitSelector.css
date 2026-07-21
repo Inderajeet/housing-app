@@ -214,22 +214,24 @@
 
 .unit-legend {
     display: flex;
-    gap: 16px;
+    gap: 8px;
     margin-top: 12px;
-    font-size: 0.75rem;
+    font-size: 10px;
     color: #475569;
+    flex-wrap: wrap;
 }
 
 .legend-item {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 4px;
+    white-space: nowrap;
 }
 
 .legend-dot {
-    width: 12px;
-    height: 12px;
-    border-radius: 3px;
+    width: 8px;
+    height: 8px;
+    border-radius: 2px;
     border: 1px solid rgba(15, 23, 42, 0.1);
 }
 
