@@ -8,7 +8,7 @@ import {
   getPremiumProperties, addPremiumProperty, requestPremiumProperty,
   updatePremiumProperty, removePremiumProperty, getRentProperties, getSaleProperties,
 } from '@/lib/adminApi';
-import { formatPropertyId, getAdminPropertyHref } from '@/utils/propertyRouting';
+import { formatPropertyId, getPropertyHref } from '@/utils/propertyRouting';
 
 const lbl = 'text-[10px] font-bold uppercase tracking-widest text-gray-500';
 const fw = 'flex flex-col space-y-2';
@@ -195,7 +195,7 @@ function PremiumPageInner() {
     {
       header: 'Prop ID',
       accessor: p => p.formatted_id
-        ? <Link href={getAdminPropertyHref(p.formatted_id)} target="_blank" className="font-semibold text-emerald-700 hover:underline">{formatPropertyId(p.formatted_id)}</Link>
+        ? <Link href={getPropertyHref(p)} target="_blank" className="font-semibold text-emerald-700 hover:underline">{formatPropertyId(p.formatted_id)}</Link>
         : '-',
     },
     { header: 'Phone', accessor: 'contact_phone' },
@@ -218,7 +218,7 @@ function PremiumPageInner() {
     {
       header: 'ID',
       accessor: p => p.formatted_id
-        ? <Link href={getAdminPropertyHref(p.formatted_id)} target="_blank" className="font-semibold text-emerald-700 hover:underline">{formatPropertyId(p.formatted_id)}</Link>
+        ? <Link href={getPropertyHref(p)} target="_blank" className="font-semibold text-emerald-700 hover:underline">{formatPropertyId(p.formatted_id)}</Link>
         : '-',
     },
     { header: 'Priority', accessor: p => p.priority_order ?? '-', sortable: true, sortBy: p => p.priority_order ?? 0 },

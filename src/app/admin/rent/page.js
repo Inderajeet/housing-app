@@ -11,7 +11,7 @@ import {
   getAllDistricts, getTaluksByDistrict, getVillagesByTaluk, adminApi,
 } from '@/lib/adminApi';
 import { downloadPropertyQr } from '@/lib/downloadPropertyQr';
-import { formatPropertyId, getAdminPropertyHref } from '@/utils/propertyRouting';
+import { formatPropertyId, getPropertyHref } from '@/utils/propertyRouting';
 
 const BookingStatus = { NIL_BOOKING: 'Nil Booking', ON_BOOKING: 'ON_BOOKING', BOOKED: 'BOOKED', RENTED: 'RENTED' };
 const PropertyType = { RESIDENTIAL: 'residential', COMMERCIAL: 'commercial' };
@@ -389,7 +389,7 @@ export default function RentPropertiesPage() {
             {
               header: 'ID',
               accessor: p => p.formatted_id
-                ? <Link href={getAdminPropertyHref(p.formatted_id)} target="_blank" className="font-semibold text-emerald-700 hover:underline">{formatPropertyId(p.formatted_id)}</Link>
+                ? <Link href={getPropertyHref(p)} target="_blank" className="font-semibold text-emerald-700 hover:underline">{formatPropertyId(p.formatted_id)}</Link>
                 : '-',
             },
             { header: 'Registered', accessor: p => new Date(p.created_at).toLocaleDateString(), sortable: true, sortBy: p => new Date(p.created_at).getTime() },
@@ -450,7 +450,7 @@ export default function RentPropertiesPage() {
                   <button onClick={() => openModal(p, 'edit')} className="p-1.5 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg border border-blue-100" title="Full Edit">
                     <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
                   </button>
-                  <button onClick={() => downloadPropertyQr(p, 'rent')} className="p-1.5 text-emerald-600 bg-emerald-50 hover:bg-emerald-100 rounded-lg border border-emerald-100" title="Download QR Code">
+                  <button onClick={() => downloadPropertyQr(p)} className="p-1.5 text-emerald-600 bg-emerald-50 hover:bg-emerald-100 rounded-lg border border-emerald-100" title="Download QR Code">
                     <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2-9H8a2 2 0 00-2 2v14a2 2 0 002 2h8a2 2 0 002-2V6a2 2 0 00-2-2z" /></svg>
                   </button>
                   <button onClick={() => setDeleteTarget(p)} className="p-1.5 text-red-600 bg-red-50 hover:bg-red-100 rounded-lg border border-red-100" title="Delete">

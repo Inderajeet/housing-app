@@ -6,7 +6,7 @@ import DataTable from '@/components/admin/DataTable';
 import Loader from '@/components/admin/Loader';
 import SearchSelect from '@/components/admin/SearchSelect';
 import { getEnquiries, createEnquiry, updateEnquiry, markEnquiryRead, getRentProperties, getContactNotes, createContactNote, deleteContactNote, adminApi } from '@/lib/adminApi';
-import { formatPropertyId, getAdminPropertyHref } from '@/utils/propertyRouting';
+import { formatPropertyId, getPropertyHref } from '@/utils/propertyRouting';
 
 function ContactNotesModal({ target, onClose }) {
   const [notes, setNotes] = useState([]);
@@ -223,7 +223,7 @@ export default function RentEnquiriesPage() {
     {
       header: 'ID',
       accessor: (e) => e.formatted_id
-        ? <Link href={getAdminPropertyHref(e.formatted_id)} target="_blank" onClick={(ev) => ev.stopPropagation()} className="font-semibold text-blue-600 hover:underline">{formatPropertyId(e.formatted_id)}</Link>
+        ? <Link href={getPropertyHref(e)} target="_blank" onClick={(ev) => ev.stopPropagation()} className="font-semibold text-blue-600 hover:underline">{formatPropertyId(e.formatted_id)}</Link>
         : 'N/A',
       className: 'font-semibold text-blue-600',
     },

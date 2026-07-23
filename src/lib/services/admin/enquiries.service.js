@@ -16,7 +16,9 @@ export const getAll = async (type, enquiryType = null) => {
       b.phone_number AS buyer_phone, b.name AS buyer_name, b.email AS buyer_email,
       s.phone_number AS seller_phone, s.name AS seller_name,
       p.title, p.property_type, p.status as main_property_status, p.formatted_id, p.contact_phone,
-      rp.rent_status,
+      rp.rent_status, rp.rent_amount, rp.bhk, rp.property_use,
+      sp.sale_type,
+      d.district_name, t.taluk_name, v.village_name,
       CASE WHEN p.property_type != 'rent' THEN sp.price ELSE rp.rent_amount END AS amount
     FROM enquiries e
     LEFT JOIN buyers b ON b.buyer_id = e.buyer_id
@@ -24,6 +26,9 @@ export const getAll = async (type, enquiryType = null) => {
     JOIN properties p ON p.property_id = e.property_id
     LEFT JOIN sale_properties sp ON sp.property_id = p.property_id
     LEFT JOIN rent_properties rp ON rp.property_id = p.property_id
+    LEFT JOIN districts d ON d.district_id = p.district_id
+    LEFT JOIN taluks t ON t.taluk_id = p.taluk_id
+    LEFT JOIN villages v ON v.village_id = p.village_id
     ${whereClause}
     ORDER BY e.enquiry_date DESC
   `, ...params);

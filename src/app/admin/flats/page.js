@@ -5,7 +5,7 @@ import Link from 'next/link';
 import DataTable from '@/components/admin/DataTable';
 import Loader from '@/components/admin/Loader';
 import { getFlatProperties, getFlatLayout, getAllFlatUnits, updateFlatUnit, deleteFlatUnit } from '@/lib/adminApi';
-import { formatPropertyId, getAdminPropertyHref } from '@/utils/propertyRouting';
+import { formatPropertyId, getAdminPropertyHref, getPropertyHref } from '@/utils/propertyRouting';
 
 const STATUS_COLORS = {
   'Nil Booking': 'bg-emerald-100 text-emerald-700',
@@ -136,7 +136,7 @@ export default function FlatsPage() {
     {
       header: 'Property ID',
       accessor: p => p.formatted_id
-        ? <Link href={getAdminPropertyHref(p.formatted_id)} target="_blank" className="font-mono font-semibold text-blue-600 hover:underline">{formatPropertyId(p.formatted_id)}</Link>
+        ? <Link href={getPropertyHref(p)} target="_blank" className="font-mono font-semibold text-blue-600 hover:underline">{formatPropertyId(p.formatted_id)}</Link>
         : '-',
     },
     { header: 'Layout Name', accessor: 'layout_name', className: 'font-semibold text-gray-700' },

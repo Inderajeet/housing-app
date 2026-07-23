@@ -13,13 +13,17 @@ export const getAll = async (type = null, status = null) => {
       p.formatted_id, p.title AS property_title, p.property_type,
       pu.plot_number,
       sp.sale_type,
-      rp.bhk, rp.property_use
+      rp.bhk, rp.property_use, rp.rent_amount,
+      d.district_name, t.taluk_name, v.village_name
     FROM bookings b
     LEFT JOIN buyers buy ON buy.buyer_id = b.buyer_id
     LEFT JOIN properties p ON p.property_id = b.property_id
     LEFT JOIN plot_units pu ON pu.plot_unit_id = b.unit_id AND b.unit_type = 'plot'
     LEFT JOIN sale_properties sp ON sp.property_id = b.property_id AND b.unit_type IN ('sale', 'plot', 'flat')
     LEFT JOIN rent_properties rp ON rp.property_id = b.property_id AND b.unit_type = 'rent'
+    LEFT JOIN districts d ON d.district_id = p.district_id
+    LEFT JOIN taluks t ON t.taluk_id = p.taluk_id
+    LEFT JOIN villages v ON v.village_id = p.village_id
     ${whereClause}
     ORDER BY b.booking_id DESC
   `, ...params);
