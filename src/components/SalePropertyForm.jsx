@@ -183,16 +183,18 @@ const SalePropertyForm = ({ data, onChange, onSubmit, onNext, mode = 'details', 
                     />
                 </div>
 
-                <div className="form-group">
-                    <label>DTCP Number *</label>
-                    <input
-                        type="text"
-                        value={data.dtcp || ''}
-                        onChange={(e) => onChange('dtcp', e.target.value)}
-                        className="input-field"
-                        placeholder="Enter DTCP number"
-                    />
-                </div>
+                {(data.saleType === 'plot' || data.saleType === 'flat') && (
+                    <div className="form-group">
+                        <label>DTCP Number *</label>
+                        <input
+                            type="text"
+                            value={data.dtcp || ''}
+                            onChange={(e) => onChange('dtcp', e.target.value)}
+                            className="input-field"
+                            placeholder="Enter DTCP number"
+                        />
+                    </div>
+                )}
 
                 <div className="form-group">
                     <label>Expected Rate</label>

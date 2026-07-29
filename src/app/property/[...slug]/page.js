@@ -59,7 +59,7 @@ export async function generateMetadata({ params }) {
     if (imageUrl && imageUrl !== DEFAULT_IMAGE) ogp.set('img', imageUrl);
     ogp.set('loc', property.village_name || property.taluk_name || property.district_name || '');
     ogp.set('layout', property.layout_name || property.title || property.street_name_or_road_name || '');
-    ogp.set('info', [property.formatted_id, saleType].filter(Boolean).join(' / '));
+    ogp.set('info', [property.formatted_id, isRent ? 'Rent' : 'Sale', saleType].filter(Boolean).join(' | '));
     if (!isRent) {
       ogp.set('legal', property.legal_value || '-');
       ogp.set('speed', property.area_sales_speed != null ? `${Number(property.area_sales_speed).toFixed(1)}/M` : '-');

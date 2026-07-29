@@ -895,7 +895,9 @@ export default function SalePropertiesPage() {
               {formTab === 'legal' && (
                 <div className="space-y-6">
                   <div className="grid grid-cols-2 gap-6">
-                    <div className={fw}><label className={lbl}>DTCP Approval</label><input disabled={isReadOnly} value={form.dtcp} onChange={e => handleChange('dtcp', e.target.value)} placeholder="DTCP number / details" className={inp()} /></div>
+                    {showExtraFields && (
+                      <div className={fw}><label className={lbl}>DTCP Approval</label><input disabled={isReadOnly} value={form.dtcp} onChange={e => handleChange('dtcp', e.target.value)} placeholder="DTCP number / details" className={inp()} /></div>
+                    )}
                     <div className={fw}><label className={lbl}>Sub Registrar Office</label><input disabled={isReadOnly} value={form.sub_registrar_office} onChange={e => handleChange('sub_registrar_office', e.target.value)} className={inp()} /></div>
                   </div>
                   <div className={fw}><label className={lbl}>Parent Document</label><input disabled={isReadOnly} value={form.parent_document} onChange={e => handleChange('parent_document', e.target.value)} className={inp()} /></div>

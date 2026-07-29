@@ -256,8 +256,8 @@ const PostPropertyFlow = ({ onClose, initialTransactionType = 'rent', onSuccessf
                     extent_unit: formData.extent_unit || null,
                 };
             } else {
-                if (!String(formData.dtcp || '').trim()) {
-                    alert('DTCP number is required for sale listings.');
+                if ((formData.saleType === 'plot' || formData.saleType === 'flat') && !String(formData.dtcp || '').trim()) {
+                    alert('DTCP number is required for plot/flat sale listings.');
                     return;
                 }
                 payload = {

@@ -144,7 +144,7 @@ export async function GET(request) {
         const tp  = isRent
           ? ((p.property_use || '').toLowerCase() === 'commercial' ? 'Commercial' : p.bhk ? `${p.bhk} BHK` : 'Residential')
           : (st ? st.charAt(0).toUpperCase() + st.slice(1) : 'Property');
-        info      = [p.formatted_id, tp].filter(Boolean).join(' / ');
+        info      = [p.formatted_id, isRent ? 'Rent' : 'Sale', tp].filter(Boolean).join(' | ');
         legal     = p.legal_value || '-';
         speed     = p.area_sales_speed != null ? `${Number(p.area_sales_speed).toFixed(1)}/M` : '-';
         amenities = p.amenities_rating  != null ? `${Number(p.amenities_rating).toFixed(1)}/10` : '-';
