@@ -20,22 +20,22 @@ const statusToStageIndex = {
   advance_paid: 2,
 };
 
-async function upsertEnquiry(prismaClient, propertyId, buyerId, bookingStatus) {
+async function upsertEnquiry(prismaClient, propertyId, buyerId, bookingStatus, unitType, unitId) {
   const existing = await prismaClient.$queryRawUnsafe(
-    `SELECT enquiry_id FROM enquiries WHERE property_id=$1 AND buyer_id=$2 LIMIT 1`,
-    propertyId, buyerId
+    `SELECT enquiry_id FROM enquiries WHERE property_id=$1 AND buyer_id=$2 AND unit_type IS NOT DISTINCT FROM $3 AND unit_id IS NOT DISTINCT FROM $4 LIMIT 1`,
+    propertyId, buyerId, unitType || null, unitId || null
   );
   const today = new Date().toISOString().slice(0, 10);
   if (existing.length) {
     await prismaClient.$executeRawUnsafe(
-      `UPDATE enquiries SET booking_status=$1, booking_date=$2, contacted=true WHERE enquiry_id=$3`,
+      `UPDATE enquiries SET booking_status=$1, booking_date=$2 WHERE enquiry_id=$3`,
       bookingStatus, today, existing[0].enquiry_id
     );
   } else {
     await prismaClient.$executeRawUnsafe(
-      `INSERT INTO enquiries (property_id, buyer_id, enquiry_type, booking_status, booking_date, contacted)
-       VALUES ($1, $2, 'buyer', $3, $4, true)`,
-      propertyId, buyerId, bookingStatus, today
+      `INSERT INTO enquiries (property_id, buyer_id, enquiry_type, booking_status, booking_date, contacted, unit_type, unit_id)
+       VALUES ($1, $2, 'buyer', $3, $4, false, $5, $6)`,
+      propertyId, buyerId, bookingStatus, today, unitType || null, unitId || null
     );
   }
 }
@@ -90,15 +90,10 @@ export async function submitContactRequest({ propertyId, phone }) {
     `SELECT enquiry_id FROM enquiries WHERE property_id=$1 AND buyer_id=$2 LIMIT 1`,
     propertyId, buyerId
   );
-  if (existing.length) {
-    await prisma.$executeRawUnsafe(
-      `UPDATE enquiries SET contacted=true WHERE enquiry_id=$1`,
-      existing[0].enquiry_id
-    );
-  } else {
+  if (!existing.length) {
     await prisma.$executeRawUnsafe(
       `INSERT INTO enquiries (property_id, buyer_id, enquiry_type, contacted)
-       VALUES ($1, $2, 'buyer', true)`,
+       VALUES ($1, $2, 'buyer', false)`,
       propertyId, buyerId
     );
   }
@@ -144,10 +139,12 @@ export async function updateStage({ propertyId, unitType, unitId, phone, stage, 
     propertyId, unitType, unitId, buyerId, bookingStatus, tokenPaidTo, expiresAt
   );
 
-  // Sync enquiry record (best-effort — skip if columns missing until migration is run)
+  // Sync enquiry record (best-effort, logged so failures don't vanish silently)
   try {
-    await upsertEnquiry(prisma, propertyId, buyerId, bookingStatus);
-  } catch {}
+    await upsertEnquiry(prisma, propertyId, buyerId, bookingStatus, unitType, unitId);
+  } catch (err) {
+    console.error('upsertEnquiry failed', err);
+  }
 
   const today = new Date().toISOString().slice(0, 10);
 
