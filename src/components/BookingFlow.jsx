@@ -182,15 +182,22 @@ const BookingFlow = ({
       }
 
       const lastCompletedIndex = res.data.currentIndex ?? -1;
-      let nextIndex;
+      if (res.data.status === 'closed') setIsFinalized(true);
+
       if (lastCompletedIndex === -1) {
-        nextIndex = 0;
-      } else {
-        nextIndex = lastCompletedIndex + 1 < steps.length ? lastCompletedIndex + 1 : lastCompletedIndex;
+        // First-time booking: confirm the visit stage right away instead of
+        // sending the user into the step slide for a second "Book Contact" click.
+        await endpoints.updateBookingStage({ propertyId, unitType: resolvedUnitType, unitId, phone, stage: 'VISIT_NEGOTIATE' });
+        setModalMsg(headings.plot_confirm_msg || headings.flat_confirm_msg || "Within two weeks, please confirm the property by paying the token amount to proceed.");
+        setShowReminderModal(true);
+        if (onStatusChange) onStatusChange('ON_BOOKING');
+        setGeneralRefreshKey(prev => prev + 1);
+        return;
       }
+
+      const nextIndex = lastCompletedIndex + 1 < steps.length ? lastCompletedIndex + 1 : lastCompletedIndex;
       setCurrentStepIndex(nextIndex);
       setIsSubmitted(true);
-      if (res.data.status === 'closed') setIsFinalized(true);
     } catch {
       setIsSubmitted(true);
     } finally {

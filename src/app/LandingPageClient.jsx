@@ -103,7 +103,7 @@ export default function LandingPageClient() {
               </div>
             </div>
             <button className="post-btn sale-btn desktop-only" onClick={() => handlePostPropertyClick('sale')}>
-              POST PROPERTY FOR SALE
+              SALE YOUR PROPERTY
             </button>
           </div>
         </div>
@@ -127,7 +127,7 @@ export default function LandingPageClient() {
               </div>
             </div>
             <button className="post-btn rent-btn desktop-only" onClick={() => handlePostPropertyClick('rent')}>
-              POST PROPERTY FOR RENT
+              RENT YOUR PROPERTY
             </button>
           </div>
         </div>
@@ -136,11 +136,11 @@ export default function LandingPageClient() {
       <div className="mobile-only bottom-post-actions">
         {activeTab === 'BUY' ? (
           <button className="post-btn sale-btn mobile-btn" onClick={() => handlePostPropertyClick('sale')}>
-            POST PROPERTY FOR SALE
+            SALE YOUR PROPERTY
           </button>
         ) : (
           <button className="post-btn rent-btn mobile-btn" onClick={() => handlePostPropertyClick('rent')}>
-            POST PROPERTY FOR RENT
+            RENT YOUR PROPERTY
           </button>
         )}
       </div>

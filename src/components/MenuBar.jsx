@@ -40,7 +40,7 @@ const MenuBar = ({ menuPremiumProperties = [] }) => {
             style={{ backgroundImage: `url(${tnMapLeft.src || tnMapLeft})` }}
           >
             <div className="section-overlay sale-overlay" />
-            <span className="section-text">SALE MANDI</span>
+            <span className="section-text">SALE MAP</span>
           </Link>
         )}
 
@@ -64,7 +64,7 @@ const MenuBar = ({ menuPremiumProperties = [] }) => {
             style={{ backgroundImage: `url(${tnMapRight.src || tnMapRight})` }}
           >
             <div className="section-overlay rent-overlay" />
-            <span className="section-text">RENT MANDI</span>
+            <span className="section-text">RENT MAP</span>
           </Link>
         )}
       </div>
