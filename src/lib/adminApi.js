@@ -80,6 +80,9 @@ export const getBookings = (type, status) => {
 };
 export const markBookingRead = (id) => adminApi.patch(`/bookings/${id}`);
 
+// Notifications
+export const getUnreadNotifications = () => adminApi.get('/notifications');
+
 // Locations
 export const getAllDistricts = () => adminApi.get('/locations/districts');
 export const getTaluksByDistrict = (id) => adminApi.get(`/locations/taluks/${id}`);

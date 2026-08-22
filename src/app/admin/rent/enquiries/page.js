@@ -314,6 +314,7 @@ export default function RentEnquiriesPage() {
         <div className="flex gap-3">
           <button onClick={handleExport} className="bg-white border border-gray-300 text-gray-700 px-6 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-gray-50">Export Excel</button>
           <button onClick={() => setIsCreateOpen(true)} className="bg-blue-600 text-white px-6 py-2.5 rounded-xl font-bold text-xs uppercase shadow-lg shadow-blue-200 hover:bg-blue-700">+ New Enquiry</button>
+          <span id="admin-notification-slot" />
         </div>
       </div>
 

@@ -201,6 +201,7 @@ export default function BuyersPage() {
           <h2 className="text-2xl font-bold text-gray-800">Buyers</h2>
           <p className="text-gray-500 text-xs uppercase tracking-widest font-bold">Manage Buyers</p>
         </div>
+        <span id="admin-notification-slot" />
       </div>
 
       <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">

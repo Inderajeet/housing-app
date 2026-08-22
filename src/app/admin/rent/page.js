@@ -292,6 +292,7 @@ export default function RentPropertiesPage() {
           <button onClick={() => openModal(null, 'add')} className="bg-emerald-600 text-white px-6 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest shadow-lg shadow-emerald-200 hover:bg-emerald-700">
             Add Rent Listing
           </button>
+          <span id="admin-notification-slot" />
         </div>
       </div>
 

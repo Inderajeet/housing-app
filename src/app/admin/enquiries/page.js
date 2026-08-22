@@ -5,7 +5,7 @@ import * as XLSX from 'xlsx';
 import DataTable from '@/components/admin/DataTable';
 import Loader from '@/components/admin/Loader';
 import SearchSelect from '@/components/admin/SearchSelect';
-import { getEnquiries, createEnquiry, updateEnquiry, markEnquiryRead, getSaleProperties, getRentProperties, getContactNotes, createContactNote, deleteContactNote } from '@/lib/adminApi';
+import { getEnquiries, createEnquiry, updateEnquiry, markEnquiryRead, getSaleProperties, getContactNotes, createContactNote, deleteContactNote } from '@/lib/adminApi';
 import { adminApi } from '@/lib/adminApi';
 import { formatPropertyId, getPropertyHref } from '@/utils/propertyRouting';
 
@@ -110,7 +110,7 @@ export default function EnquiriesPage() {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await getEnquiries(null, enquiryType);
+      const response = await getEnquiries('sale', enquiryType);
       const data = response.data || response;
       setEnquiries(Array.isArray(data) ? data : []);
       setFilteredEnquiries(Array.isArray(data) ? data : []);
@@ -180,8 +180,8 @@ export default function EnquiriesPage() {
     }));
     const ws = XLSX.utils.json_to_sheet(dataToExport);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Enquiries_Data');
-    XLSX.writeFile(wb, `Enquiries_${enquiryType}_Export.xlsx`);
+    XLSX.utils.book_append_sheet(wb, ws, 'Sale_Enquiries');
+    XLSX.writeFile(wb, `Sale_Enquiries_${enquiryType}_Export.xlsx`);
   };
 
   const handleView = useCallback((row) => {
@@ -332,7 +332,7 @@ export default function EnquiriesPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-800">All Enquiries</h2>
+          <h2 className="text-2xl font-bold text-gray-800">Sale Enquiries</h2>
           <p className="text-gray-500 text-xs uppercase tracking-widest font-bold mt-1">Lead Management</p>
         </div>
         <div className="flex gap-3">
@@ -342,6 +342,7 @@ export default function EnquiriesPage() {
           <button onClick={() => setIsCreateOpen(true)} className="bg-blue-600 text-white px-6 py-2.5 rounded-xl font-bold text-xs uppercase shadow-lg shadow-blue-200 hover:bg-blue-700">
             + New Enquiry
           </button>
+          <span id="admin-notification-slot" />
         </div>
       </div>
 
@@ -404,7 +405,7 @@ export default function EnquiriesPage() {
       {loading ? (
         <Loader />
       ) : (
-        <DataTable columns={columns} data={filteredEnquiries} emptyMessage={`No ${enquiryType} enquiries found`} onRowClick={handleView} rowClassName={(e) => !e.is_read ? 'bg-green-50 hover:bg-green-100' : 'hover:bg-blue-50/20'} />
+        <DataTable columns={columns} data={filteredEnquiries} emptyMessage={`No sale ${enquiryType} enquiries found`} onRowClick={handleView} rowClassName={(e) => !e.is_read ? 'bg-green-50 hover:bg-green-100' : 'hover:bg-blue-50/20'} />
       )}
 
       {/* View Modal */}
@@ -475,7 +476,7 @@ export default function EnquiriesPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
           <div className="bg-white w-full max-w-xl rounded-3xl shadow-2xl overflow-hidden">
             <div className="px-8 py-6 border-b flex justify-between items-center bg-gray-50/50">
-              <h3 className="text-xl font-bold uppercase tracking-tight text-gray-800">New Lead / Enquiry</h3>
+              <h3 className="text-xl font-bold uppercase tracking-tight text-gray-800">New Sale Enquiry</h3>
               <button className="text-2xl text-gray-400 hover:text-gray-600 transition-colors" onClick={() => setIsCreateOpen(false)}>✕</button>
             </div>
             <div className="p-8 space-y-5">
@@ -490,30 +491,15 @@ export default function EnquiriesPage() {
                 </div>
               </div>
               <SearchSelect
-                label="Type"
-                value={form.property_type}
-                fetchOptions={async () => [{ id: 'sale', name: 'Sale/Plot/Land' }, { id: 'rent', name: 'Rent' }]}
-                getOptionValue={(o) => o.id}
-                getOptionLabel={(o) => o.name}
-                onChange={(v) => setForm((p) => ({ ...p, property_type: v, property_id: '' }))}
-              />
-              <SearchSelect
-                label="Select Property *"
+                label="Select Sale Property *"
                 value={form.property_id}
                 fetchOptions={(q) =>
-                  form.property_type === 'sale'
-                    ? getSaleProperties().then((res) => {
-                        const data = res.data || res;
-                        return (Array.isArray(data) ? data : []).filter(
-                          (p) => p.formatted_id?.includes(q) || p.title?.toLowerCase().includes((q || '').toLowerCase())
-                        );
-                      })
-                    : getRentProperties().then((res) => {
-                        const data = res.data || res;
-                        return (Array.isArray(data) ? data : []).filter(
-                          (p) => p.formatted_id?.includes(q) || p.title?.toLowerCase().includes((q || '').toLowerCase())
-                        );
-                      })
+                  getSaleProperties().then((res) => {
+                    const data = res.data || res;
+                    return (Array.isArray(data) ? data : []).filter(
+                      (p) => p.formatted_id?.includes(q) || p.title?.toLowerCase().includes((q || '').toLowerCase())
+                    );
+                  })
                 }
                 getOptionValue={(o) => o.property_id}
                 getOptionLabel={(o) => `${o.formatted_id} — ${o.title}`}

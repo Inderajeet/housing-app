@@ -264,12 +264,15 @@ function PremiumPageInner() {
             </button>
           </div>
         </div>
-        <button
-          onClick={openAddModal}
-          className="bg-blue-600 text-white px-6 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest shadow-lg shadow-blue-200 hover:bg-blue-700"
-        >
-          + Create Premium
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={openAddModal}
+            className="bg-blue-600 text-white px-6 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest shadow-lg shadow-blue-200 hover:bg-blue-700"
+          >
+            + Create Premium
+          </button>
+          <span id="admin-notification-slot" />
+        </div>
       </div>
 
       {/* Filter bar */}

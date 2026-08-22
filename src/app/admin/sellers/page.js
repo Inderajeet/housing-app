@@ -206,7 +206,10 @@ export default function SellersPage({ title = 'Sellers Directory', typeFilter = 
           <h2 className="text-2xl font-bold text-gray-800">{title}</h2>
           <p className="text-gray-500 text-xs uppercase tracking-widest font-bold">Manage Sellers</p>
         </div>
-        <button onClick={openAdd} className="bg-emerald-600 text-white px-6 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest shadow-lg shadow-emerald-200 hover:bg-emerald-700">+ Add Seller</button>
+        <div className="flex items-center gap-3">
+          <button onClick={openAdd} className="bg-emerald-600 text-white px-6 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest shadow-lg shadow-emerald-200 hover:bg-emerald-700">+ Add Seller</button>
+          <span id="admin-notification-slot" />
+        </div>
       </div>
 
       <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">

@@ -351,6 +351,7 @@ export default function SaleBookingsPage() {
           <button onClick={handleExport} disabled={filteredBookings.length === 0} className="bg-white border border-gray-300 text-gray-700 px-6 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
             Export Excel ({filteredBookings.length})
           </button>
+          <span id="admin-notification-slot" />
         </div>
       </div>
 

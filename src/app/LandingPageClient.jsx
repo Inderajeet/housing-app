@@ -10,7 +10,6 @@ import { getSearchHref } from '../utils/propertyRouting';
 import { useAppContext } from './AppContext';
 import { endpoints } from '../api/api';
 import tnmap from '../assets/tnmap.png';
-import whatsappImg from '../assets/whatsapp.png';
 import '../styles/LandingPage.css';
 
 
@@ -45,7 +44,7 @@ export default function LandingPageClient() {
     [allPremium, targetType]
   );
 
-  const renderPremiumAds = () => (
+  const renderPremiumAds = () => ( 
     <>
       <div className="landing-premium-desktop">
         <div className="landing-premium-grid left-grid">
@@ -146,13 +145,43 @@ export default function LandingPageClient() {
       </div>
 
       <a
-        className="whatsapp-float"
+        className="whatsapp-float whatsapp-float-left"
         href={`https://wa.me/${process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || '918220008733'}`}
         target="_blank"
         rel="noopener noreferrer"
-        aria-label="Chat on WhatsApp"
+        aria-label="Sales and Rental help on WhatsApp"
       >
-        <Image src={whatsappImg} alt="WhatsApp" width={147} height={42} className="whatsapp-float-img" />
+        <span className="whatsapp-float-icon">
+          <svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path fill="#25D366" d="M16 0C7.163 0 0 7.163 0 16c0 2.82.738 5.47 2.03 7.765L0 32l8.44-2.01A15.93 15.93 0 0 0 16 32c8.837 0 16-7.163 16-16S24.837 0 16 0Z" />
+            <path fill="#fff" d="M23.472 19.36c-.355-.177-2.1-1.036-2.426-1.155-.326-.118-.563-.177-.8.178-.237.355-.918 1.155-1.125 1.392-.207.237-.414.266-.77.089-.355-.178-1.5-.553-2.858-1.762-1.056-.942-1.77-2.106-1.977-2.462-.207-.355-.022-.547.156-.723.16-.16.355-.414.532-.622.178-.207.237-.355.355-.592.118-.237.06-.444-.03-.622-.088-.178-.799-1.925-1.095-2.637-.288-.693-.581-.6-.799-.611-.207-.01-.444-.012-.681-.012-.237 0-.622.089-.947.444-.326.355-1.243 1.215-1.243 2.962 0 1.747 1.273 3.435 1.45 3.672.178.237 2.507 3.826 6.075 5.365.849.367 1.51.586 2.026.75.851.271 1.626.233 2.239.141.683-.102 2.1-.858 2.396-1.687.296-.83.296-1.54.207-1.688-.088-.148-.325-.237-.68-.414Z" />
+          </svg>
+        </span>
+        <span className="whatsapp-float-divider" />
+        <span className="whatsapp-float-text">
+          <span>சேல்ஸ் &amp; ரெண்டல்</span>
+          <span>உதவி !</span>
+        </span>
+      </a>
+
+      <a
+        className="whatsapp-float whatsapp-float-right"
+        href={`https://wa.me/${process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || '918220008733'}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label="Document ATM and Registration help on WhatsApp"
+      >
+        <span className="whatsapp-float-icon">
+          <svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path fill="#25D366" d="M16 0C7.163 0 0 7.163 0 16c0 2.82.738 5.47 2.03 7.765L0 32l8.44-2.01A15.93 15.93 0 0 0 16 32c8.837 0 16-7.163 16-16S24.837 0 16 0Z" />
+            <path fill="#fff" d="M23.472 19.36c-.355-.177-2.1-1.036-2.426-1.155-.326-.118-.563-.177-.8.178-.237.355-.918 1.155-1.125 1.392-.207.237-.414.266-.77.089-.355-.178-1.5-.553-2.858-1.762-1.056-.942-1.77-2.106-1.977-2.462-.207-.355-.022-.547.156-.723.16-.16.355-.414.532-.622.178-.207.237-.355.355-.592.118-.237.06-.444-.03-.622-.088-.178-.799-1.925-1.095-2.637-.288-.693-.581-.6-.799-.611-.207-.01-.444-.012-.681-.012-.237 0-.622.089-.947.444-.326.355-1.243 1.215-1.243 2.962 0 1.747 1.273 3.435 1.45 3.672.178.237 2.507 3.826 6.075 5.365.849.367 1.51.586 2.026.75.851.271 1.626.233 2.239.141.683-.102 2.1-.858 2.396-1.687.296-.83.296-1.54.207-1.688-.088-.148-.325-.237-.68-.414Z" />
+          </svg>
+        </span>
+        <span className="whatsapp-float-divider" />
+        <span className="whatsapp-float-text">
+          <span>ஆவண ATM</span>
+          <span>பத்திரப்பதிவு உதவி !</span>
+        </span>
       </a>
     </div>
   );

@@ -383,6 +383,7 @@ export default function BookingsPage() {
           >
             Export Excel ({filteredBookings.length})
           </button>
+          <span id="admin-notification-slot" />
         </div>
       </div>
 
