@@ -395,13 +395,15 @@ model taluks {
 
 model villages {
   village_id   Int          @id @default(autoincrement())
-  village_name String       @unique(map: "unique_village_name") @db.VarChar(100)
+  village_name String       @db.VarChar(100)
   taluk_id     Int?
   longitude    Decimal?     @db.Decimal(10, 7)
   latitude     Decimal?     @db.Decimal(10, 7)
   areas        areas[]
   properties   properties[]
   taluks       taluks?      @relation(fields: [taluk_id], references: [taluk_id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([village_name, taluk_id], map: "unique_village_name_per_taluk")
 }
 
 model booking_flow_points {
