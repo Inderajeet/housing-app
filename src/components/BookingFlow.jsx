@@ -7,6 +7,7 @@ import '../styles/BookingFlow.css';
 import '../styles/OurServices.css';
 import { endpoints } from '../api/api';
 import UnitSelector from './UnitSelector';
+import { useAppContext } from '../app/AppContext';
 
 const BookingFlow = ({
   propertyId,
@@ -14,12 +15,17 @@ const BookingFlow = ({
   saleType,
   bookedPeopleCount: bookedPeopleCountProp,
   onStatusChange,
+  onBack,
+  onUnitsAvailabilityChange,
+  knownNoUnits = false,
 }) => {
+  const { locale } = useAppContext();
   const [serviceRows, setServiceRows] = useState([]);
   const [offerPoints, setOfferPoints] = useState([]);
   const [headings, setHeadings] = useState({});
   const [advantagePoints, setAdvantagePoints] = useState({ sale_tick: [], sale_cross: [], rent_tick: [], rent_cross: [] });
   const [galleryImages, setGalleryImages] = useState([]);
+  const [choiceOptions, setChoiceOptions] = useState({});
   const [lightboxIndex, setLightboxIndex] = useState(null);
 
   const [steps, setSteps] = useState([]);
@@ -34,11 +40,20 @@ const BookingFlow = ({
   const [isFinalized, setIsFinalized] = useState(false);
   const [modalMsg, setModalMsg] = useState('');
   const [selectedUnit, setSelectedUnit] = useState(null);
-  const [skipUnitSelection, setSkipUnitSelection] = useState(false);
+  const [skipUnitSelection, setSkipUnitSelection] = useState(knownNoUnits);
   const [noUnitMode, setNoUnitMode] = useState(false);
   const [contactSubmitted, setContactSubmitted] = useState(false);
   const [refreshLayoutKey, setRefreshLayoutKey] = useState(0);
   const [generalRefreshKey, setGeneralRefreshKey] = useState(0);
+  const [noPlotsAvailable, setNoPlotsAvailable] = useState(knownNoUnits);
+  // choiceModal holds the key of the option row that opened the phone popup:
+  // rent -> 'CONTACT' | 'AGREEMENT'; sale -> 'A' | 'B' | 'C'
+  const [choiceModal, setChoiceModal] = useState(null);
+  const [choicePhone, setChoicePhone] = useState('');
+  const [choiceSubmitting, setChoiceSubmitting] = useState(false);
+  const [contactCount, setContactCount] = useState(0);
+  const [agreementCount, setAgreementCount] = useState(0);
+  const [enquiryCount, setEnquiryCount] = useState(0);
 
   const onStatusChangeRef = useRef(onStatusChange);
   useEffect(() => { onStatusChangeRef.current = onStatusChange; });
@@ -69,6 +84,10 @@ const BookingFlow = ({
     transactionType === 'sale' &&
     ['plot', 'flat'].includes((saleType || '').toLowerCase());
 
+  const currentUnitId = selectedUnit
+    ? (selectedUnit.plot_unit_id || selectedUnit.flat_unit_id)
+    : propertyId;
+
   const selectedUnitLabel = normalizedSaleType === 'flat' ? 'Selected Flat' : 'Selected Plot';
   const selectedUnitName =
     selectedUnit?.formatted_id ||
@@ -81,6 +100,9 @@ const BookingFlow = ({
     const normalizedOverallStatus = (nextStatus || '').toLowerCase();
     setGeneralIndex(data?.overallStageIndex ?? -1);
     setGeneralStatus(nextStatus);
+    setContactCount(data?.contactCount ?? 0);
+    setAgreementCount(data?.agreementCount ?? 0);
+    setEnquiryCount(data?.enquiryCount ?? 0);
 
     if (onStatusChangeRef.current) {
       const isRent = transactionType === 'rent';
@@ -104,9 +126,9 @@ const BookingFlow = ({
 
   useEffect(() => {
     const type = transactionType === 'rent' ? 'rent' : 'sale';
-    endpoints.getSiteContent(type)
+    endpoints.getSiteContent(type, locale)
       .then(res => {
-        const { stages = [], services = {}, offerPoints: op = [], headings: h = {}, galleryImages: gi = [] } = res.data;
+        const { stages = [], services = {}, offerPoints: op = [], headings: h = {}, galleryImages: gi = [], flowOptions: fo = {} } = res.data;
         setSteps(stages.map(s => ({
           id: s.stage_key,
           title: s.title,
@@ -125,19 +147,30 @@ const BookingFlow = ({
         setHeadings(h);
         setAdvantagePoints(res.data.advantagePoints || { sale_tick: [], sale_cross: [], rent_tick: [], rent_cross: [] });
         setGalleryImages(gi);
+        const choiceMap = Object.fromEntries((fo.choice || []).map(o => [o.option_key, o.label]));
+        setChoiceOptions(choiceMap);
       })
       .catch(() => {
         const flowFile = transactionType === 'rent' ? '/data/rentbookingFlow.json' : '/data/salebookingFlow.json';
         fetch(flowFile).then(r => r.json()).then(data => setSteps(data.stages)).catch(() => {});
       });
-  }, [transactionType]);
+  }, [transactionType, locale]);
 
   useEffect(() => {
-    setSkipUnitSelection(false);
+    setSkipUnitSelection(knownNoUnits);
     setSelectedUnit(null);
     setNoUnitMode(false);
     setContactSubmitted(false);
-  }, [propertyId, saleType, transactionType]);
+    setNoPlotsAvailable(knownNoUnits);
+  }, [propertyId, saleType, transactionType, knownNoUnits]);
+
+  useEffect(() => {
+    if (!isSalePlotOrFlat || !onUnitsAvailabilityChange) return;
+    onUnitsAvailabilityChange({
+      hasUnitsMap: !noPlotsAvailable,
+      insideChoicePanel: Boolean(selectedUnit) || noUnitMode,
+    });
+  }, [isSalePlotOrFlat, noPlotsAvailable, selectedUnit, noUnitMode, onUnitsAvailabilityChange]);
 
   // Reset reminder modal when user picks a new unit so it doesn't flash on unit selection
   useEffect(() => {
@@ -219,6 +252,73 @@ const BookingFlow = ({
       setContactSubmitted(true);
     } finally {
       setLoadingStage(false);
+    }
+  };
+
+  const isChoiceLocked = agreementCount > 0;
+
+  // Rent: 2 options (yellow=contact/visit, orange=agreement).
+  // Sale: 3 options (green=enquiry only, yellow=documents/visit, orange=confirm).
+  const rentChoiceOptions = {
+    CONTACT: { stage: 'VISIT_NEGOTIATE', status: 'ON_BOOKING' },
+    AGREEMENT: { stage: 'TOKEN_PAYMENT', status: 'CONFIRMED' },
+  };
+  const saleChoiceOptions = {
+    A: { stage: null, status: null },
+    B: { stage: 'VISIT_NEGOTIATE', status: 'ON_BOOKING' },
+    C: { stage: 'TOKEN_PAYMENT', status: 'CONFIRMED' },
+  };
+
+  const openChoiceModal = (choice) => {
+    if (isChoiceLocked) return;
+    setChoicePhone('');
+    setChoiceModal(choice);
+  };
+
+  const submitChoicePhone = async () => {
+    if (choicePhone.length !== 10) return;
+    const cfg = (transactionType === 'rent' ? rentChoiceOptions : saleChoiceOptions)[choiceModal];
+    if (!cfg) return;
+    setChoiceSubmitting(true);
+    try {
+      if (cfg.stage) {
+        await endpoints.updateBookingStage({
+          propertyId,
+          unitType: resolvedUnitType,
+          unitId: currentUnitId,
+          phone: choicePhone,
+          stage: cfg.stage,
+        });
+      } else {
+        await endpoints.submitContactRequest({
+          propertyId,
+          phone: choicePhone,
+          unitType: resolvedUnitType,
+          unitId: currentUnitId,
+        });
+      }
+      if (onStatusChange && cfg.status) onStatusChange(cfg.status);
+      // Bump the பதிவு (registration) count immediately so the user sees their
+      // submission reflected right away, instead of waiting on the next data reload.
+      if (transactionType === 'rent') {
+        if (choiceModal === 'CONTACT') setContactCount(c => c + 1);
+        else if (choiceModal === 'AGREEMENT') setAgreementCount(c => c + 1);
+      } else {
+        if (choiceModal === 'A') setEnquiryCount(c => c + 1);
+        else if (choiceModal === 'B') setContactCount(c => c + 1);
+        else if (choiceModal === 'C') setAgreementCount(c => c + 1);
+      }
+      setGeneralRefreshKey(prev => prev + 1);
+    } catch (err) {
+      if (err.response?.status === 409) {
+        alert(transactionType === 'rent'
+          ? 'This property has already been taken by another tenant.'
+          : 'This property has already been confirmed by another buyer.');
+        setGeneralRefreshKey(prev => prev + 1);
+      }
+    } finally {
+      setChoiceSubmitting(false);
+      setChoiceModal(null);
     }
   };
 
@@ -389,7 +489,7 @@ const BookingFlow = ({
           saleType={saleType}
           refreshKey={refreshLayoutKey}
           onSelectUnit={(unit) => setSelectedUnit(unit)}
-          onNoPlots={() => setSkipUnitSelection(true)}
+          onNoPlots={() => { setNoPlotsAvailable(true); setSkipUnitSelection(true); }}
           onContactOwner={() => { setNoUnitMode(true); setSkipUnitSelection(true); }}
           onFreeVisit={() => { setNoUnitMode(true); setSkipUnitSelection(true); }}
         />
@@ -420,7 +520,138 @@ const BookingFlow = ({
             </div>
           )}
 
-          {!isSubmitted ? (
+          {!isSubmitted && (transactionType === 'rent' || transactionType === 'sale') ? (
+            <div className="general-overview rent-choice-panel">
+              {choiceModal && (
+                <div className="modal-overlay" onClick={() => !choiceSubmitting && setChoiceModal(null)}>
+                  <div className="rent-phone-modal" onClick={e => e.stopPropagation()}>
+                    <p className="rent-phone-modal-title">Your Phone Number</p>
+                    <div className="phone-input-group large-input">
+                      <span className="prefix">+91</span>
+                      <input
+                        type="tel"
+                        value={choicePhone}
+                        maxLength="10"
+                        placeholder="Enter 10-digit phone number"
+                        onChange={e => setChoicePhone(e.target.value)}
+                        autoFocus
+                      />
+                    </div>
+                    <button
+                      className="primary-btn saffron-btn"
+                      disabled={choicePhone.length !== 10 || choiceSubmitting}
+                      onClick={submitChoicePhone}
+                    >
+                      {choiceSubmitting ? 'Please wait...' : 'OK'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {isFinalized ? (
+                <div className="rent-finalized-banner">
+                  <CheckCircle2 className="green-text" />
+                  <span>
+                    {transactionType === 'rent'
+                      ? (headings.property_rented_label || 'Property Rented')
+                      : (headings.property_sold_label || 'Property Sold')}
+                  </span>
+                </div>
+              ) : transactionType === 'rent' ? (
+                <>
+                  <div className="rent-choice-heading">
+                    {/* இந்த வீடு/சொத்து தொடர்பாக மேலும் என்ன வேண்டும்? */}
+                    <h2 className="compact-title">{headings.rent_choice_header || ''}</h2>
+                  </div>
+
+                  <div className="rent-choice-list">
+                    <button
+                      type="button"
+                      className="rent-choice-row rent-choice-yellow"
+                      onClick={() => openChoiceModal('CONTACT')}
+                      disabled={isChoiceLocked}
+                    >
+                      <span className="rent-choice-letter">A</span>
+                      {/* ஓனர் எண் /விசிட் ஏற்பாடு */}
+                      <span className="rent-choice-text">{choiceOptions.CONTACT || ''}</span>
+                      <span className="rent-choice-count">பதிவு<br />({contactCount})</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      className="rent-choice-row rent-choice-orange"
+                      onClick={() => openChoiceModal('AGREEMENT')}
+                      disabled={isChoiceLocked}
+                    >
+                      <span className="rent-choice-letter">B</span>
+                      {/* ரெண்டல் அக்ரிமெண்ட் தயாரிப்பு */}
+                      <span className="rent-choice-text">{choiceOptions.AGREEMENT || ''}</span>
+                      <span className="rent-choice-count">பதிவு<br />({agreementCount})</span>
+                    </button>
+
+                    <button type="button" className="rent-choice-row rent-choice-back" onClick={() => onBack && onBack()}>
+                      <ChevronLeft size={18} />
+                      {/* NO / BACK */}
+                      <span className="rent-choice-text">{choiceOptions.BACK || ''}</span>
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="rent-choice-heading">
+                    {/* இந்த சொத்து தொடர்பாக இன்னும் என்ன வேண்டும்? */}
+                    <h2 className="compact-title">{headings.sale_choice_header || ''}</h2>
+                  </div>
+
+                  <div className="rent-choice-list">
+                    <button
+                      type="button"
+                      className="rent-choice-row rent-choice-green"
+                      onClick={() => openChoiceModal('A')}
+                      disabled={isChoiceLocked}
+                    >
+                      <span className="rent-choice-letter">A</span>
+                      {/* விற்பவர் எண் /விசிட் ஏற்பாடு /சொத்தின் மாவட்ட தரவரிசை */}
+                      <span className="rent-choice-text">{choiceOptions.A || ''}</span>
+                      <span className="rent-choice-count">பதிவு<br />({enquiryCount})</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      className="rent-choice-row rent-choice-yellow"
+                      onClick={() => openChoiceModal('B')}
+                      disabled={isChoiceLocked}
+                    >
+                      <span className="rent-choice-letter">B</span>
+                      {/* டாக்குமெண்ட்ஸ் /லீகல் ஒப்பீனியன் /ஏரியா ரேட் விவரம் */}
+                      <span className="rent-choice-text">{choiceOptions.B || ''}</span>
+                      <span className="rent-choice-count">பதிவு<br />({contactCount})</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      className="rent-choice-row rent-choice-orange"
+                      onClick={() => openChoiceModal('C')}
+                      disabled={isChoiceLocked}
+                    >
+                      <span className="rent-choice-letter">C</span>
+                      {/* அளந்து நடுதல் /ரிஜிஸ்ட்ரேஷன் /ஃபென்சிங் ஏற்பாடு */}
+                      <span className="rent-choice-text">{choiceOptions.C || ''}</span>
+                      <span className="rent-choice-count">பதிவு<br />({agreementCount})</span>
+                    </button>
+
+                    <button type="button" className="rent-choice-row rent-choice-back" onClick={() => onBack && onBack()}>
+                      <ChevronLeft size={18} />
+                      {/* NO / BACK */}
+                      <span className="rent-choice-text">{choiceOptions.BACK || ''}</span>
+                    </button>
+                  </div>
+                </>
+              )}
+
+              {hasGallery && <GalleryBlock className="gallery-below" />}
+            </div>
+          ) : !isSubmitted ? (
             <div className="general-overview">
               {!isFinalized && (
                 <div className="phone-cta-row">

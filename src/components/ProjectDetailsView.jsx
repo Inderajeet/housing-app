@@ -1,18 +1,22 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Map as MapIcon, CalendarCheck, Image as ImageIcon } from 'lucide-react';
+import { Map as MapIcon, CalendarCheck, Image as ImageIcon, ThumbsUp } from 'lucide-react';
 import { endpoints } from '../api/api';
 import dynamic from 'next/dynamic';
 const GalleryMap = dynamic(() => import('./GalleryMap'), { ssr: false, loading: () => <div style={{ height: 300 }} /> });
 import BookingFlow from './BookingFlow';
+import { checkUnitLayoutHasUnits } from './UnitSelector';
 import SeoHelmet from './SeoHelmet';
+import { useAppContext } from '../app/AppContext';
+import { pickLocalized } from '../lib/translate';
 import { getKeywordString, getLocationLabel, getPriceLabel, getPropertyDisplayName, getPropertyTypeLabel, getTransactionLabel } from '../utils/seo';
 import '../styles/ProjectDetailsPage.css';
 import '../styles/UnifiedMap.css';
 import '../styles/GalleryMap.css';
 
 export default function ProjectDetailsView({ routeIdentifier = '', routeMode = null, routeCategory = null }) {
+  const { siteHeadings, locale } = useAppContext();
   const [project, setProject] = useState(null);
   const [activePanel, setActivePanel] = useState('map');
   const [mapThumbFailed, setMapThumbFailed] = useState(false);
@@ -22,6 +26,7 @@ export default function ProjectDetailsView({ routeIdentifier = '', routeMode = n
   const [isBlocked, setIsBlocked] = useState(false);
   const [propertyStatus, setPropertyStatus] = useState(null);
   const [showImageDetails, setShowImageDetails] = useState(false);
+  const [hasUnitsMap, setHasUnitsMap] = useState(null);
 
   useEffect(() => {
     const fetchProperty = async () => {
@@ -50,6 +55,19 @@ export default function ProjectDetailsView({ routeIdentifier = '', routeMode = n
     }
   }, [project]);
 
+  // Check up front whether the plot/flat layout has units, so the tab label is right before opening it
+  const layoutPropertyId = project?.property_id || routeIdentifier;
+  const layoutSaleType = (project?.sale_type || '').toLowerCase();
+  const layoutIsSalePlotOrFlat = !!project && !project.rent_amount && ['plot', 'flat'].includes(layoutSaleType);
+  useEffect(() => {
+    if (!layoutIsSalePlotOrFlat) return;
+    let cancelled = false;
+    checkUnitLayoutHasUnits(layoutPropertyId, layoutSaleType)
+      .then((hasUnits) => { if (!cancelled) setHasUnitsMap(hasUnits); })
+      .catch(() => { if (!cancelled) setHasUnitsMap(null); });
+    return () => { cancelled = true; };
+  }, [layoutIsSalePlotOrFlat, layoutPropertyId, layoutSaleType]);
+
   const getMediaSource = (item) => {
     if (!item) return '';
     if (typeof item === 'string') return item;
@@ -64,6 +82,9 @@ export default function ProjectDetailsView({ routeIdentifier = '', routeMode = n
 
   const isRent = !!project?.rent_amount;
   const isPlotOrFlat = ['plot', 'flat'].includes((project?.sale_type || '').toLowerCase());
+  const isSalePlotOrFlat = !isRent && isPlotOrFlat;
+  // Plot/flat with units drawn in the editor shows "Booking Status", everything else shows "Like"
+  const showLikeThumb = !(isSalePlotOrFlat && hasUnitsMap === true);
   const showBoundaryPanel = !isRent && ['land', 'house'].includes((project?.sale_type || '').toLowerCase()) && (
     project?.boundary_north || project?.boundary_south || project?.boundary_east || project?.boundary_west
   );
@@ -221,8 +242,14 @@ export default function ProjectDetailsView({ routeIdentifier = '', routeMode = n
     return `₹${n.toLocaleString('en-IN')}`;
   };
 
-  const cardLandmark = project ? (project.street_name_or_road_name || project.landmark || project.street_name || '') : '';
-  const cardLayoutName = project ? (project.title || project.layout_name || '') : '';
+  const cardLandmark = project
+    ? pickLocalized(
+        project.street_name_or_road_name || project.landmark || project.street_name || '',
+        project.street_name_or_road_name_translated || project.landmark_translated || '',
+        locale
+      )
+    : '';
+  const cardLayoutName = project ? (project.title || pickLocalized(project.layout_name, project.layout_name_translated, locale) || '') : '';
   const cardLayoutOrLandmark = cardLayoutName || cardLandmark || '';
   const cardLocationStr = project ? (cardLayoutName
     ? (cardLandmark || [project.village_name, project.taluk_name].filter(Boolean).join(', ') || project.district_name || '')
@@ -265,7 +292,7 @@ export default function ProjectDetailsView({ routeIdentifier = '', routeMode = n
       <div className="main-content-flow-wrapper">
         <div className="fullview-tab-layout">
           <div className="fullview-main-area">
-            <div className={`fullview-panel ${activePanel === 'map' ? 'map-active-panel' : ''} ${activeMediaTab ? 'image-active-panel' : ''}`}>
+            <div className={`fullview-panel ${activePanel === 'map' ? 'map-active-panel' : ''} ${activeMediaTab ? 'image-active-panel' : ''} ${activePanel === 'booking' ? 'booking-active-panel' : ''}`}>
               {activePanel === 'map' && (
                 <div className="panel-content map-panel-content">
                   <GalleryMap location={mapLocation} title={displayTitle} status={propertyStatus} propertyData={project} />
@@ -284,6 +311,9 @@ export default function ProjectDetailsView({ routeIdentifier = '', routeMode = n
                     isBlocked={isBlocked || project.rent_status === 'RENTED' || project.sale_status === 'SOLD'}
                     onStageUpdate={() => {}}
                     onStatusChange={handleStatusChange}
+                    onBack={() => setActivePanel('map')}
+                    knownNoUnits={isSalePlotOrFlat && hasUnitsMap === false}
+                    onUnitsAvailabilityChange={({ hasUnitsMap: hasMap }) => { if (!hasMap) setHasUnitsMap(false); }}
                   />
                 </div>
               )}
@@ -313,12 +343,12 @@ export default function ProjectDetailsView({ routeIdentifier = '', routeMode = n
                         <div className={`popup-ratings-grid${isRent ? ' popup-ratings-grid-2col' : ''}`}>
                           {!isRent && (
                             <>
-                              <div className="popup-rating-item popup-rating-item-legal"><span className="popup-rating-label">Legal</span><span className="popup-rating-sublabel">grade</span><span className="popup-rating-value">{project?.legal_value ?? '—'}</span></div>
-                              <div className="popup-rating-item popup-rating-item-speed"><span className="popup-rating-label">Area Sales</span><span className="popup-rating-sublabel">speed</span><span className="popup-rating-value">{cardAreaSpeed}</span></div>
+                              <div className="popup-rating-item popup-rating-item-legal"><span className="popup-rating-label">{siteHeadings.property_card_legal_label || ''}</span><span className="popup-rating-sublabel">{siteHeadings.property_card_legal_sublabel || ''}</span><span className="popup-rating-value">{project?.legal_value ?? '—'}</span></div>
+                              <div className="popup-rating-item popup-rating-item-speed"><span className="popup-rating-label">{siteHeadings.property_card_areasales_label || ''}</span><span className="popup-rating-sublabel">{siteHeadings.property_card_areasales_sublabel || ''}</span><span className="popup-rating-value">{cardAreaSpeed}</span></div>
                             </>
                           )}
-                          <div className="popup-rating-item popup-rating-item-amenities"><span className="popup-rating-label">Amenities</span><span className="popup-rating-sublabel">rating</span><span className="popup-rating-value">{project?.amenities_rating != null ? Number(project.amenities_rating).toFixed(1) : '—'}</span></div>
-                          <div className="popup-rating-item popup-rating-item-location"><span className="popup-rating-label">Location</span><span className="popup-rating-sublabel">score</span><span className="popup-rating-value">{project?.utilities_rating != null ? Number(project.utilities_rating).toFixed(1) : '—'}</span></div>
+                          <div className="popup-rating-item popup-rating-item-amenities"><span className="popup-rating-label">{siteHeadings.property_card_amenities_label || ''}</span><span className="popup-rating-sublabel">{siteHeadings.property_card_amenities_sublabel || ''}</span><span className="popup-rating-value">{project?.amenities_rating != null ? Number(project.amenities_rating).toFixed(1) : '—'}</span></div>
+                          <div className="popup-rating-item popup-rating-item-location"><span className="popup-rating-label">{siteHeadings.property_card_location_label || ''}</span><span className="popup-rating-sublabel">{siteHeadings.property_card_location_sublabel || ''}</span><span className="popup-rating-value">{project?.utilities_rating != null ? Number(project.utilities_rating).toFixed(1) : '—'}</span></div>
                         </div>
                       </div>
                     )}
@@ -405,9 +435,13 @@ export default function ProjectDetailsView({ routeIdentifier = '', routeMode = n
               <span>Street View</span>
             </button>
 
-            <button type="button" className={`panel-thumb booking-thumb ${activePanel === 'booking' ? 'active' : ''}`} onClick={() => setActivePanel('booking')}>
-              <CalendarCheck size={18} />
-              <span>Booking Status</span>
+            <button
+              type="button"
+              className={`panel-thumb booking-thumb ${showLikeThumb ? 'like-mode' : ''} ${activePanel === 'booking' ? 'active' : ''}`}
+              onClick={() => setActivePanel('booking')}
+            >
+              {showLikeThumb ? <ThumbsUp size={18} className="fb-like-icon" /> : <CalendarCheck size={18} />}
+              <span>{showLikeThumb ? 'Like' : 'Booking Status'}</span>
             </button>
 
             {showBoundaryPanel && (

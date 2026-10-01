@@ -307,11 +307,11 @@
 
 .card-location {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
+    flex-wrap: wrap;
     gap: 4px;
     font-size: 11px;
     color: #64748b;
-    overflow: hidden;
     min-width: 0;
 }
 
@@ -334,10 +334,10 @@
     font-size: 13px;
     font-weight: 700;
     color: #0f172a;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    overflow-wrap: anywhere;
+    white-space: normal;
     min-width: 0;
+    flex: 1 1 auto;
 }
 
 .card-info-line {

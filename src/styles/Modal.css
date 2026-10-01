@@ -10,7 +10,7 @@
     display: flex;
     justify-content: center;
     align-items: center;
-    z-index: 1000;
+    z-index: 10000;
     border-radius: 0;
 }
 
@@ -231,7 +231,7 @@
 .input-field,
 .select-field {
     width: 100%;
-    padding: 12px;
+    padding: 7px;
     border: 1px solid #d1d5db;
     border-radius: 8px;
     box-sizing: border-box;
@@ -253,6 +253,10 @@
 
 .dual-input-item {
     flex: 1;
+}
+
+.dual-input-item:has(.input-field-narrow) {
+    flex: 0 0 auto;
 }
 
 /* Boundary Details Styling */
@@ -628,6 +632,64 @@ input[type="file"]:disabled {
     background-color: #00796b;
     color: white;
     border-color: #00796b;
+}
+
+/* Value input with unit buttons beside it */
+.input-with-options {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+}
+
+.input-with-options .input-field {
+    flex: 1 1 140px;
+    min-width: 0;
+    margin: 0;
+}
+
+/* Value input with a fixed unit label */
+.input-with-suffix {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.input-with-suffix .input-field {
+    flex: 1;
+    min-width: 0;
+    margin: 0;
+}
+
+.input-suffix {
+    flex-shrink: 0;
+    font-weight: 600;
+    color: #374151;
+}
+
+/* Narrow numeric input - about 5 characters wide */
+.input-field-narrow {
+    flex: 0 0 125px !important;
+    width: 125px !important;
+}
+
+/* Rate-per-unit boxes: "1 sqft =" / "1 cent =" */
+.rate-unit-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+}
+
+.rate-unit-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.rate-unit-prefix {
+    flex-shrink: 0;
+    font-weight: 600;
+    color: #374151;
 }
 
 /* --- Live Location Specific Styles --- */

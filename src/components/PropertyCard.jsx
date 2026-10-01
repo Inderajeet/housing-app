@@ -3,6 +3,8 @@
 import React from 'react';
 import Link from 'next/link';
 import { getPropertyHref } from '../utils/propertyRouting';
+import { useAppContext } from '../app/AppContext';
+import { pickLocalized } from '../lib/translate';
 import '../styles/PropertyListings.css';
 
 const formatPrice = (price) => {
@@ -14,11 +16,14 @@ const formatPrice = (price) => {
 };
 
 const PropertyCard = ({ property }) => {
+  const { siteHeadings, locale } = useAppContext();
   const isRent = !!property.rent_amount;
   const saleType = (property.sale_type || '').toLowerCase();
-  const landmark = property.street_name_or_road_name || property.landmark || property.street_name || '';
+  const rawLandmark = property.street_name_or_road_name || property.landmark || property.street_name || '';
+  const rawLandmarkTranslated = property.street_name_or_road_name_translated || property.landmark_translated || '';
+  const landmark = pickLocalized(rawLandmark, rawLandmarkTranslated, locale);
   const locationStr = [property.village_name, property.taluk_name].filter(Boolean).join(', ') || landmark || '';
-  const layoutOrLandmark = property.title || property.layout_name || landmark || '';
+  const layoutOrLandmark = property.title || pickLocalized(property.layout_name, property.layout_name_translated, locale) || landmark || '';
 
   const idPart = property.formatted_id || '';
   const typePart = isRent
@@ -60,27 +65,35 @@ const PropertyCard = ({ property }) => {
           {!isRent && (
             <>
               <div className="card-rating-item card-rating-item-legal">
-                <span className="card-rating-label">Legal</span>
-                <span className="card-rating-sublabel">grade</span>
+                {/* Legal */}
+                <span className="card-rating-label">{siteHeadings.property_card_legal_label || ''}</span>
+                {/* grade */}
+                <span className="card-rating-sublabel">{siteHeadings.property_card_legal_sublabel || ''}</span>
                 <span className="card-rating-value">{property.legal_value ?? '—'}</span>
               </div>
               <div className="card-rating-item card-rating-item-speed">
-                <span className="card-rating-label">Area Sales</span>
-                <span className="card-rating-sublabel">speed</span>
+                {/* Area Sales */}
+                <span className="card-rating-label">{siteHeadings.property_card_areasales_label || ''}</span>
+                {/* speed */}
+                <span className="card-rating-sublabel">{siteHeadings.property_card_areasales_sublabel || ''}</span>
                 <span className="card-rating-value">{areaSalesSpeed}</span>
               </div>
             </>
           )}
           <div className="card-rating-item card-rating-item-amenities">
-            <span className="card-rating-label">Amenities</span>
-            <span className="card-rating-sublabel">rating</span>
+            {/* Amenities */}
+            <span className="card-rating-label">{siteHeadings.property_card_amenities_label || ''}</span>
+            {/* rating */}
+            <span className="card-rating-sublabel">{siteHeadings.property_card_amenities_sublabel || ''}</span>
             <span className="card-rating-value">
               {property.amenities_rating != null ? `${Number(property.amenities_rating).toFixed(1)}/10` : '—'}
             </span>
           </div>
           <div className="card-rating-item card-rating-item-location">
-            <span className="card-rating-label">Location</span>
-            <span className="card-rating-sublabel">score</span>
+            {/* Location */}
+            <span className="card-rating-label">{siteHeadings.property_card_location_label || ''}</span>
+            {/* score */}
+            <span className="card-rating-sublabel">{siteHeadings.property_card_location_sublabel || ''}</span>
             <span className="card-rating-value">
               {property.utilities_rating != null ? `${Number(property.utilities_rating).toFixed(1)}/10` : '—'}
             </span>

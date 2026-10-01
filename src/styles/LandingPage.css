@@ -1,7 +1,7 @@
 /* src/styles/LandingPage.css - Updated */
 
 /* General Container */
-.landing-container {
+.landing-container {     
     position: relative;
     height: calc(100dvh - var(--menu-bar-height, 72px));
     min-height: calc(100dvh - var(--menu-bar-height, 72px));
@@ -18,23 +18,16 @@
     align-items: center;
     justify-content: center;
     padding: 0;
+    overflow: hidden;
 }
 
-/* Map background overlay */
-.map-background-overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    z-index: 1;
+/* Match the menu bar's sale/rent tint so the page background stays consistent */
+.landing-side.sale-side {
+    background-color: var(--sale-color);
 }
 
-/* Map Component Specific Styles (Must be disabled for user interaction) */
-.leaflet-container.landing-map-component {
-    width: 100%;
-    height: 100%;
-    pointer-events: none;
+.landing-side.rent-side {
+    background-color: var(--rent-color);
 }
 
 /* Content wrapper, sits above map */
@@ -56,11 +49,71 @@
 /* Sketch Area Styling */
 .map-sketch-area {
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
+    gap: 14px;
     width: 100%;
     height: auto;
     position: relative;
+}
+
+.language-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 16px;
+    border: 1px solid rgba(0, 0, 0, 0.12);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.75);
+    backdrop-filter: blur(8px);
+    font-size: 14px;
+    font-weight: 600;
+    color: #6b7280;
+    cursor: pointer;
+    transition: box-shadow 0.2s;
+}
+
+.language-toggle:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.language-toggle:disabled {
+    cursor: default;
+    opacity: 0.85;
+}
+
+.language-toggle-active {
+    color: #00796b;
+}
+
+.language-toggle-sep {
+    color: #d1d5db;
+    font-weight: 400;
+}
+
+.page-loading-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 20000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.55);
+    backdrop-filter: blur(2px);
+}
+
+.page-loading-spinner {
+    width: 44px;
+    height: 44px;
+    border: 4px solid rgba(0, 121, 107, 0.2);
+    border-top-color: #00796b;
+    border-radius: 50%;
+    animation: page-loading-spin 0.7s linear infinite;
+}
+
+@keyframes page-loading-spin {
+    to { transform: rotate(360deg); }
 }
 
 .landing-premium-desktop {
@@ -99,16 +152,21 @@
     grid-template-columns: 1fr 1fr;
     grid-template-rows: 1fr 1fr;
     gap: 0px;
-    background-color: white;
-    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.45), rgba(255, 255, 255, 0.08));
+    backdrop-filter: blur(22px) saturate(180%);
+    -webkit-backdrop-filter: blur(22px) saturate(180%);
+    border-radius: 16px;
+    overflow: hidden;
 }
 
 .buy-box {
-    border: 3px solid #11665c;
+    border: 2px solid rgb(17 102 92 / 70%);
+    box-shadow: 2px 2px 8px 2px rgb(17 102 92), inset 0 1px 2px rgba(255, 255, 255, 0.8);
 }
 
 .rent-box {
-    border: 3px solid #144C8E;
+    border: 2px solid rgb(19 65 119 / 70%);
+    box-shadow: 2px 2px 8px 2px rgb(19 65 119), inset 0 1px 2px rgba(255, 255, 255, 0.8);
 }
 
 .center-text {
@@ -116,13 +174,18 @@
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    font-size: 28px;
+    font-size: 23px;
     font-weight: bold;
     pointer-events: none;
+    text-align: center;
     z-index: 2;
-    padding: 10px;
-    background: rgba(255, 255, 255, 1);
-    border-radius: 4px;
+    padding: 3px 10px;
+    background: rgba(255, 255, 255, 0.55);
+    backdrop-filter: blur(14px) saturate(180%);
+    -webkit-backdrop-filter: blur(14px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    border-radius: 12px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12), inset 0 1px 2px rgba(255, 255, 255, 0.9);
 }
 
 .buy-box .center-text {
@@ -137,11 +200,13 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    border: 1px solid #144C8E;
-    background-color: #f9f9f9;
+    border: 1px solid rgba(255, 255, 255, 0.55);
+    background-image: linear-gradient(145deg, rgba(255, 255, 255, 0.35), rgba(255, 255, 255, 0.02));
+    box-shadow: inset 1px 1px 1px rgba(255, 255, 255, 0.7), inset -1px -1px 1px rgba(0, 0, 0, 0.05);
+    text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8);
     font-weight: 600;
     cursor: pointer;
-    transition: background-color 0.2s, transform 0.1s;
+    transition: background-color 0.2s, box-shadow 0.2s, transform 0.1s;
     font-size: 17px;
     text-align: center;
     z-index: 1;
@@ -150,17 +215,41 @@
 }
 
 .buy-box .box-item {
-    background-color: rgb(17 116 104 / 36%);
+    background-color: rgb(17 116 104 / 12%);
+    color: #0b4f47;
 }
 
 .rent-box .box-item {
-    background-color: rgb(44 96 144 / 36%);
+    background-color: rgb(44 96 144 / 12%);
+    color: #0f3563;
 }
 
 .box-item:hover {
-    background-color: #ede9fe;
-    /* transform: translateY(-2px); */
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    background-color: rgba(255, 255, 255, 0.4);
+}
+
+.buy-box .box-item:hover {
+    box-shadow: inset 1px 1px 2px rgba(255, 255, 255, 0.9), inset 0 0 18px rgb(17 102 92 / 35%);
+}
+
+.rent-box .box-item:hover {
+    box-shadow: inset 1px 1px 2px rgba(255, 255, 255, 0.9), inset 0 0 18px rgb(19 65 119 / 35%);
+}
+
+/* Grouped cell with a common heading and two links */
+.box-item-group {
+    flex-direction: column;
+    gap: 0;
+}
+
+.box-group-heading {
+    font-size: inherit;
+    font-weight: inherit;
+}
+
+.box-group-links {
+    font-size: inherit;
+    font-weight: inherit;
 }
 
 /* Bottom Button Styling */
@@ -173,12 +262,12 @@
     cursor: pointer;
     transition: background-color 0.2s;
     max-width: 80%;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
 .sale-btn {
     background-color: #11665c;
     color: white;
+    box-shadow: 2px 2px 8px 2px rgb(17 102 92);
 }
 
 .sale-btn:hover {
@@ -188,6 +277,7 @@
 .rent-btn {
     background-color: #134177;
     color: white;
+    box-shadow: 2px 2px 8px 2px rgb(19 65 119);
 }
 
 .rent-btn:hover {
@@ -220,27 +310,11 @@
     margin: 0;
     padding: 16px 20px;
     font-size: 16px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-    /* Slightly stronger shadow for visibility on map */
 }
 
 /* Mobile-only elements */
 .mobile-only {
     display: none;
-}
-
-/* Optional: Add a semi-transparent overlay to make buttons more readable on map */
-.map-background-overlay::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgb(44 96 144 / 9%);
-    /* Very subtle dark overlay for better contrast */
-    pointer-events: none;
-    z-index: 2;
 }
 
 /* Mobile & tablet responsive */
@@ -321,12 +395,8 @@
     }
 
     .center-text {
-        font-size: 24px;
-        padding: 8px 16px;
-    }
-
-    .map-background-overlay {
-        /* image handled by Next.js Image component */
+        font-size: 16px;
+        padding: 0px 4px;
     }
 
     /* Show bottom actions on mobile - now without background */
@@ -424,10 +494,6 @@
         pointer-events: auto;
     }
 
-    /* Make the map overlay darker for better button contrast */
-    .map-background-overlay::after {
-        /* background: rgba(0, 0, 0, 0.25); */
-    }
 }
 
 /* Very small devices */
@@ -463,8 +529,8 @@
     }
 
     .center-text {
-        font-size: 20px;
-        padding: 6px 12px;
+        font-size: 16px;
+        padding: 0px 4px;
     }
 
     .bottom-post-actions {
@@ -488,7 +554,7 @@
     transition: transform 0.2s;
     display: inline-flex;
     align-items: center;
-    gap: 10px;
+    gap: 4px;
     padding: 6px 18px 6px 6px;
     border-radius: 999px;
     background: linear-gradient(180deg, #2fdd76 0%, #0f8a3e 100%);
@@ -505,8 +571,8 @@
 
 .whatsapp-float-icon {
     flex-shrink: 0;
-    width: 46px;
-    height: 46px;
+    width: 39px;
+    height: 42px;
     display: flex;
     align-items: center;
     justify-content: center;

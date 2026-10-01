@@ -11,7 +11,7 @@ export async function getAll(type) {
       p.latitude, p.longitude,
       d.district_id, d.district_name, t.taluk_id, t.taluk_name, v.village_id, v.village_name,
       r.bhk, r.rent_amount, r.advance_amount, r.property_use, r.furnished_status, r.rent_status,
-      r.landmark, r.street_name, r.extent_area, r.extent_unit,
+      r.landmark, r.landmark_translated, r.street_name, r.extent_area, r.extent_unit,
       r.alternate_contact_phone,
       r.legal_value, r.area_sales_speed, r.facing, r.road_width,
       r.videos->>'url' AS video_url,
@@ -123,15 +123,15 @@ export async function updateRentProperty(propertyId, data, files = {}) {
     const rentCheck = await tx.$queryRawUnsafe('SELECT 1 FROM rent_properties WHERE property_id = $1', propertyId);
     if (rentCheck.length === 0) {
       await tx.$executeRawUnsafe(
-        `INSERT INTO rent_properties (property_id, bhk, rent_amount, advance_amount, property_use, rent_status, landmark, street_name, extent_area, extent_unit, alternate_contact_phone)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
-        propertyId, bhkNumber, rentAmount, advanceAmount, propertyUse || null, 'Nil Booking', data.landmark || null, data.street_name || null, extentArea, data.extent_unit || null, data.alternate_contact_phone || null
+        `INSERT INTO rent_properties (property_id, bhk, floor_no, rent_amount, advance_amount, property_use, rent_status, landmark, street_name, extent_area, extent_unit, alternate_contact_phone)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+        propertyId, bhkNumber, data.floor_no || null, rentAmount, advanceAmount, propertyUse || null, 'Nil Booking', data.landmark || null, data.street_name || null, extentArea, data.extent_unit || null, data.alternate_contact_phone || null
       );
     } else {
       await tx.$executeRawUnsafe(
-        `UPDATE rent_properties SET bhk=$1, rent_amount=$2, advance_amount=$3, property_use=$4,
-         rent_status=$5, landmark=$6, street_name=$7, extent_area=$8, extent_unit=$9, alternate_contact_phone=$10 WHERE property_id=$11`,
-        bhkNumber, rentAmount, advanceAmount, propertyUse || null, data.rent_status || 'Nil Booking',
+        `UPDATE rent_properties SET bhk=$1, floor_no=$2, rent_amount=$3, advance_amount=$4, property_use=$5,
+         rent_status=$6, landmark=$7, street_name=$8, extent_area=$9, extent_unit=$10, alternate_contact_phone=$11 WHERE property_id=$12`,
+        bhkNumber, data.floor_no || null, rentAmount, advanceAmount, propertyUse || null, data.rent_status || 'Nil Booking',
         data.landmark || null, data.street_name || null, extentArea, data.extent_unit || null, data.alternate_contact_phone || null, propertyId
       );
     }

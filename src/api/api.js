@@ -7,9 +7,9 @@ const BASE_URL = process.env.NEXT_PUBLIC_API_URL ||
 export const apiClient = axios.create({ baseURL: BASE_URL });
 
 export const endpoints = {
-  getDistricts: () => apiClient.get('/locations/districts'),
-  getTaluks: (districtId) => apiClient.get(`/locations/taluks/${districtId}`),
-  getVillages: (talukId) => apiClient.get(`/locations/villages/${talukId}`),
+  getDistricts: (type, category) => apiClient.get('/locations/districts', { params: { type, category } }),
+  getTaluks: (districtId, type, category) => apiClient.get(`/locations/taluks/${districtId}`, { params: { type, category } }),
+  getVillages: (talukId, type, category) => apiClient.get(`/locations/villages/${talukId}`, { params: { type, category } }),
   getAllDistrictsForPost: () => apiClient.get('/locations/districts?all=true'),
   getAllTaluksForPost: (districtId) => apiClient.get(`/locations/taluks/${districtId}?all=true`),
   getAllVillagesForPost: (talukId) => apiClient.get(`/locations/villages/${talukId}?all=true`),
@@ -58,7 +58,7 @@ export const endpoints = {
     throw new Error('Property not found');
   },
 
-  submitContactRequest: ({ propertyId, phone }) => apiClient.post('/contact-request', { propertyId, phone }),
+  submitContactRequest: ({ propertyId, phone, unitType, unitId }) => apiClient.post('/contact-request', { propertyId, phone, unitType, unitId }),
 
   createProperty: (mode, data) => apiClient.post(`/${mode.toLowerCase()}`, data),
   updateProperty: (mode, id, data) => apiClient.put(`/${mode.toLowerCase()}/${id}`, data),
@@ -72,7 +72,7 @@ export const endpoints = {
   getGeneralBookingFlow: ({ propertyId, unitType, unitId }) =>
     apiClient.get('/booking-general', { params: { propertyId, unitType, unitId } }),
 
-  getSiteContent: (type) => apiClient.get('/site-content', { params: { type } }),
+  getSiteContent: (type, locale = 'ta') => apiClient.get('/site-content', { params: { type, locale } }),
 
   getPlotLayout: (propertyId) => apiClient.get(`/plot-units/${propertyId}`),
   getFlatLayout: (propertyId) => apiClient.get(`/flat-units/${propertyId}`),

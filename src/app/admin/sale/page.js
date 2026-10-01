@@ -8,6 +8,7 @@ import LocationSelector from '@/components/admin/LocationSelector';
 import PropertyAssetsTabs from '@/components/admin/PropertyAssetsTabs';
 import {
   getSaleProperties, createSaleProperty, updateSaleProperty, deleteSaleProperty,
+  translateSaleProperty, translateAllSaleProperties,
   uploadDrawingImage, getAllDistricts, getTaluksByDistrict, getVillagesByTaluk, adminApi,
 } from '@/lib/adminApi';
 import { reverseGeocodeDetailed } from '@/utils/geocode';
@@ -34,8 +35,8 @@ const EMPTY_FORM = {
   contact_phone: '', seller_name: '', alternate_contact_phone: '', alternate_seller_name: '', listing_person_phone: '',
   title: '', address: '', latitude: '', longitude: '',
   district_id: '', taluk_id: '', village_id: '',
-  status: 'pending', sale_type: SaleType.LAND, price: '', rate_unit: '', extension: '', area_size: '',
-  survey_number: '', street_name_or_road_name: '', layout_name: '',
+  status: 'pending', sale_type: SaleType.LAND, floor_no: '', price: '', rate_unit: '', extension: '', area_size: '',
+  survey_number: '', street_name_or_road_name: '', street_name_or_road_name_translated: '', layout_name: '', layout_name_translated: '',
   boundary_north: '', boundary_south: '', boundary_east: '', boundary_west: '',
   sale_status: SaleStatus.NIL_BOOKING, total_units_count: '', booked_units: '', open_units: '',
   description: '', dtcp: '', parent_document: '', sub_registrar_office: '', gift_deed: '',
@@ -98,6 +99,8 @@ export default function SalePropertiesPage() {
   const [inlineEditDraft, setInlineEditDraft] = useState({});
   const [inlineSaving, setInlineSaving] = useState(false);
   const [calcingAreaSpeed, setCalcingAreaSpeed] = useState(false);
+  const [translatingAll, setTranslatingAll] = useState(false);
+  const [translatingField, setTranslatingField] = useState(false);
 
   const handleInlineEdit = (p) => {
     setInlineEditId(p.property_id);
@@ -163,7 +166,9 @@ export default function SalePropertiesPage() {
         String(p.price || '').includes(q) ||
         (p.district_name || '').toLowerCase().includes(q) ||
         (p.taluk_name || '').toLowerCase().includes(q) ||
-        (p.village_name || '').toLowerCase().includes(q)
+        (p.village_name || '').toLowerCase().includes(q) ||
+        (p.street_name_or_road_name || '').toLowerCase().includes(q) ||
+        (p.layout_name || '').toLowerCase().includes(q)
       );
     }
     if (filters.sale_type !== 'all') result = result.filter(p => p.sale_type === filters.sale_type);
@@ -558,6 +563,32 @@ export default function SalePropertiesPage() {
     setColumnFilters(prev => ({ ...prev, [key]: value }));
   };
 
+  const handleTranslateAll = async () => {
+    setTranslatingAll(true);
+    try {
+      const res = await translateAllSaleProperties();
+      const r = res.data || res;
+      alert(`Translated ${r.translated} of ${r.total} listing(s).${r.failed ? ` ${r.failed} failed.` : ''}`);
+      await fetchSale();
+    } catch (err) { alert('Failed: ' + (err?.response?.data?.error || err.message)); }
+    finally { setTranslatingAll(false); }
+  };
+
+  const handleTranslateField = async () => {
+    if (!selected?.property_id) return;
+    setTranslatingField(true);
+    try {
+      const res = await translateSaleProperty(selected.property_id);
+      const r = res.data || res;
+      setForm(prev => ({
+        ...prev,
+        street_name_or_road_name_translated: r.street_name_or_road_name_translated,
+        layout_name_translated: r.layout_name_translated,
+      }));
+    } catch (err) { alert('Failed: ' + (err?.response?.data?.error || err.message)); }
+    finally { setTranslatingField(false); }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -576,6 +607,9 @@ export default function SalePropertiesPage() {
           <button onClick={handleExport} className="bg-white border border-gray-300 text-gray-700 px-5 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-gray-50">
             Export Excel
           </button>
+          <button onClick={handleTranslateAll} disabled={translatingAll} className="bg-white border border-blue-300 text-blue-700 px-5 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-blue-50 disabled:opacity-60">
+            {translatingAll ? 'Translating…' : 'Translate All'}
+          </button>
           <button onClick={() => openModal(null, 'add')} className="bg-emerald-600 text-white px-6 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest shadow-lg shadow-emerald-200 hover:bg-emerald-700">
             Add Sale Listing
           </button>
@@ -588,7 +622,7 @@ export default function SalePropertiesPage() {
           <div className={fw}>
             <label className={lbl}>Search</label>
             <div className="relative">
-              <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="ID, contact, type, price..."
+              <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="ID, contact, type, price, landmark, layout..."
                 className="pl-9 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold uppercase outline-none focus:ring-2 focus:ring-emerald-500/20 w-56" />
               <svg className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
             </div>
@@ -673,6 +707,7 @@ export default function SalePropertiesPage() {
             },
             { header: 'Registered', accessor: p => new Date(p.created_at).toLocaleDateString(), sortable: true, sortBy: p => new Date(p.created_at).getTime() },
             { header: 'Type', accessor: 'sale_type', editable: true, editType: 'select', editOptions: Object.values(SaleType).map(v => ({ value: v, label: v })) },
+            { header: 'Floor No.', accessor: 'floor_no', editable: true, filterable: true, filterKey: 'floor_no' },
             {
               header: 'Approval', sortable: true, sortBy: p => p.status || 'pending',
               accessor: p => { const s = p.status || 'pending'; const c = { approved: 'bg-green-100 text-green-800 border-green-200', pending: 'bg-yellow-100 text-yellow-800 border-yellow-200', rejected: 'bg-red-100 text-red-800 border-red-200' }; return <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase border ${c[s] || 'bg-gray-100 text-gray-800 border-gray-200'}`}>{s.charAt(0).toUpperCase() + s.slice(1)}</span>; },
@@ -696,7 +731,9 @@ export default function SalePropertiesPage() {
             { header: 'Extension Unit', accessor: p => p.area_size || '-', editable: true, editType: 'select', editField: 'area_size', editOptions: EXTENT_UNIT_OPTIONS.map(v => ({ value: v, label: v || '— None —' })), filterable: true, filterKey: 'area_size' },
             { header: 'Survey No.', accessor: 'survey_number', editable: true, filterable: true, filterKey: 'survey_number' },
             { header: 'Landmark', accessor: 'street_name_or_road_name', editable: true, filterable: true, filterKey: 'street_name_or_road_name' },
+            { header: 'Landmark (Tamil)', accessor: 'street_name_or_road_name_translated', editable: true, filterable: true, filterKey: 'street_name_or_road_name_translated' },
             { header: 'Layout Name', accessor: 'layout_name', editable: true, filterable: true, filterKey: 'layout_name' },
+            { header: 'Layout Name (Tamil)', accessor: 'layout_name_translated', editable: true, filterable: true, filterKey: 'layout_name_translated' },
             { header: 'Token Amt', accessor: p => p.token_amount ? `₹${Number(p.token_amount).toLocaleString()}` : '-', editable: true, editType: 'number', editField: 'token_amount', filterable: true, filterKey: 'token_amount' },
             { header: 'Token Paid To', accessor: 'token_paid_to', editable: true, editType: 'select', editOptions: TOKEN_PAID_TO_OPTIONS.map(v => ({ value: v, label: v || '— None —' })), filterable: true, filterKey: 'token_paid_to' },
             { header: 'Advance Amt', accessor: p => p.advance_amount ? `₹${Number(p.advance_amount).toLocaleString()}` : '-', editable: true, editType: 'number', editField: 'advance_amount', filterable: true, filterKey: 'advance_amount' },
@@ -839,6 +876,9 @@ export default function SalePropertiesPage() {
                         {Object.values(SaleType).map(s => <option key={s} value={s}>{s}</option>)}
                       </select></div>
                   </div>
+                  {form.sale_type?.toUpperCase() === 'FLAT' && (
+                    <div className={fw}><label className={lbl}>Floor No.</label><input disabled={isReadOnly} value={form.floor_no || ''} onChange={e => handleChange('floor_no', e.target.value)} placeholder="e.g. 2nd Floor" className={inp()} /></div>
+                  )}
                   <div className="grid grid-cols-4 gap-6">
                     <div className={fw}><label className={lbl}>Rate (₹)</label><input disabled={isReadOnly} value={form.price} onChange={e => handleChange('price', e.target.value)} className={inp()} /></div>
                     <div className={fw}><label className={lbl}>Rate Unit</label>
@@ -853,11 +893,35 @@ export default function SalePropertiesPage() {
                       </select>
                     </div>
                   </div>
+                  <div className={fw}><label className={lbl}>Survey Number</label><input disabled={isReadOnly} value={form.survey_number} onChange={e => handleChange('survey_number', e.target.value)} className={inp()} /></div>
                   <div className="grid grid-cols-2 gap-6">
-                    <div className={fw}><label className={lbl}>Survey Number</label><input disabled={isReadOnly} value={form.survey_number} onChange={e => handleChange('survey_number', e.target.value)} className={inp()} /></div>
                     <div className={fw}><label className={lbl}>Landmark</label><input disabled={isReadOnly} value={form.street_name_or_road_name} onChange={e => handleChange('street_name_or_road_name', e.target.value)} className={inp()} /></div>
+                    <div className={fw}>
+                      <label className={lbl}>Landmark (Tamil)</label>
+                      <div className="flex gap-2">
+                        <input disabled={isReadOnly} value={form.street_name_or_road_name_translated || ''} onChange={e => handleChange('street_name_or_road_name_translated', e.target.value)} className={inp() + ' flex-1'} />
+                        {!isReadOnly && selected?.property_id && (
+                          <button type="button" onClick={handleTranslateField} disabled={translatingField} className="px-4 py-2.5 rounded-xl bg-blue-600 text-white font-bold text-xs uppercase hover:bg-blue-700 disabled:opacity-60 shrink-0">
+                            {translatingField ? '…' : 'Translate'}
+                          </button>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                  <div className={fw}><label className={lbl}>Layout Name</label><input disabled={isReadOnly} value={form.layout_name} onChange={e => handleChange('layout_name', e.target.value)} className={inp()} /></div>
+                  <div className="grid grid-cols-2 gap-6">
+                    <div className={fw}><label className={lbl}>Layout Name</label><input disabled={isReadOnly} value={form.layout_name} onChange={e => handleChange('layout_name', e.target.value)} className={inp()} /></div>
+                    <div className={fw}>
+                      <label className={lbl}>Layout Name (Tamil)</label>
+                      <div className="flex gap-2">
+                        <input disabled={isReadOnly} value={form.layout_name_translated || ''} onChange={e => handleChange('layout_name_translated', e.target.value)} className={inp() + ' flex-1'} />
+                        {!isReadOnly && selected?.property_id && (
+                          <button type="button" onClick={handleTranslateField} disabled={translatingField} className="px-4 py-2.5 rounded-xl bg-blue-600 text-white font-bold text-xs uppercase hover:bg-blue-700 disabled:opacity-60 shrink-0">
+                            {translatingField ? '…' : 'Translate'}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
                   <div className="grid grid-cols-2 gap-6">
                     <div className={fw}><label className={lbl}>Token Amount (₹)</label><input type="number" disabled={isReadOnly} value={form.token_amount || ''} onChange={e => handleChange('token_amount', e.target.value)} placeholder="Token amount paid" className={inp()} /></div>
                     <div className={fw}><label className={lbl}>Token Paid To</label>

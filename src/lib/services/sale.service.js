@@ -37,8 +37,8 @@ export async function getAll(type) {
       p.latitude, p.longitude,
       p.area_speed, p.amenities_rating, p.utilities_rating, p.legal_rating,
       d.district_id, d.district_name, t.taluk_id, t.taluk_name, v.village_id, v.village_name,
-      s.sale_type, s.price AS sale_price, s.rate_unit, s.area_size, s.extension,
-      s.street_name_or_road_name, s.layout_name,
+      s.sale_type, s.floor_no, s.price AS sale_price, s.rate_unit, s.area_size, s.extension,
+      s.street_name_or_road_name, s.street_name_or_road_name_translated, s.layout_name, s.layout_name_translated,
       s.survey_number, s.boundary_north, s.boundary_south, s.boundary_east, s.boundary_west,
       s.sale_status, s.legal_value, s.area_sales_speed, s.facing, s.road_width,
       s.videos->>'url' AS video_url,
@@ -157,11 +157,11 @@ export async function update(propertyId, data, files = {}) {
     const saleCheck = await tx.$queryRawUnsafe('SELECT 1 FROM sale_properties WHERE property_id = $1', propertyId);
     if (saleCheck.length === 0) {
       await tx.$executeRawUnsafe(
-        `INSERT INTO sale_properties (property_id, sale_type, price, area_size, street_name_or_road_name,
+        `INSERT INTO sale_properties (property_id, sale_type, floor_no, price, area_size, street_name_or_road_name,
          survey_number, boundary_north, boundary_south, boundary_east, boundary_west, sale_status,
          drawing_image, total_units_count, booked_units, open_units, alternate_contact_phone, alternate_seller_name, listing_person_phone, dtcp)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)`,
-        propertyId, data.sale_type || null, price, data.area_size || null, data.street_name_or_road_name || null,
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)`,
+        propertyId, data.sale_type || null, toStr(data.floor_no), price, data.area_size || null, data.street_name_or_road_name || null,
         data.survey_number || null, data.boundary_north || null, data.boundary_south || null,
         data.boundary_east || null, data.boundary_west || null, data.sale_status || 'Nil Booking',
         drawingImageUrl, toInt(data.total_units_count) || 0, toStr(data.booked_units) || 0, toStr(data.open_units) || 0,
@@ -169,12 +169,12 @@ export async function update(propertyId, data, files = {}) {
       );
     } else {
       await tx.$executeRawUnsafe(
-        `UPDATE sale_properties SET sale_type=$1, price=$2, area_size=$3, street_name_or_road_name=$4,
-         survey_number=$5, boundary_north=$6, boundary_south=$7, boundary_east=$8, boundary_west=$9,
-         sale_status=$10, total_units_count=$11, booked_units=$12, open_units=$13, drawing_image=$14,
-         alternate_contact_phone=$15, alternate_seller_name=$16, listing_person_phone=$17, dtcp=$18
-         WHERE property_id=$19`,
-        data.sale_type || null, price, data.area_size || null, data.street_name_or_road_name || null,
+        `UPDATE sale_properties SET sale_type=$1, floor_no=$2, price=$3, area_size=$4, street_name_or_road_name=$5,
+         survey_number=$6, boundary_north=$7, boundary_south=$8, boundary_east=$9, boundary_west=$10,
+         sale_status=$11, total_units_count=$12, booked_units=$13, open_units=$14, drawing_image=$15,
+         alternate_contact_phone=$16, alternate_seller_name=$17, listing_person_phone=$18, dtcp=$19
+         WHERE property_id=$20`,
+        data.sale_type || null, toStr(data.floor_no), price, data.area_size || null, data.street_name_or_road_name || null,
         data.survey_number || null, data.boundary_north || null, data.boundary_south || null,
         data.boundary_east || null, data.boundary_west || null, data.sale_status || 'Nil Booking',
         toInt(data.total_units_count) || 0, toStr(data.booked_units) || 0, toStr(data.open_units) || 0,

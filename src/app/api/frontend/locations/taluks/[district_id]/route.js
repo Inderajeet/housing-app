@@ -6,7 +6,9 @@ export async function GET(request, { params }) {
     const { district_id } = await params;
     const { searchParams } = new URL(request.url);
     const all = searchParams.get('all') === 'true';
-    const data = await getTaluksByDistrict(district_id, { all });
+    const type = searchParams.get('type') || '';
+    const category = searchParams.get('category') || '';
+    const data = await getTaluksByDistrict(district_id, { all, type, category });
     return NextResponse.json(data);
   } catch (err) {
     return NextResponse.json({ error: err.message }, { status: 500 });

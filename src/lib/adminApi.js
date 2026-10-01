@@ -36,12 +36,16 @@ export const getRentProperties = () => adminApi.get('/rent');
 export const createRentProperty = (data) => adminApi.post('/rent', data);
 export const updateRentProperty = (id, data) => adminApi.put(`/rent/${id}`, data);
 export const deleteRentProperty = (id) => adminApi.delete(`/rent/${id}`);
+export const translateRentProperty = (id) => adminApi.post(`/rent/${id}/translate`);
+export const translateAllRentProperties = () => adminApi.post('/rent/translate-all');
 
 // Sale
 export const getSaleProperties = () => adminApi.get('/sale');
 export const createSaleProperty = (data) => adminApi.post('/sale', data);
 export const updateSaleProperty = (id, data) => adminApi.put(`/sale/${id}`, data);
 export const deleteSaleProperty = (id) => adminApi.delete(`/sale/${id}`);
+export const translateSaleProperty = (id) => adminApi.post(`/sale/${id}/translate`);
+export const translateAllSaleProperties = () => adminApi.post('/sale/translate-all');
 export const uploadDrawingImage = (id, file) => {
   const fd = new FormData();
   fd.append('drawing_image', file);
@@ -112,31 +116,12 @@ export const uploadVillages = (file) => {
 };
 
 // Site Content — Headings
-export const getContentHeadings = () => adminApi.get('/site-content/headings');
-export const updateContentHeading = (key, value) => adminApi.put('/site-content/headings', { key, value });
+export const getContentHeadings = (locale = 'ta') => adminApi.get('/site-content/headings', { params: { locale } });
+export const updateContentHeading = (key, value, locale = 'ta') => adminApi.put('/site-content/headings', { key, value, locale });
 
-// Site Content — Booking Flow
-export const getAdminBookingFlow = (type) => adminApi.get('/site-content/flow', { params: { type } });
-export const addAdminStage = (flowType, { stageKey, title, timeframe, nextLabel }) =>
-  adminApi.post('/site-content/flow', { flowType, stageKey, title, timeframe, nextLabel });
-export const updateAdminStage = (id, data) => adminApi.put(`/site-content/stages/${id}`, data);
-export const deleteAdminStage = (id) => adminApi.delete(`/site-content/stages/${id}`);
-
-// Site Content — Subtitles
-export const addAdminSubtitle = (stageId, text) => adminApi.post('/site-content/subtitles', { stageId, text });
-export const updateAdminSubtitle = (id, text) => adminApi.put(`/site-content/subtitles/${id}`, { text });
-export const deleteAdminSubtitle = (id) => adminApi.delete(`/site-content/subtitles/${id}`);
-
-// Site Content — Points
-export const addAdminPoint = (stageId, text) => adminApi.post('/site-content/points', { stageId, text });
-export const updateAdminPoint = (id, text) => adminApi.put(`/site-content/points/${id}`, { text });
-export const deleteAdminPoint = (id) => adminApi.delete(`/site-content/points/${id}`);
-
-// Site Content — Services
-export const getContentServices = () => adminApi.get('/site-content/services');
-export const addContentService = (stageKey, flowType, text) => adminApi.post('/site-content/services', { stageKey, flowType, text });
-export const updateContentService = (id, text) => adminApi.put(`/site-content/services/${id}`, { text });
-export const deleteContentService = (id) => adminApi.delete(`/site-content/services/${id}`);
+// Site Content — Flow Options (booking choice-panel + post-property form labels)
+export const getFlowOptions = (flowType, locale = 'ta') => adminApi.get('/site-content/flow-options', { params: { type: flowType, locale } });
+export const updateFlowOptionLabel = (id, label) => adminApi.put(`/site-content/flow-options/${id}`, { label });
 
 // Premium
 export const getPremiumProperties = ({ type, filter } = {}) => {

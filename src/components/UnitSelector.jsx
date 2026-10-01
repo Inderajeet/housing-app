@@ -6,6 +6,31 @@ import '../styles/UnitSelector.css';
 
 const layoutCache = new Map();
 
+// Fetches the plot/flat layout (shared cache with UnitSelector) and reports whether it has any units drawn
+export async function checkUnitLayoutHasUnits(propertyId, saleType) {
+    const normalizedSaleType = (saleType || '').toLowerCase();
+    const isFlat = normalizedSaleType === 'flat';
+    const unitTypeName = isFlat ? 'FLAT' : 'PLOT';
+    const cacheKey = `${propertyId}:${normalizedSaleType || 'property'}`;
+    let rawItems = layoutCache.get(cacheKey);
+    if (!rawItems) {
+        const response = isFlat ? await endpoints.getFlatLayout(propertyId) : await endpoints.getPlotLayout(propertyId);
+        rawItems = Array.isArray(response.data) ? response.data : (response.data?.items || []);
+        layoutCache.set(cacheKey, rawItems);
+    }
+    const hasUnitId = (item) => (item?.plot_unit_id ?? item?.flat_unit_id) != null;
+    const svgShapes = rawItems.filter(item => Array.isArray(item.points) && item.points.length > 0);
+    if (svgShapes.length > 0) {
+        return svgShapes.some(s => (s.type || '').toUpperCase() === unitTypeName);
+    }
+    return rawItems.some(item =>
+        !hasUnitId(item) &&
+        !isNaN(parseInt(item.x, 10)) &&
+        !isNaN(parseInt(item.y, 10)) &&
+        (item.type || unitTypeName) === unitTypeName
+    );
+}
+
 const UnitSelector = ({ propertyId, onSelectUnit, saleType, onNoPlots, onContactOwner, onFreeVisit, refreshKey = 0 }) => {
     const [dims, setDims] = useState({ rows: 40, cols: 60 });
     const [gridData, setGridData] = useState({});

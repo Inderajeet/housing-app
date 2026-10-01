@@ -2,7 +2,8 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 
-const LiveLocationModal = ({ data, onChange, onNext }) => {
+const LiveLocationModal = ({ data, onChange, onNext, config }) => {
+    const loc = config?.location || {};
     const videoRef = useRef(null);
     const [stream, setStream] = useState(null);
     const [isCameraActive, setIsCameraActive] = useState(false);
@@ -106,8 +107,10 @@ const LiveLocationModal = ({ data, onChange, onNext }) => {
 
     return (
         <div className="modal-content">
-            <h2>Location Proof</h2>
-            <p>Please capture a live photo of the property and location.</p>
+            {/* Location Proof */}
+            <h2>{loc.header || ''}</h2>
+            {/* Please capture a live photo of the property and location. */}
+            <p>{loc.intro || ''}</p>
 
             <div className="live-location-area">
                 <div style={{ display: isCameraActive ? 'block' : 'none', marginBottom: '15px' }}>
@@ -124,7 +127,8 @@ const LiveLocationModal = ({ data, onChange, onNext }) => {
                         className="primary-button take-photo-btn"
                         style={{ marginTop: '10px', width: '100%' }}
                     >
-                        {isProcessing ? 'Capturing photo and location...' : 'Capture Photo & Location'}
+                        {/* Capture Photo & Location */}
+                        {isProcessing ? 'Capturing photo and location...' : (loc.captureLabel2 || '')}
                     </button>
                 </div>
 
@@ -135,7 +139,8 @@ const LiveLocationModal = ({ data, onChange, onNext }) => {
                         className={`secondary-button capture-btn ${isReady ? 'captured' : ''}`}
                         disabled={isProcessing || isResolvingAddress}
                     >
-                        {isReady ? 'Captured (Retake)' : 'Capture Live Photo'}
+                        {/* Capture Live Photo */}
+                        {isReady ? 'Captured (Retake)' : (loc.captureLabel || '')}
                     </button>
                 )}
 
@@ -179,7 +184,8 @@ const LiveLocationModal = ({ data, onChange, onNext }) => {
                     className="primary-button"
                     disabled={!isReady || isCameraActive || isProcessing || isResolvingAddress}
                 >
-                    Continue
+                    {/* OK */}
+                    {loc.button || ''}
                 </button>
             </div>
         </div>

@@ -60,23 +60,40 @@ export async function getFlowByPhone({ propertyId, unitType, unitId, phone }) {
 }
 
 export async function getGeneralFlow({ propertyId, unitType, unitId }) {
+  const enquiryRes = await prisma.$queryRawUnsafe(
+    `SELECT COUNT(DISTINCT buyer_id)::int AS cnt FROM enquiries
+     WHERE property_id=$1 AND unit_type IS NOT DISTINCT FROM $2 AND unit_id IS NOT DISTINCT FROM $3 AND booking_status IS NULL`,
+    propertyId, unitType || null, unitId || null
+  );
+  const enquiryCount = enquiryRes[0]?.cnt || 0;
+
   const res = await prisma.$queryRawUnsafe(
-    `SELECT status FROM bookings WHERE property_id=$1 AND unit_type=$2 AND unit_id=$3`,
+    `SELECT status, buyer_id FROM bookings WHERE property_id=$1 AND unit_type=$2 AND unit_id=$3`,
     propertyId, unitType, unitId
   );
-  if (!res.length) return { overallStageIndex: -1, overallStatus: null };
+  if (!res.length) return { overallStageIndex: -1, overallStatus: null, contactCount: 0, agreementCount: 0, enquiryCount };
 
   let maxIndex = -1, finalStatus = null;
+  const contactBuyers = new Set();
+  const agreementBuyers = new Set();
   res.forEach(row => {
     const index = statusToStageIndex[row.status] ?? -1;
     if (index > maxIndex) { maxIndex = index; finalStatus = row.status; }
+    // contactCount/agreementCount power the rent/sale MCQ panels' "பதிவு" counters (see BookingFlow.jsx)
+    if (index >= 0) contactBuyers.add(row.buyer_id);
+    if (index >= 1) agreementBuyers.add(row.buyer_id);
   });
-  return { overallStageIndex: maxIndex, overallStatus: finalStatus };
+  return { overallStageIndex: maxIndex, overallStatus: finalStatus, contactCount: contactBuyers.size, agreementCount: agreementBuyers.size, enquiryCount };
 }
 
-// Contact Owner / Free Visit path - no unit selected, so only an enquiry is
-// logged (unit_type/unit_id stay null) and no bookings row is created.
-export async function submitContactRequest({ propertyId, phone }) {
+// TODO: integrate real WhatsApp sending (Business API / Twilio) here
+async function notifyWhatsApp(phone, message) {
+  console.log(`[whatsapp stub] to ${phone}: ${message}`);
+}
+
+// Contact Owner / Free Visit path (and the sale MCQ's "no status change" option) -
+// no booking stage involved, so only an enquiry is logged and no bookings row is created.
+export async function submitContactRequest({ propertyId, phone, unitType = null, unitId = null }) {
   let buyerRes = await prisma.$queryRawUnsafe('SELECT buyer_id FROM buyers WHERE phone_number=$1', phone);
   let buyerId;
   if (!buyerRes.length) {
@@ -87,16 +104,18 @@ export async function submitContactRequest({ propertyId, phone }) {
   }
 
   const existing = await prisma.$queryRawUnsafe(
-    `SELECT enquiry_id FROM enquiries WHERE property_id=$1 AND buyer_id=$2 LIMIT 1`,
-    propertyId, buyerId
+    `SELECT enquiry_id FROM enquiries WHERE property_id=$1 AND buyer_id=$2 AND unit_type IS NOT DISTINCT FROM $3 AND unit_id IS NOT DISTINCT FROM $4 LIMIT 1`,
+    propertyId, buyerId, unitType, unitId
   );
   if (!existing.length) {
     await prisma.$executeRawUnsafe(
-      `INSERT INTO enquiries (property_id, buyer_id, enquiry_type, contacted)
-       VALUES ($1, $2, 'buyer', false)`,
-      propertyId, buyerId
+      `INSERT INTO enquiries (property_id, buyer_id, enquiry_type, contacted, unit_type, unit_id)
+       VALUES ($1, $2, 'buyer', false, $3, $4)`,
+      propertyId, buyerId, unitType, unitId
     );
   }
+
+  notifyWhatsApp(phone, 'Thanks! Our team will contact you shortly.').catch(() => {});
 
   return { buyerId };
 }
@@ -147,6 +166,15 @@ export async function updateStage({ propertyId, unitType, unitId, phone, stage, 
   }
 
   const today = new Date().toISOString().slice(0, 10);
+
+  if (['rent', 'sale', 'plot', 'flat'].includes(unitType) && (stage === 'VISIT_NEGOTIATE' || stage === 'TOKEN_PAYMENT')) {
+    const message = stage === 'TOKEN_PAYMENT'
+      ? (unitType === 'rent'
+          ? 'Thanks! Your rental agreement request has been received. Our team will reach out shortly.'
+          : 'Thanks! Your booking confirmation request has been received. Our team will reach out shortly.')
+      : 'Thanks! Your request has been received. Our team will reach out shortly.';
+    notifyWhatsApp(phone, message).catch(() => {});
+  }
 
   if (stage === 'VISIT_NEGOTIATE') {
     if (unitType === 'sale') await prisma.$executeRawUnsafe(`UPDATE sale_properties SET sale_status='ON_BOOKING' WHERE property_id=$1`, propertyId);

@@ -199,7 +199,7 @@ export default function HomePage() {
     const fetchInitialData = async () => {
       try {
         const [distRes, propRes] = await Promise.all([
-          endpoints.getDistricts(),
+          endpoints.getDistricts(filters.lookingTo, filters.type),
           endpoints.getProperties(filters.lookingTo, filters.type),
         ]);
         setDistrictsList(distRes.data || []);
@@ -280,13 +280,13 @@ export default function HomePage() {
 
   useEffect(() => {
     if (!filters.district_id) { setTaluksList([]); setVillagesList([]); return; }
-    endpoints.getTaluks(filters.district_id).then(res => setTaluksList(res.data || []));
-  }, [filters.district_id]);
+    endpoints.getTaluks(filters.district_id, filters.lookingTo, filters.type).then(res => setTaluksList(res.data || []));
+  }, [filters.district_id, filters.lookingTo, filters.type]);
 
   useEffect(() => {
     if (!filters.taluk_id) { setVillagesList([]); return; }
-    endpoints.getVillages(filters.taluk_id).then(res => setVillagesList(res.data || []));
-  }, [filters.taluk_id]);
+    endpoints.getVillages(filters.taluk_id, filters.lookingTo, filters.type).then(res => setVillagesList(res.data || []));
+  }, [filters.taluk_id, filters.lookingTo, filters.type]);
 
   const filteredProperties = useMemo(() => {
     return allProperties.filter(p => {
@@ -340,6 +340,11 @@ export default function HomePage() {
       </div>
     );
   }
+
+  // Rent: only Chennai has the village dropdown, labelled Town
+  const isRent = filters.lookingTo === 'rent';
+  const showVillageSelect = !isRent || normalizeUrlName(filters.district || '') === 'chennai';
+  const villageLabel = isRent ? 'Town' : 'Village';
 
   const filterPanelClass = `floating-filter-panel ${showFilterPanel ? 'expanded' : 'minimized'} ${filters.showAdvanced ? 'advanced-active' : 'basic-active'}`;
   const transactionLabel = getTransactionLabel(filters.lookingTo);
@@ -397,8 +402,9 @@ export default function HomePage() {
                     ))}
                   </select>
 
+                  {showVillageSelect && (
                   <select
-                    aria-label="Select Village"
+                    aria-label={`Select ${villageLabel}`}
                     value={filters.village_id}
                     onChange={(e) => {
                       const selected = villagesList.find(v => String(v.village_id) === e.target.value);
@@ -406,11 +412,12 @@ export default function HomePage() {
                     }}
                     disabled={!filters.taluk_id}
                   >
-                    <option value="">Select Village</option>
+                    <option value="">Select {villageLabel}</option>
                     {villagesList.map(v => (
                       <option key={v.village_id} value={v.village_id}>{v.village_name}</option>
                     ))}
                   </select>
+                  )}
                 </div>
               </div>
 

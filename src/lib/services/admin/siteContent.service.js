@@ -129,17 +129,36 @@ export const deleteService = async (id) => {
   return { deleted: true };
 };
 
-export const getAllHeadings = async () => {
+export const getFlowOptions = async (flowType, locale = 'ta') => {
+  return prisma.$queryRawUnsafe(
+    `SELECT id, flow_type, group_key, option_key, label, sort_order
+     FROM flow_options
+     WHERE flow_type = $1 AND locale = $2
+     ORDER BY group_key ASC, sort_order ASC`,
+    flowType, locale
+  );
+};
+
+export const updateFlowOptionLabel = async (id, label) => {
   const rows = await prisma.$queryRawUnsafe(
-    `SELECT content_key, content_value FROM site_content ORDER BY content_key ASC`
+    `UPDATE flow_options SET label=$1, updated_at=NOW() WHERE id=$2 RETURNING *`,
+    label, Number(id)
+  );
+  return rows[0];
+};
+
+export const getAllHeadings = async (locale = 'ta') => {
+  const rows = await prisma.$queryRawUnsafe(
+    `SELECT content_key, content_value FROM site_content WHERE locale = $1 ORDER BY content_key ASC`,
+    locale
   );
   return rows;
 };
 
-export const updateHeading = async (key, value) => {
+export const updateHeading = async (key, value, locale = 'ta') => {
   const rows = await prisma.$queryRawUnsafe(
-    `UPDATE site_content SET content_value=$1, updated_at=NOW() WHERE content_key=$2 RETURNING *`,
-    value, key
+    `UPDATE site_content SET content_value=$1, updated_at=NOW() WHERE content_key=$2 AND locale=$3 RETURNING *`,
+    value, key, locale
   );
   return rows[0];
 };
@@ -188,13 +207,20 @@ export const deleteGalleryImage = async (id) => {
   return rows[0];
 };
 
-export const getFrontendContent = async (flowType) => {
-  const [headings, stages, allServices, galleryImages] = await Promise.all([
-    getAllHeadings(),
+export const getFrontendContent = async (flowType, locale = 'ta') => {
+  const [headings, stages, allServices, galleryImages, flowOptionRows] = await Promise.all([
+    getAllHeadings(locale),
     getBookingFlow(flowType),
     getServices(),
     getGalleryImages(),
+    getFlowOptions(flowType, locale),
   ]);
+
+  const flowOptions = {};
+  for (const opt of flowOptionRows) {
+    if (!flowOptions[opt.group_key]) flowOptions[opt.group_key] = [];
+    flowOptions[opt.group_key].push({ option_key: opt.option_key, label: opt.label });
+  }
 
   const headingsMap = Object.fromEntries(headings.map(h => [h.content_key, h.content_value]));
 
@@ -216,5 +242,5 @@ export const getFrontendContent = async (flowType) => {
     }
   }
 
-  return { headings: headingsMap, stages, services: servicesMap, offerPoints, advantagePoints, galleryImages };
+  return { headings: headingsMap, stages, services: servicesMap, offerPoints, advantagePoints, galleryImages, flowOptions };
 };

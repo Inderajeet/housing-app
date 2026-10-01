@@ -1,5 +1,6 @@
 import prisma from '../../prisma.js';
 import { uploadToCloudflare, deleteFromCloudflare } from '../../uploadToCloudflare.js';
+import { translateText } from '../../translate.js';
 
 const toInt = (v) => (v === '' || v === undefined || v === null ? null : parseInt(v, 10));
 const toFloat = (v) => (v === '' || v === undefined || v === null ? null : parseFloat(v));
@@ -68,10 +69,10 @@ export const getAll = async () => {
       COALESCE(bc.booked_people_count, 0) AS booked_people_count,
       p.live_image, p.latitude, p.longitude, p.district_id, p.taluk_id, p.village_id, p.area_id,
       p.area_speed, p.amenities_rating, p.utilities_rating, p.legal_rating,
-      s.sale_type, s.price, s.rate_unit, s.area_size, s.extension, s.street_name_or_road_name, s.survey_number,
+      s.sale_type, s.floor_no, s.price, s.rate_unit, s.area_size, s.extension, s.street_name_or_road_name, s.street_name_or_road_name_translated, s.survey_number,
       s.boundary_north, s.boundary_south, s.boundary_east, s.boundary_west, s.sale_status,
       s.drawing_image, s.total_units_count, s.booked_units, s.open_units,
-      s.alternate_contact_phone, s.alternate_seller_name, s.listing_person_phone, s.layout_name, s.dtcp,
+      s.alternate_contact_phone, s.alternate_seller_name, s.listing_person_phone, s.layout_name, s.layout_name_translated, s.dtcp,
       s.parent_document, s.sub_registrar_office, s.gift_deed,
       s.token_amount, s.token_paid_to, s.sold_rate, s.sold_date, s.advance_amount,
       s.legal_value, s.area_sales_speed, s.facing, s.road_width,
@@ -103,10 +104,10 @@ export const getById = async (propertyId) => {
       COALESCE((SELECT COUNT(DISTINCT buyer_id)::INT FROM bookings WHERE property_id = p.property_id AND unit_type = 'sale'), 0) AS booked_people_count,
       p.live_image, p.latitude, p.longitude, p.district_id, p.taluk_id, p.village_id, p.area_id,
       p.area_speed, p.amenities_rating, p.utilities_rating, p.legal_rating,
-      s.sale_type, s.price, s.rate_unit, s.area_size, s.extension, s.street_name_or_road_name, s.survey_number,
+      s.sale_type, s.floor_no, s.price, s.rate_unit, s.area_size, s.extension, s.street_name_or_road_name, s.street_name_or_road_name_translated, s.survey_number,
       s.boundary_north, s.boundary_south, s.boundary_east, s.boundary_west, s.sale_status,
       s.drawing_image, s.total_units_count, s.booked_units, s.open_units,
-      s.alternate_contact_phone, s.alternate_seller_name, s.listing_person_phone, s.layout_name, s.dtcp,
+      s.alternate_contact_phone, s.alternate_seller_name, s.listing_person_phone, s.layout_name, s.layout_name_translated, s.dtcp,
       s.parent_document, s.sub_registrar_office, s.gift_deed,
       s.token_amount, s.token_paid_to, s.sold_rate, s.sold_date, s.advance_amount,
       s.legal_value, s.area_sales_speed, s.facing, s.road_width,
@@ -149,15 +150,15 @@ export const createSaleProperty = async (data, files = {}) => {
     const propertyId = propRes[0].property_id;
     const saleType = toStr(data.sale_type)?.toLowerCase();
     await tx.$executeRawUnsafe(
-      `INSERT INTO sale_properties (property_id, sale_type, price, rate_unit, area_size, street_name_or_road_name, survey_number, boundary_north, boundary_south, boundary_east, boundary_west, sale_status, drawing_image, total_units_count, booked_units, open_units, alternate_contact_phone, alternate_seller_name, listing_person_phone, layout_name, dtcp, parent_document, sub_registrar_office, gift_deed, legal_value, area_sales_speed, facing, road_width)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28)`,
-      propertyId, toStr(data.sale_type), toInt(data.price) || 0, toStr(data.rate_unit), toStr(data.area_size),
-      toStr(data.street_name_or_road_name), toStr(data.survey_number),
+      `INSERT INTO sale_properties (property_id, sale_type, floor_no, price, rate_unit, area_size, street_name_or_road_name, street_name_or_road_name_translated, survey_number, boundary_north, boundary_south, boundary_east, boundary_west, sale_status, drawing_image, total_units_count, booked_units, open_units, alternate_contact_phone, alternate_seller_name, listing_person_phone, layout_name, layout_name_translated, dtcp, parent_document, sub_registrar_office, gift_deed, legal_value, area_sales_speed, facing, road_width)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31)`,
+      propertyId, toStr(data.sale_type), toStr(data.floor_no), toInt(data.price) || 0, toStr(data.rate_unit), toStr(data.area_size),
+      toStr(data.street_name_or_road_name), toStr(data.street_name_or_road_name_translated), toStr(data.survey_number),
       toStr(data.boundary_north), toStr(data.boundary_south), toStr(data.boundary_east), toStr(data.boundary_west),
       toStr(data.sale_status), null, toInt(data.total_units_count) || 0,
       toStr(data.booked_units) || 0, toStr(data.open_units) || 0,
       toStr(data.alternate_contact_phone), toStr(data.alternate_seller_name),
-      toStr(data.listing_person_phone), toStr(data.layout_name), toStr(data.dtcp), toStr(data.parent_document),
+      toStr(data.listing_person_phone), toStr(data.layout_name), toStr(data.layout_name_translated), toStr(data.dtcp), toStr(data.parent_document),
       toStr(data.sub_registrar_office), toStr(data.gift_deed),
       toStr(data.legal_value) || 'A+', toFloat(data.area_sales_speed),
       toStr(data.facing), toStr(data.road_width)
@@ -233,13 +234,13 @@ export const updateSaleProperty = async (propertyId, data, files = {}) => {
       propertyId
     );
     await tx.$executeRawUnsafe(
-      `UPDATE sale_properties SET sale_type=$1, price=$2, rate_unit=$3, area_size=$4, street_name_or_road_name=$5, survey_number=$6, boundary_north=$7, boundary_south=$8, boundary_east=$9, boundary_west=$10, sale_status=$11, total_units_count=$12, booked_units=$13, open_units=$14, drawing_image=$15, alternate_contact_phone=$16, alternate_seller_name=$17, listing_person_phone=$18, layout_name=$19, dtcp=$20, parent_document=$21, sub_registrar_office=$22, gift_deed=$23, token_amount=$24, token_paid_to=$25, sold_rate=$26, sold_date=$27, advance_amount=$28, extension=$29, legal_value=$30, area_sales_speed=$31, facing=$32, road_width=$33 WHERE property_id=$34`,
-      toStr(data.sale_type), toFloat(data.price) || 0, toStr(data.rate_unit), toStr(data.area_size), toStr(data.street_name_or_road_name),
+      `UPDATE sale_properties SET sale_type=$1, floor_no=$2, price=$3, rate_unit=$4, area_size=$5, street_name_or_road_name=$6, street_name_or_road_name_translated=$7, survey_number=$8, boundary_north=$9, boundary_south=$10, boundary_east=$11, boundary_west=$12, sale_status=$13, total_units_count=$14, booked_units=$15, open_units=$16, drawing_image=$17, alternate_contact_phone=$18, alternate_seller_name=$19, listing_person_phone=$20, layout_name=$21, layout_name_translated=$22, dtcp=$23, parent_document=$24, sub_registrar_office=$25, gift_deed=$26, token_amount=$27, token_paid_to=$28, sold_rate=$29, sold_date=$30, advance_amount=$31, extension=$32, legal_value=$33, area_sales_speed=$34, facing=$35, road_width=$36 WHERE property_id=$37`,
+      toStr(data.sale_type), toStr(data.floor_no), toFloat(data.price) || 0, toStr(data.rate_unit), toStr(data.area_size), toStr(data.street_name_or_road_name), toStr(data.street_name_or_road_name_translated),
       toStr(data.survey_number), toStr(data.boundary_north), toStr(data.boundary_south),
       toStr(data.boundary_east), toStr(data.boundary_west), toStr(data.sale_status),
       toInt(data.total_units_count) || 0, toStr(data.booked_units) || 0, toStr(data.open_units) || 0,
       drawingImageUrl, toStr(data.alternate_contact_phone), toStr(data.alternate_seller_name),
-      toStr(data.listing_person_phone), toStr(data.layout_name), toStr(data.dtcp), toStr(data.parent_document),
+      toStr(data.listing_person_phone), toStr(data.layout_name), toStr(data.layout_name_translated), toStr(data.dtcp), toStr(data.parent_document),
       toStr(data.sub_registrar_office), toStr(data.gift_deed),
       toFloat(data.token_amount), toStr(data.token_paid_to),
       toFloat(data.sold_rate), data.sold_date && data.sold_date !== '' ? new Date(data.sold_date) : null,
@@ -295,4 +296,52 @@ export const updateVideoUrl = async (propertyId, videoUrl) => {
     val, propertyId
   );
   return { video_url: videoUrl };
+};
+
+export const translateSaleProperty = async (propertyId) => {
+  const rows = await prisma.$queryRawUnsafe(
+    'SELECT street_name_or_road_name, layout_name FROM sale_properties WHERE property_id = $1',
+    propertyId
+  );
+  if (!rows.length) throw new Error('Property not found');
+
+  const [landmarkResult, layoutResult] = await Promise.all([
+    translateText(rows[0].street_name_or_road_name),
+    translateText(rows[0].layout_name),
+  ]);
+
+  await prisma.$executeRawUnsafe(
+    'UPDATE sale_properties SET street_name_or_road_name_translated = $1, layout_name_translated = $2 WHERE property_id = $3',
+    landmarkResult.translated || null, layoutResult.translated || null, propertyId
+  );
+  return {
+    street_name_or_road_name_translated: landmarkResult.translated || null,
+    layout_name_translated: layoutResult.translated || null,
+  };
+};
+
+export const translateAllSaleProperties = async () => {
+  const rows = await prisma.$queryRawUnsafe(
+    `SELECT property_id, street_name_or_road_name, layout_name FROM sale_properties
+     WHERE (street_name_or_road_name_translated IS NULL AND street_name_or_road_name IS NOT NULL AND street_name_or_road_name != '')
+        OR (layout_name_translated IS NULL AND layout_name IS NOT NULL AND layout_name != '')`
+  );
+
+  let translated = 0, failed = 0;
+  for (const row of rows) {
+    try {
+      const [landmarkResult, layoutResult] = await Promise.all([
+        translateText(row.street_name_or_road_name),
+        translateText(row.layout_name),
+      ]);
+      await prisma.$executeRawUnsafe(
+        'UPDATE sale_properties SET street_name_or_road_name_translated = $1, layout_name_translated = $2 WHERE property_id = $3',
+        landmarkResult.translated || null, layoutResult.translated || null, row.property_id
+      );
+      translated++;
+    } catch {
+      failed++;
+    }
+  }
+  return { total: rows.length, translated, failed };
 };

@@ -46,9 +46,8 @@
   font-weight: 700;
   line-height: 1.25;
   color: #1f2937;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .gallery-map-details-price {
@@ -65,9 +64,8 @@
   font-weight: 600;
   line-height: 1.2;
   color: #334155;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .gallery-map-details-list {

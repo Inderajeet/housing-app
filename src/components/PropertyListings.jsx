@@ -15,7 +15,19 @@ const PropertyListings = ({
   const locationDisplayName =
     [filters.village, filters.taluk, filters.district].filter(Boolean).join(', ') || 'Tamil Nadu';
 
-  const displayedProperties = useMemo(() => properties, [properties]);
+  // Sort by village, then taluk, then layout/landmark
+  const displayedProperties = useMemo(() => {
+    const key = (v) => String(v || '').trim().toLowerCase();
+    const cmp = (a, b) => key(a).localeCompare(key(b), undefined, { numeric: true });
+    const landmarkOf = (p) =>
+      p.title || p.layout_name || p.street_name_or_road_name || p.landmark || p.street_name || '';
+    return [...properties].sort(
+      (a, b) =>
+        cmp(a.village_name, b.village_name) ||
+        cmp(a.taluk_name, b.taluk_name) ||
+        cmp(landmarkOf(a), landmarkOf(b))
+    );
+  }, [properties]);
 
   if (displayedProperties.length === 0) {
     return (

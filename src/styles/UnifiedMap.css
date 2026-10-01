@@ -82,6 +82,7 @@
   margin-bottom: 6px;
   flex-wrap: wrap;
   min-width: 0;
+  padding-right: 24px;
 }
 
 .popup-location svg {
@@ -107,7 +108,7 @@
   word-break: break-word;
   overflow-wrap: break-word;
   min-width: 0;
-  flex: 1 1 auto;
+  flex: 1 1 100%;
 }
 
 /* Marker status colors are handled inline via SVG */

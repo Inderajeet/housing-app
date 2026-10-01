@@ -2,22 +2,60 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 import { useSearchParams } from 'next/navigation';
 import PremiumProperties from '../components/PremiumProperties';
 import SeoHelmet from '../components/SeoHelmet';
 import { getSearchHref } from '../utils/propertyRouting';
 import { useAppContext } from './AppContext';
 import { endpoints } from '../api/api';
-import tnmap from '../assets/tnmap.png';
 import '../styles/LandingPage.css';
 
 
+function LanguageToggle({ locale, onToggle, loading }) {
+  return (
+    <button type="button" className="language-toggle" onClick={onToggle} disabled={loading}>
+      <span className={locale === 'ta' ? 'language-toggle-active' : ''}>தமிழ்</span>
+      <span className="language-toggle-sep">|</span>
+      <span className={locale === 'en' ? 'language-toggle-active' : ''}>English</span>
+    </button>
+  );
+}
+
+function PageLoadingOverlay({ show }) {
+  if (!show) return null;
+  return (
+    <div className="page-loading-overlay">
+      <div className="page-loading-spinner" />
+    </div>
+  );
+}
+
 export default function LandingPageClient() {
   const searchParams = useSearchParams();
-  const { menuPremiumProperties: contextPremium, handlePostPropertyClick } = useAppContext();
+  const { menuPremiumProperties: contextPremium, handlePostPropertyClick, locale, toggleLocale } = useAppContext();
   const [activeTab, setActiveTab] = useState('BUY');
   const [localPremium, setLocalPremium] = useState([]);
+  const [ctaLabels, setCtaLabels] = useState({});
+  const [saleBox, setSaleBox] = useState({});
+  const [rentBox, setRentBox] = useState({});
+  const [contentLoading, setContentLoading] = useState(true);
+
+  useEffect(() => {
+    setContentLoading(true);
+    Promise.all([
+      endpoints.getSiteContent('sale', locale),
+      endpoints.getSiteContent('rent', locale),
+    ])
+      .then(([saleRes, rentRes]) => {
+        setCtaLabels(saleRes.data?.headings || {});
+        const sBox = Object.fromEntries((saleRes.data?.flowOptions?.home_box || []).map(o => [o.option_key, o.label]));
+        setSaleBox(sBox);
+        const rBox = Object.fromEntries((rentRes.data?.flowOptions?.home_box || []).map(o => [o.option_key, o.label]));
+        setRentBox(rBox);
+      })
+      .catch(() => {})
+      .finally(() => setContentLoading(false));
+  }, [locale]);
 
   useEffect(() => {
     const tab = searchParams.get('type');
@@ -77,6 +115,7 @@ export default function LandingPageClient() {
 
   return (
     <div className="landing-container">
+      <PageLoadingOverlay show={contentLoading} />
       <SeoHelmet
         title="TN Property Mandi | Buy, Sell & Rent Properties in Tamil Nadu"
         description="Find the best residential and commercial properties for sale or rent across Tamil Nadu. TN Property Mandi connects buyers and sellers directly. Search plots, houses, and villas today."
@@ -86,23 +125,30 @@ export default function LandingPageClient() {
 
       {activeTab === 'BUY' && (
         <div className="landing-side sale-side">
-          <div className="map-background-overlay" aria-hidden="true">
-            <Image src={tnmap} alt="" fill priority style={{ objectFit: 'contain', objectPosition: 'center' }} />
-          </div>
           {renderPremiumAds()}
 
           <div className="side-content-wrapper">
             <div className="map-sketch-area">
               <div className="interactive-box buy-box">
-                <span className="center-text">BUY</span>
-                <Link className="box-item" href={getSearchHref('sale', 'flat')}>FLAT</Link>
-                <Link className="box-item" href={getSearchHref('sale', 'house')}>HOUSE</Link>
-                <Link className="box-item" href={getSearchHref('sale', 'plot')}>PLOT</Link>
-                <Link className="box-item" href={getSearchHref('sale', 'land')}>LAND</Link>
+                {/* BUY */}
+                <span className="center-text">{saleBox.center || ''}</span>
+                {/* FLAT */}
+                <Link className="box-item" href={getSearchHref('sale', 'flat')}>{saleBox.flat || ''}</Link>
+                {/* HOUSE */}
+                <Link className="box-item" href={getSearchHref('sale', 'house')}>{saleBox.house || ''}</Link>
+                {/* PLOT */}
+                <Link className="box-item" href={getSearchHref('sale', 'plot')}>{saleBox.plot || ''}</Link>
+                {/* LAND */}
+                <Link className="box-item box-item-group" href={getSearchHref('sale', 'land')}>
+                  <span className="box-group-heading">{saleBox.land_group || (locale === 'en' ? 'Individual' : 'தனி')}</span>
+                  <span className="box-group-links">{saleBox.land || ''}</span>
+                </Link>
               </div>
+              <LanguageToggle locale={locale} onToggle={toggleLocale} loading={contentLoading} />
             </div>
             <button className="post-btn sale-btn desktop-only" onClick={() => handlePostPropertyClick('sale')}>
-              SALE YOUR PROPERTY
+              {/* SALE YOUR PROPERTY */}
+              {ctaLabels.sale_postflow_cta_button || ''}
             </button>
           </div>
         </div>
@@ -110,23 +156,27 @@ export default function LandingPageClient() {
 
       {activeTab === 'RENT' && (
         <div className="landing-side rent-side">
-          <div className="map-background-overlay" aria-hidden="true">
-            <Image src={tnmap} alt="" fill priority style={{ objectFit: 'contain', objectPosition: 'center' }} />
-          </div>
           {renderPremiumAds()}
 
           <div className="side-content-wrapper">
             <div className="map-sketch-area">
               <div className="interactive-box rent-box">
-                <span className="center-text">RENT</span>
-                <Link className="box-item" href={getSearchHref('rent', '1')}>1 BHK</Link>
-                <Link className="box-item" href={getSearchHref('rent', '2')}>2 BHK</Link>
-                <Link className="box-item" href={getSearchHref('rent', '3')}>3+ BHK</Link>
-                <Link className="box-item" href={getSearchHref('rent', 'commercial')}>COMMERCIAL</Link>
+                {/* RENT */}
+                <span className="center-text">{rentBox.center || ''}</span>
+                {/* 1 BHK */}
+                <Link className="box-item" href={getSearchHref('rent', '1')}>{rentBox['1'] || ''}</Link>
+                {/* 2 BHK */}
+                <Link className="box-item" href={getSearchHref('rent', '2')}>{rentBox['2'] || ''}</Link>
+                {/* 3+ BHK */}
+                <Link className="box-item" href={getSearchHref('rent', '3')}>{rentBox['3'] || ''}</Link>
+                {/* COMMERCIAL */}
+                <Link className="box-item" href={getSearchHref('rent', 'commercial')}>{rentBox.commercial || ''}</Link>
               </div>
+              <LanguageToggle locale={locale} onToggle={toggleLocale} loading={contentLoading} />
             </div>
             <button className="post-btn rent-btn desktop-only" onClick={() => handlePostPropertyClick('rent')}>
-              RENT YOUR PROPERTY
+              {/* RENT YOUR PROPERTY */}
+              {ctaLabels.rent_postflow_cta_button || ''}
             </button>
           </div>
         </div>
@@ -135,11 +185,13 @@ export default function LandingPageClient() {
       <div className="mobile-only bottom-post-actions">
         {activeTab === 'BUY' ? (
           <button className="post-btn sale-btn mobile-btn" onClick={() => handlePostPropertyClick('sale')}>
-            SALE YOUR PROPERTY
+            {/* SALE YOUR PROPERTY */}
+            {ctaLabels.sale_postflow_cta_button || ''}
           </button>
         ) : (
           <button className="post-btn rent-btn mobile-btn" onClick={() => handlePostPropertyClick('rent')}>
-            RENT YOUR PROPERTY
+            {/* RENT YOUR PROPERTY */}
+            {ctaLabels.rent_postflow_cta_button || ''}
           </button>
         )}
       </div>
@@ -153,14 +205,17 @@ export default function LandingPageClient() {
       >
         <span className="whatsapp-float-icon">
           <svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-            <path fill="#25D366" d="M16 0C7.163 0 0 7.163 0 16c0 2.82.738 5.47 2.03 7.765L0 32l8.44-2.01A15.93 15.93 0 0 0 16 32c8.837 0 16-7.163 16-16S24.837 0 16 0Z" />
-            <path fill="#fff" d="M23.472 19.36c-.355-.177-2.1-1.036-2.426-1.155-.326-.118-.563-.177-.8.178-.237.355-.918 1.155-1.125 1.392-.207.237-.414.266-.77.089-.355-.178-1.5-.553-2.858-1.762-1.056-.942-1.77-2.106-1.977-2.462-.207-.355-.022-.547.156-.723.16-.16.355-.414.532-.622.178-.207.237-.355.355-.592.118-.237.06-.444-.03-.622-.088-.178-.799-1.925-1.095-2.637-.288-.693-.581-.6-.799-.611-.207-.01-.444-.012-.681-.012-.237 0-.622.089-.947.444-.326.355-1.243 1.215-1.243 2.962 0 1.747 1.273 3.435 1.45 3.672.178.237 2.507 3.826 6.075 5.365.849.367 1.51.586 2.026.75.851.271 1.626.233 2.239.141.683-.102 2.1-.858 2.396-1.687.296-.83.296-1.54.207-1.688-.088-.148-.325-.237-.68-.414Z" />
+            <g transform="translate(2.4,1.6) scale(0.06)">
+              <path fill="#fff" d="M380.9 97.1C339 55.1 283.2 32 223.9 32c-122.4 0-222 99.6-222 222 0 39.1 10.2 77.3 29.6 111L0 480l117.7-30.9c32.4 17.7 68.9 27 106.1 27h.1c122.3 0 224.1-99.6 224.1-222 0-59.3-25.2-115-67.1-157zm-157 341.6c-33.2 0-65.7-8.9-94-25.7l-6.7-4-69.8 18.3L72 359.2l-4.4-7c-18.5-29.4-28.2-63.3-28.2-98.2 0-101.7 82.8-184.5 184.6-184.5 49.3 0 95.6 19.2 130.4 54.1 34.8 34.9 56.2 81.2 56.1 130.5 0 101.8-84.9 184.6-186.6 184.6zm101.2-138.2c-5.5-2.8-32.8-16.2-37.9-18-5.1-1.9-8.8-2.8-12.5 2.8-3.7 5.6-14.3 18-17.6 21.8-3.2 3.7-6.5 4.2-12 1.4-32.6-16.3-54-29.1-75.5-66-5.7-9.8 5.7-9.1 16.3-30.3 1.8-3.7.9-6.9-.5-9.7-1.4-2.8-12.5-30.1-17.1-41.2-4.5-10.8-9.1-9.3-12.5-9.5-3.2-.2-6.9-.2-10.6-.2-3.7 0-9.7 1.4-14.8 6.9-5.1 5.6-19.4 19-19.4 46.3 0 27.3 19.9 53.7 22.6 57.4 2.8 3.7 39.1 59.7 94.8 83.8 35.2 15.2 49 16.5 66.6 13.9 10.7-1.6 32.8-13.4 37.4-26.4 4.6-13 4.6-24.1 3.2-26.4-1.3-2.5-5-3.9-10.5-6.6z" />
+            </g>
           </svg>
         </span>
         <span className="whatsapp-float-divider" />
         <span className="whatsapp-float-text">
-          <span>சேல்ஸ் &amp; ரெண்டல்</span>
-          <span>உதவி !</span>
+          {/* சேல்ஸ் & ரெண்டல் */}
+          <span>{ctaLabels.home_whatsapp_sales_line1 || ''}</span>
+          {/* உதவி ! */}
+          <span>{ctaLabels.home_whatsapp_sales_line2 || ''}</span>
         </span>
       </a>
 
@@ -173,14 +228,17 @@ export default function LandingPageClient() {
       >
         <span className="whatsapp-float-icon">
           <svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-            <path fill="#25D366" d="M16 0C7.163 0 0 7.163 0 16c0 2.82.738 5.47 2.03 7.765L0 32l8.44-2.01A15.93 15.93 0 0 0 16 32c8.837 0 16-7.163 16-16S24.837 0 16 0Z" />
-            <path fill="#fff" d="M23.472 19.36c-.355-.177-2.1-1.036-2.426-1.155-.326-.118-.563-.177-.8.178-.237.355-.918 1.155-1.125 1.392-.207.237-.414.266-.77.089-.355-.178-1.5-.553-2.858-1.762-1.056-.942-1.77-2.106-1.977-2.462-.207-.355-.022-.547.156-.723.16-.16.355-.414.532-.622.178-.207.237-.355.355-.592.118-.237.06-.444-.03-.622-.088-.178-.799-1.925-1.095-2.637-.288-.693-.581-.6-.799-.611-.207-.01-.444-.012-.681-.012-.237 0-.622.089-.947.444-.326.355-1.243 1.215-1.243 2.962 0 1.747 1.273 3.435 1.45 3.672.178.237 2.507 3.826 6.075 5.365.849.367 1.51.586 2.026.75.851.271 1.626.233 2.239.141.683-.102 2.1-.858 2.396-1.687.296-.83.296-1.54.207-1.688-.088-.148-.325-.237-.68-.414Z" />
+            <g transform="translate(2.4,1.6) scale(0.06)">
+              <path fill="#fff" d="M380.9 97.1C339 55.1 283.2 32 223.9 32c-122.4 0-222 99.6-222 222 0 39.1 10.2 77.3 29.6 111L0 480l117.7-30.9c32.4 17.7 68.9 27 106.1 27h.1c122.3 0 224.1-99.6 224.1-222 0-59.3-25.2-115-67.1-157zm-157 341.6c-33.2 0-65.7-8.9-94-25.7l-6.7-4-69.8 18.3L72 359.2l-4.4-7c-18.5-29.4-28.2-63.3-28.2-98.2 0-101.7 82.8-184.5 184.6-184.5 49.3 0 95.6 19.2 130.4 54.1 34.8 34.9 56.2 81.2 56.1 130.5 0 101.8-84.9 184.6-186.6 184.6zm101.2-138.2c-5.5-2.8-32.8-16.2-37.9-18-5.1-1.9-8.8-2.8-12.5 2.8-3.7 5.6-14.3 18-17.6 21.8-3.2 3.7-6.5 4.2-12 1.4-32.6-16.3-54-29.1-75.5-66-5.7-9.8 5.7-9.1 16.3-30.3 1.8-3.7.9-6.9-.5-9.7-1.4-2.8-12.5-30.1-17.1-41.2-4.5-10.8-9.1-9.3-12.5-9.5-3.2-.2-6.9-.2-10.6-.2-3.7 0-9.7 1.4-14.8 6.9-5.1 5.6-19.4 19-19.4 46.3 0 27.3 19.9 53.7 22.6 57.4 2.8 3.7 39.1 59.7 94.8 83.8 35.2 15.2 49 16.5 66.6 13.9 10.7-1.6 32.8-13.4 37.4-26.4 4.6-13 4.6-24.1 3.2-26.4-1.3-2.5-5-3.9-10.5-6.6z" />
+            </g>
           </svg>
         </span>
         <span className="whatsapp-float-divider" />
         <span className="whatsapp-float-text">
-          <span>ஆவண ATM</span>
-          <span>பத்திரப்பதிவு உதவி !</span>
+          {/* ஆவண ATM */}
+          <span>{ctaLabels.home_whatsapp_docs_line1 || ''}</span>
+          {/* பத்திரப்பதிவு உதவி ! */}
+          <span>{ctaLabels.home_whatsapp_docs_line2 || ''}</span>
         </span>
       </a>
     </div>

@@ -1,5 +1,6 @@
 import prisma from '../../prisma.js';
 import { uploadToCloudflare, deleteFromCloudflare } from '../../uploadToCloudflare.js';
+import { translateText } from '../../translate.js';
 
 const toInt = (v) => (v === '' || v === undefined || v === null ? null : parseInt(v, 10));
 const toFloat = (v) => (v === '' || v === undefined || v === null ? null : parseFloat(v));
@@ -38,8 +39,8 @@ export const getAll = async () => {
       COALESCE(bc.booked_people_count, 0) AS booked_people_count,
       p.live_image, p.latitude, p.longitude, p.district_id, p.taluk_id, p.village_id, p.area_id,
       p.amenities_rating, p.utilities_rating,
-      r.bhk, r.rent_amount, r.advance_amount, r.property_use, r.furnished_status, r.rent_status,
-      r.landmark, r.street_name, r.extent_area, r.extent_unit,
+      r.bhk, r.floor_no, r.rent_amount, r.advance_amount, r.property_use, r.furnished_status, r.rent_status,
+      r.landmark, r.landmark_translated, r.street_name, r.extent_area, r.extent_unit,
       r.alternate_contact_phone, r.alternate_seller_name,
       r.token_amount, r.token_paid_to, r.rent_out_rate, r.rent_out_date,
       r.legal_value, r.area_sales_speed, r.facing, r.road_width,
@@ -71,8 +72,8 @@ export const getById = async (propertyId) => {
       COALESCE((SELECT COUNT(DISTINCT buyer_id)::INT FROM bookings WHERE property_id = p.property_id AND unit_type = 'rent'), 0) AS booked_people_count,
       p.live_image, p.latitude, p.longitude, p.district_id, p.taluk_id, p.village_id, p.area_id,
       p.amenities_rating, p.utilities_rating,
-      r.bhk, r.rent_amount, r.advance_amount, r.property_use, r.furnished_status, r.rent_status,
-      r.landmark, r.street_name, r.extent_area, r.extent_unit,
+      r.bhk, r.floor_no, r.rent_amount, r.advance_amount, r.property_use, r.furnished_status, r.rent_status,
+      r.landmark, r.landmark_translated, r.street_name, r.extent_area, r.extent_unit,
       r.alternate_contact_phone, r.alternate_seller_name,
       r.token_amount, r.token_paid_to, r.rent_out_rate, r.rent_out_date,
       r.legal_value, r.area_sales_speed, r.facing, r.road_width,
@@ -114,11 +115,11 @@ export const createRentProperty = async (data, files = {}) => {
     );
     const propertyId = prop[0].property_id;
     await tx.$executeRawUnsafe(
-      `INSERT INTO rent_properties (property_id, bhk, rent_amount, advance_amount, property_use, furnished_status, rent_status, landmark, street_name, extent_area, extent_unit, alternate_contact_phone, alternate_seller_name, description, legal_value, area_sales_speed, facing, road_width)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)`,
-      propertyId, toInt(data.bhk), toInt(data.rent_amount) || 0, toInt(data.advance_amount) || 0,
+      `INSERT INTO rent_properties (property_id, bhk, floor_no, rent_amount, advance_amount, property_use, furnished_status, rent_status, landmark, landmark_translated, street_name, extent_area, extent_unit, alternate_contact_phone, alternate_seller_name, description, legal_value, area_sales_speed, facing, road_width)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)`,
+      propertyId, toInt(data.bhk), toStr(data.floor_no), toInt(data.rent_amount) || 0, toInt(data.advance_amount) || 0,
       toStr(data.property_use), toStr(data.furnished_status), toStr(data.rent_status),
-      toStr(data.landmark), toStr(data.street_name), extentArea, toStr(data.extent_unit),
+      toStr(data.landmark), toStr(data.landmark_translated), toStr(data.street_name), extentArea, toStr(data.extent_unit),
       toStr(data.alternate_contact_phone), toStr(data.alternate_seller_name), toStr(data.description),
       toStr(data.legal_value) || 'A+', toFloat(data.area_sales_speed),
       toStr(data.facing), toStr(data.road_width)
@@ -184,10 +185,10 @@ export const updateRentProperty = async (propertyId, data, files = {}) => {
       toFloat(data.amenities_rating), toFloat(data.utilities_rating), propertyId
     );
     await tx.$executeRawUnsafe(
-      `UPDATE rent_properties SET bhk=$1, rent_amount=$2, advance_amount=$3, property_use=$4, furnished_status=$5, rent_status=$6, landmark=$7, street_name=$8, extent_area=$9, extent_unit=$10, alternate_contact_phone=$11, alternate_seller_name=$12, description=$13, token_amount=$14, token_paid_to=$15, rent_out_rate=$16, rent_out_date=$17, legal_value=$18, area_sales_speed=$19, facing=$20, road_width=$21 WHERE property_id=$22`,
-      toInt(data.bhk), toFloat(data.rent_amount) || 0, toFloat(data.advance_amount) || 0,
+      `UPDATE rent_properties SET bhk=$1, floor_no=$2, rent_amount=$3, advance_amount=$4, property_use=$5, furnished_status=$6, rent_status=$7, landmark=$8, landmark_translated=$9, street_name=$10, extent_area=$11, extent_unit=$12, alternate_contact_phone=$13, alternate_seller_name=$14, description=$15, token_amount=$16, token_paid_to=$17, rent_out_rate=$18, rent_out_date=$19, legal_value=$20, area_sales_speed=$21, facing=$22, road_width=$23 WHERE property_id=$24`,
+      toInt(data.bhk), toStr(data.floor_no), toFloat(data.rent_amount) || 0, toFloat(data.advance_amount) || 0,
       toStr(data.property_use), toStr(data.furnished_status), toStr(data.rent_status),
-      toStr(data.landmark), toStr(data.street_name), extentArea, toStr(data.extent_unit),
+      toStr(data.landmark), toStr(data.landmark_translated), toStr(data.street_name), extentArea, toStr(data.extent_unit),
       toStr(data.alternate_contact_phone), toStr(data.alternate_seller_name), toStr(data.description),
       toFloat(data.token_amount), toStr(data.token_paid_to), toFloat(data.rent_out_rate),
       data.rent_out_date && data.rent_out_date !== '' ? new Date(data.rent_out_date) : null,
@@ -224,4 +225,38 @@ export const updateRentStatus = async (propertyId, status) => {
   );
   if (!rows.length) throw new Error('Property not found');
   return rows[0];
+};
+
+export const translateRentProperty = async (propertyId) => {
+  const rows = await prisma.$queryRawUnsafe('SELECT landmark FROM rent_properties WHERE property_id = $1', propertyId);
+  if (!rows.length) throw new Error('Property not found');
+
+  const { translated } = await translateText(rows[0].landmark);
+  await prisma.$executeRawUnsafe(
+    'UPDATE rent_properties SET landmark_translated = $1 WHERE property_id = $2',
+    translated || null, propertyId
+  );
+  return { landmark_translated: translated || null };
+};
+
+export const translateAllRentProperties = async () => {
+  const rows = await prisma.$queryRawUnsafe(
+    `SELECT property_id, landmark FROM rent_properties
+     WHERE landmark IS NOT NULL AND landmark != '' AND landmark_translated IS NULL`
+  );
+
+  let translated = 0, failed = 0;
+  for (const row of rows) {
+    try {
+      const { translated: text } = await translateText(row.landmark);
+      await prisma.$executeRawUnsafe(
+        'UPDATE rent_properties SET landmark_translated = $1 WHERE property_id = $2',
+        text || null, row.property_id
+      );
+      translated++;
+    } catch {
+      failed++;
+    }
+  }
+  return { total: rows.length, translated, failed };
 };

@@ -8,6 +8,7 @@ import LocationSelector from '@/components/admin/LocationSelector';
 import PropertyAssetsTabs from '@/components/admin/PropertyAssetsTabs';
 import {
   getRentProperties, createRentProperty, updateRentProperty, deleteRentProperty,
+  translateRentProperty, translateAllRentProperties,
   getAllDistricts, getTaluksByDistrict, getVillagesByTaluk, adminApi,
 } from '@/lib/adminApi';
 import { downloadPropertyQr } from '@/lib/downloadPropertyQr';
@@ -16,6 +17,29 @@ import { formatPropertyId, getPropertyHref } from '@/utils/propertyRouting';
 const BookingStatus = { NIL_BOOKING: 'Nil Booking', ON_BOOKING: 'ON_BOOKING', BOOKED: 'BOOKED', RENTED: 'RENTED' };
 const PropertyType = { RESIDENTIAL: 'residential', COMMERCIAL: 'commercial' };
 const TOKEN_PAID_TO_OPTIONS = ['', 'Paid Us', 'Paid to Owner', 'Owner returned', 'Returned to buyer'];
+
+// Single "Property Type" field in the UI (matching the public post-flow's 1BHK/2BHK/3+BHK/Commercial
+// choice), backed by the separate property_use + bhk columns in the database.
+const RENT_TYPE_OPTIONS = [
+  { value: '1bhk', label: '1 BHK' },
+  { value: '2bhk', label: '2 BHK' },
+  { value: '3bhk', label: '3+ BHK' },
+  { value: 'commercial', label: 'Commercial' },
+];
+const rentTypeFromFields = (propertyUse, bhk) => {
+  if (String(propertyUse).toLowerCase() === 'commercial') return 'commercial';
+  const n = Number(bhk);
+  if (n >= 3) return '3bhk';
+  if (n === 2) return '2bhk';
+  return '1bhk';
+};
+const rentTypeToFields = (value) => {
+  if (value === 'commercial') return { property_use: 'commercial', bhk: '' };
+  const n = value === '3bhk' ? 3 : value === '2bhk' ? 2 : 1;
+  return { property_use: 'residential', bhk: String(n) };
+};
+const rentTypeLabel = (propertyUse, bhk) =>
+  RENT_TYPE_OPTIONS.find(o => o.value === rentTypeFromFields(propertyUse, bhk))?.label || '-';
 const STATUS_COLORS = {
   'Nil Booking': 'bg-blue-100 text-blue-700',
   'ON_BOOKING':  'bg-yellow-100 text-yellow-800',
@@ -30,9 +54,9 @@ const EMPTY_FORM = {
   contact_phone: '', seller_name: '', alternate_contact_phone: '', alternate_seller_name: '', listing_person_phone: '',
   title: '', address: '', latitude: '', longitude: '',
   district_id: '', taluk_id: '', village_id: '',
-  status: 'pending', bhk: '', rent_amount: '', advance_amount: '',
+  status: 'pending', bhk: '1', floor_no: '', rent_amount: '', advance_amount: '',
   property_use: PropertyType.RESIDENTIAL, rent_status: BookingStatus.NIL_BOOKING,
-  landmark: '', extent_area: '', extent_unit: '', description: '',
+  landmark: '', landmark_translated: '', extent_area: '', extent_unit: '', description: '',
   token_amount: '', token_paid_to: '', rent_out_rate: '', rent_out_date: '',
   amenities_rating: '', utilities_rating: '',
 };
@@ -70,7 +94,7 @@ export default function RentPropertiesPage() {
   const [assetLoading, setAssetLoading] = useState(false);
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [filters, setFilters] = useState({ dateRange: 'all', startDate: '', endDate: '', district_id: '', taluk_id: '', village_id: '', property_use: 'all', bhk: 'all' });
+  const [filters, setFilters] = useState({ dateRange: 'all', startDate: '', endDate: '', district_id: '', taluk_id: '', village_id: '', rentType: 'all' });
   const [filterTaluks, setFilterTaluks] = useState([]);
   const [filterVillages, setFilterVillages] = useState([]);
   const [columnFilters, setColumnFilters] = useState({});
@@ -80,6 +104,8 @@ export default function RentPropertiesPage() {
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [bulkDeleting, setBulkDeleting] = useState(false);
   const [showBulkConfirm, setShowBulkConfirm] = useState(false);
+  const [translatingAll, setTranslatingAll] = useState(false);
+  const [translatingField, setTranslatingField] = useState(false);
 
   const [inlineEditId, setInlineEditId] = useState(null);
   const [inlineEditDraft, setInlineEditDraft] = useState({});
@@ -109,10 +135,13 @@ export default function RentPropertiesPage() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const propertyUse = params.get('property_use');
-    const bhk = params.get('bhk');
-    if (propertyUse || bhk) {
-      setFilters(f => ({ ...f, ...(propertyUse ? { property_use: propertyUse } : {}), ...(bhk ? { bhk } : {}) }));
-    }
+    const bhkParam = params.get('bhk');
+    let rentType = null;
+    if (propertyUse === 'commercial') rentType = 'commercial';
+    else if (bhkParam === '1') rentType = '1bhk';
+    else if (bhkParam === '2') rentType = '2bhk';
+    else if (bhkParam === '3plus') rentType = '3bhk';
+    if (rentType) setFilters(f => ({ ...f, rentType }));
   }, []);
 
   useEffect(() => {
@@ -136,12 +165,11 @@ export default function RentPropertiesPage() {
         String(p.rent_amount || '').includes(q) ||
         (p.district_name || '').toLowerCase().includes(q) ||
         (p.taluk_name || '').toLowerCase().includes(q) ||
-        (p.village_name || '').toLowerCase().includes(q)
+        (p.village_name || '').toLowerCase().includes(q) ||
+        (p.landmark || '').toLowerCase().includes(q)
       );
     }
-    if (filters.property_use !== 'all') result = result.filter(p => p.property_use === filters.property_use);
-    if (filters.bhk === '3plus') result = result.filter(p => Number(p.bhk) >= 3);
-    else if (filters.bhk !== 'all') result = result.filter(p => String(p.bhk) === String(filters.bhk));
+    if (filters.rentType !== 'all') result = result.filter(p => rentTypeFromFields(p.property_use, p.bhk) === filters.rentType);
     if (filters.district_id) result = result.filter(p => Number(p.district_id) === Number(filters.district_id));
     if (filters.taluk_id) result = result.filter(p => Number(p.taluk_id) === Number(filters.taluk_id));
     if (filters.village_id) result = result.filter(p => Number(p.village_id) === Number(filters.village_id));
@@ -255,19 +283,51 @@ export default function RentPropertiesPage() {
   };
 
   const resetFilters = () => {
-    setFilters({ dateRange: 'all', property_use: 'all', bhk: 'all', district_id: '', taluk_id: '', village_id: '', startDate: '', endDate: '' });
+    setFilters({ dateRange: 'all', rentType: 'all', district_id: '', taluk_id: '', village_id: '', startDate: '', endDate: '' });
     setSearchQuery('');
     setColumnFilters({});
   };
 
   const handleColumnFilterChange = (key, value) => setColumnFilters(prev => ({ ...prev, [key]: value }));
 
+  const handleTranslateAll = async () => {
+    setTranslatingAll(true);
+    try {
+      const res = await translateAllRentProperties();
+      const r = res.data || res;
+      alert(`Translated ${r.translated} of ${r.total} listing(s).${r.failed ? ` ${r.failed} failed.` : ''}`);
+      await fetchRent();
+    } catch (err) { alert('Failed: ' + (err?.response?.data?.error || err.message)); }
+    finally { setTranslatingAll(false); }
+  };
+
+  const handleTranslateField = async () => {
+    if (!selected?.property_id) return;
+    setTranslatingField(true);
+    try {
+      const res = await translateRentProperty(selected.property_id);
+      const r = res.data || res;
+      setForm(prev => ({ ...prev, landmark_translated: r.landmark_translated }));
+    } catch (err) { alert('Failed: ' + (err?.response?.data?.error || err.message)); }
+    finally { setTranslatingField(false); }
+  };
+
   const handleInlineEdit = (p) => {
     setInlineEditId(p.property_id);
-    setInlineEditDraft({ ...p, rent_out_date: p.rent_out_date ? String(p.rent_out_date).slice(0, 10) : '' });
+    setInlineEditDraft({
+      ...p,
+      rent_out_date: p.rent_out_date ? String(p.rent_out_date).slice(0, 10) : '',
+      rentType: rentTypeFromFields(p.property_use, p.bhk),
+    });
   };
   const handleInlineCancel = () => { setInlineEditId(null); setInlineEditDraft({}); };
-  const handleInlineDraftChange = (key, val) => setInlineEditDraft(prev => ({ ...prev, [key]: val }));
+  const handleInlineDraftChange = (key, val) => {
+    if (key === 'rentType') {
+      setInlineEditDraft(prev => ({ ...prev, rentType: val, ...rentTypeToFields(val) }));
+    } else {
+      setInlineEditDraft(prev => ({ ...prev, [key]: val }));
+    }
+  };
   const handleInlineSave = async () => {
     setInlineSaving(true);
     try {
@@ -289,6 +349,9 @@ export default function RentPropertiesPage() {
           <button onClick={handleExport} className="bg-white border border-gray-300 text-gray-700 px-5 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-gray-50">
             Export Excel
           </button>
+          <button onClick={handleTranslateAll} disabled={translatingAll} className="bg-white border border-blue-300 text-blue-700 px-5 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-blue-50 disabled:opacity-60">
+            {translatingAll ? 'Translating…' : 'Translate All'}
+          </button>
           <button onClick={() => openModal(null, 'add')} className="bg-emerald-600 text-white px-6 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest shadow-lg shadow-emerald-200 hover:bg-emerald-700">
             Add Rent Listing
           </button>
@@ -301,7 +364,7 @@ export default function RentPropertiesPage() {
           <div className={fw}>
             <label className={lbl}>Search</label>
             <div className="relative">
-              <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="ID, contact, type, amount..."
+              <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="ID, contact, type, amount, landmark..."
                 className="pl-9 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold uppercase outline-none focus:ring-2 focus:ring-emerald-500/20 w-56" />
               <svg className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
             </div>
@@ -317,18 +380,9 @@ export default function RentPropertiesPage() {
           </div>
           <div className={fw}>
             <label className={lbl}>Property Type</label>
-            <select value={filters.property_use} onChange={e => setFilters({ ...filters, property_use: e.target.value })} className={dd}>
+            <select value={filters.rentType} onChange={e => setFilters({ ...filters, rentType: e.target.value })} className={dd}>
               <option value="all">All Types</option>
-              {Object.values(PropertyType).map(s => <option key={s} value={s}>{s}</option>)}
-            </select>
-          </div>
-          <div className={fw}>
-            <label className={lbl}>BHK</label>
-            <select value={filters.bhk} onChange={e => setFilters({ ...filters, bhk: e.target.value })} className={dd}>
-              <option value="all">All BHK</option>
-              <option value="1">1 BHK</option>
-              <option value="2">2 BHK</option>
-              <option value="3plus">3+ BHK</option>
+              {RENT_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
           </div>
           <div className={fw}>
@@ -395,9 +449,10 @@ export default function RentPropertiesPage() {
             },
             { header: 'Registered', accessor: p => new Date(p.created_at).toLocaleDateString(), sortable: true, sortBy: p => new Date(p.created_at).getTime() },
             {
-              header: 'Property Type', accessor: 'property_use',
-              editable: true, editType: 'select',
-              editOptions: Object.values(PropertyType).map(v => ({ value: v, label: v })),
+              header: 'Property Type',
+              accessor: p => rentTypeLabel(p.property_use, p.bhk),
+              editable: true, editType: 'select', editField: 'rentType',
+              editOptions: RENT_TYPE_OPTIONS,
             },
             {
               header: 'Approval', sortable: true, sortBy: p => p.status || 'pending',
@@ -417,10 +472,11 @@ export default function RentPropertiesPage() {
             { header: 'Alt Name', accessor: 'alternate_seller_name', editable: true, filterable: true, filterKey: 'alternate_seller_name' },
             { header: 'Rent Amount (₹)', accessor: p => p.rent_amount ? `₹${Number(p.rent_amount).toLocaleString()}` : '-', editable: true, editType: 'number', editField: 'rent_amount', filterable: true, filterKey: 'rent_amount' },
             { header: 'Advance (₹)', accessor: p => p.advance_amount ? `₹${Number(p.advance_amount).toLocaleString()}` : '-', editable: true, editType: 'number', editField: 'advance_amount', filterable: true, filterKey: 'advance_amount' },
-            { header: 'BHK', accessor: 'bhk', editable: true, editType: 'number', filterable: true, filterKey: 'bhk' },
+            { header: 'Floor No.', accessor: 'floor_no', editable: true, filterable: true, filterKey: 'floor_no' },
             { header: 'Extent Area', accessor: 'extent_area', editable: true, editType: 'number', filterable: true, filterKey: 'extent_area' },
             { header: 'Extent Unit', accessor: 'extent_unit', editable: true, filterable: true, filterKey: 'extent_unit' },
             { header: 'Landmark', accessor: 'landmark', editable: true, filterable: true, filterKey: 'landmark' },
+            { header: 'Landmark (Tamil)', accessor: 'landmark_translated', editable: true, filterable: true, filterKey: 'landmark_translated' },
             { header: 'Token Amt', accessor: p => p.token_amount ? `₹${Number(p.token_amount).toLocaleString()}` : '-', editable: true, editType: 'number', editField: 'token_amount', filterable: true, filterKey: 'token_amount' },
             { header: 'Token Paid To', accessor: 'token_paid_to', editable: true, editType: 'select', editOptions: TOKEN_PAID_TO_OPTIONS.map(v => ({ value: v, label: v || '— None —' })), filterable: true, filterKey: 'token_paid_to' },
             { header: 'Rent Out Rate', accessor: p => p.rent_out_rate ? `₹${Number(p.rent_out_rate).toLocaleString()}` : '-', editable: true, editType: 'number', editField: 'rent_out_rate', filterable: true, filterKey: 'rent_out_rate' },
@@ -532,24 +588,38 @@ export default function RentPropertiesPage() {
                         {Object.values(BookingStatus).map(s => <option key={s} value={s}>{s}</option>)}
                       </select></div>
                     <div className={fw}><label className={lbl}>Property Type</label>
-                      <select disabled={isReadOnly} value={form.property_use || ''} onChange={e => handleChange('property_use', e.target.value)} className="w-full px-4 py-2.5 rounded-xl border border-gray-300 font-semibold text-sm">
-                        {Object.values(PropertyType).map(s => <option key={s} value={s}>{s}</option>)}
+                      <select disabled={isReadOnly} value={rentTypeFromFields(form.property_use, form.bhk)} onChange={e => setForm(prev => ({ ...prev, ...rentTypeToFields(e.target.value) }))} className="w-full px-4 py-2.5 rounded-xl border border-gray-300 font-semibold text-sm">
+                        {RENT_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                       </select></div>
                   </div>
                   <div className="grid grid-cols-2 gap-6">
                     <div className={fw}><label className={lbl}>Rent Amount (₹)</label><input type="number" disabled={isReadOnly} value={form.rent_amount || ''} onChange={e => handleChange('rent_amount', e.target.value)} className={inp} /></div>
                     <div className={fw}><label className={lbl}>Advance Amount (₹)</label><input type="number" disabled={isReadOnly} value={form.advance_amount || ''} onChange={e => handleChange('advance_amount', e.target.value)} className={inp} /></div>
                   </div>
-                  {form.property_use === 'residential' && (
-                    <div className={fw}><label className={lbl}>BHK</label><input disabled={isReadOnly} value={form.bhk || ''} onChange={e => handleChange('bhk', e.target.value)} className={inp} /></div>
-                  )}
                   {form.property_use === 'commercial' && (
                     <div className="grid grid-cols-2 gap-6">
                       <div className={fw}><label className={lbl}>Extent Area</label><input disabled={isReadOnly} value={form.extent_area || ''} onChange={e => handleChange('extent_area', e.target.value)} className={inp} /></div>
                       <div className={fw}><label className={lbl}>Extent Unit</label><input disabled={isReadOnly} value={form.extent_unit || ''} onChange={e => handleChange('extent_unit', e.target.value)} placeholder="e.g. sq.ft" className={inp} /></div>
                     </div>
                   )}
-                  <div className={fw}><label className={lbl}>Landmark</label><input disabled={isReadOnly} value={form.landmark || ''} onChange={e => handleChange('landmark', e.target.value)} className={inp} /></div>
+                  <div className={fw}><label className={lbl}>Floor No.</label><input disabled={isReadOnly} value={form.floor_no || ''} onChange={e => handleChange('floor_no', e.target.value)} placeholder="e.g. 2nd Floor" className={inp} /></div>
+                  <div className="grid grid-cols-2 gap-6">
+                    <div className={fw}>
+                      <label className={lbl}>Landmark</label>
+                      <input disabled={isReadOnly} value={form.landmark || ''} onChange={e => handleChange('landmark', e.target.value)} className={inp} />
+                    </div>
+                    <div className={fw}>
+                      <label className={lbl}>Landmark (Tamil)</label>
+                      <div className="flex gap-2">
+                        <input disabled={isReadOnly} value={form.landmark_translated || ''} onChange={e => handleChange('landmark_translated', e.target.value)} className={inp + ' flex-1'} />
+                        {!isReadOnly && selected?.property_id && (
+                          <button type="button" onClick={handleTranslateField} disabled={translatingField} className="px-4 py-2.5 rounded-xl bg-blue-600 text-white font-bold text-xs uppercase hover:bg-blue-700 disabled:opacity-60 shrink-0">
+                            {translatingField ? '…' : 'Translate'}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
                   <div className="grid grid-cols-2 gap-6">
                     <div className={fw}><label className={lbl}>Token Amount (₹)</label><input type="number" disabled={isReadOnly} value={form.token_amount || ''} onChange={e => handleChange('token_amount', e.target.value)} placeholder="Token amount paid" className={inp} /></div>
                     <div className={fw}><label className={lbl}>Token Paid To</label>

@@ -87,8 +87,17 @@
     max-width: 100%;
     height: 100%;
     min-height: 0;
+    background: transparent;
 }
 
+/* Booking screen uses the same sale/rent tint as the landing page */
+.details-sale-theme .booking-active-panel {
+    background: linear-gradient(var(--sale-color), var(--sale-color)), #ffffff;
+}
+
+.details-rent-theme .booking-active-panel {
+    background: linear-gradient(var(--rent-color), var(--rent-color)), #ffffff;
+}
 .images-panel-content .section-title {
     margin-bottom: 10px;
 }
@@ -314,8 +323,8 @@
 }
 
 .details-rent-theme .panel-thumb.booking-thumb {
-    border-color: #134177;
-    background: #134177;
+    border-color: #1877f2;
+    background: #1877f2;
     color: #ffffff;
 }
 
@@ -327,10 +336,20 @@
 }
 
 .details-rent-theme .panel-thumb.booking-thumb.active {
-    border-color: #134177;
-    background: #134177;
+    border-color: #1877f2;
+    background: #1877f2;
     color: #ffffff;
     box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.2);
+}
+
+.details-sale-theme .panel-thumb.booking-thumb.like-mode,
+.details-sale-theme .panel-thumb.booking-thumb.like-mode.active {
+    border-color: #1877f2;
+    background: #1877f2;
+}
+
+.fb-like-icon {
+    fill: #ffffff;
 }
 
 .panel-thumb span {

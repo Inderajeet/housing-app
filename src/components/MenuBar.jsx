@@ -1,6 +1,6 @@
 'use client';
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useSearchParams } from "next/navigation";
@@ -9,10 +9,20 @@ import tnMapLeft from "../assets/tn-map.png";
 import tnMapRight from "../assets/tn-map-rent.png";
 import logo from "../assets/logo_new.png";
 import PremiumProperties from "./PremiumProperties";
+import { useAppContext } from "../app/AppContext";
+import { endpoints } from "../api/api";
 
 const MenuBar = ({ menuPremiumProperties = [] }) => {
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const { locale } = useAppContext();
+  const [mapLabels, setMapLabels] = useState({});
+
+  useEffect(() => {
+    endpoints.getSiteContent('sale', locale)
+      .then(res => setMapLabels(res.data?.headings || {}))
+      .catch(() => {});
+  }, [locale]);
 
   const isHomePage = pathname === "/search";
   const propertyPathParts = pathname.split("/").filter(Boolean);
@@ -40,7 +50,8 @@ const MenuBar = ({ menuPremiumProperties = [] }) => {
             style={{ backgroundImage: `url(${tnMapLeft.src || tnMapLeft})` }}
           >
             <div className="section-overlay sale-overlay" />
-            <span className="section-text">SALE MAP</span>
+            {/* SALE MAP */}
+            <span className="section-text">{mapLabels.home_salemap_label || ''}</span>
           </Link>
         )}
 
@@ -64,7 +75,8 @@ const MenuBar = ({ menuPremiumProperties = [] }) => {
             style={{ backgroundImage: `url(${tnMapRight.src || tnMapRight})` }}
           >
             <div className="section-overlay rent-overlay" />
-            <span className="section-text">RENT MAP</span>
+            {/* RENT MAP */}
+            <span className="section-text">{mapLabels.home_rentmap_label || ''}</span>
           </Link>
         )}
       </div>

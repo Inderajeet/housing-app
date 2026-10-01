@@ -1,61 +1,19 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { FaWhatsapp } from 'react-icons/fa';
 import '../styles/Modal.css';
 import { endpoints } from '../api/api';
 import RentPropertyForm from './RentPropertyForm';
 import SalePropertyForm from './SalePropertyForm';
 import LiveLocationModal from './LiveLocationModal';
+import { useAppContext } from '../app/AppContext';
 
 const STEPS = [
     { id: 1, name: 'Contact' },
     { id: 2, name: 'Location Proof' },
     { id: 3, name: 'Property Details' },
-    { id: 4, name: 'Additional Details' },
 ];
-
-const FIELD_WEIGHTS = {
-    number: 10, latitude: 10, liveImage: 10,
-    rent_propertyType: 5, rent_bhk: 5, rent_extent: 5, rent_rentAmount: 5, rent_advanceAmount: 5,
-    sale_propertyType: 5, sale_price: 10, sale_survey_number: 5, sale_documents: 5,
-    district: 5, taluk: 5, village: 5, street_name_or_road_name: 5, mediaFiles: 15,
-};
-
-const calculateProgress = (data) => {
-    let score = 0;
-    let maxScore = 0;
-
-    if (data.number && data.number.length === 10) score += FIELD_WEIGHTS.number;
-    if (data.latitude) score += FIELD_WEIGHTS.latitude;
-    if (data.liveImage) score += FIELD_WEIGHTS.liveImage;
-    if (data.district) score += FIELD_WEIGHTS.district;
-    if (data.taluk) score += FIELD_WEIGHTS.taluk;
-    if (data.village) score += FIELD_WEIGHTS.village;
-    if (data.street_name_or_road_name) score += FIELD_WEIGHTS.street_name_or_road_name;
-    if (data.mediaFiles && data.mediaFiles.length > 0) score += FIELD_WEIGHTS.mediaFiles;
-
-    if (data.transactionType === 'rent') {
-        if (data.propertyType) score += FIELD_WEIGHTS.rent_propertyType;
-        if (data.propertyType === 'Residential' && data.bhk) score += FIELD_WEIGHTS.rent_bhk;
-        if (data.propertyType === 'Commercial' && data.extent_area && data.extent_unit) score += FIELD_WEIGHTS.rent_extent;
-        if (data.rentAmount) score += FIELD_WEIGHTS.rent_rentAmount;
-        if (data.advanceAmount) score += FIELD_WEIGHTS.rent_advanceAmount;
-    } else if (data.transactionType === 'sale') {
-        if (data.saleType) score += FIELD_WEIGHTS.sale_propertyType;
-        if (data.price) score += FIELD_WEIGHTS.sale_price;
-        if (data.survey_number) score += FIELD_WEIGHTS.sale_survey_number;
-        if (data.allDocuments.length > 0 || data.drawings.length > 0 || data.brochure.length > 0) score += FIELD_WEIGHTS.sale_documents;
-        maxScore =
-            FIELD_WEIGHTS.number + FIELD_WEIGHTS.latitude + FIELD_WEIGHTS.liveImage +
-            FIELD_WEIGHTS.sale_propertyType + FIELD_WEIGHTS.sale_price + FIELD_WEIGHTS.sale_survey_number +
-            FIELD_WEIGHTS.sale_documents + FIELD_WEIGHTS.district + FIELD_WEIGHTS.taluk +
-            FIELD_WEIGHTS.village + FIELD_WEIGHTS.street_name_or_road_name + FIELD_WEIGHTS.mediaFiles;
-    }
-
-    if (maxScore === 0) maxScore = 100;
-    return Math.min(100, Math.round((score / maxScore) * 100));
-};
 
 const ProgressBar = ({ currentStep }) => {
     const totalSteps = STEPS.length;
@@ -81,50 +39,93 @@ const ProgressBar = ({ currentStep }) => {
     );
 };
 
-const NumberCaptureModal = ({ data, onChange, onNext }) => (
-    <div className="modal-content">
-        <p>Please enter your number to get started. It will not be visible to the public.</p>
-        <div className="form-group">
-            <label>{data.transactionType === 'rent' ? 'Owner Number' : 'Seller Number'}</label>
-            <input
-                type="tel"
-                placeholder={data.transactionType === 'rent' ? 'Enter owner number' : 'Enter seller number'}
-                value={data.number}
-                onChange={(e) => onChange('number', e.target.value)}
-                maxLength={10}
-                className="input-field"
-            />
+const NumberCaptureModal = ({ data, onChange, onNext, config }) => {
+    // Original English defaults (rent): intro "Please enter your number to get started. It will not be visible to the public.",
+    // label "Owner Number", placeholder "Enter owner number", button "OK".
+    // Original English defaults (sale): same intro, label "Seller Number", placeholder "Enter seller number", button "OK".
+    return (
+        <div className="modal-content">
+            <p>{config?.contact?.intro || ''}</p>
+            <div className="form-group">
+                <label>{config?.contact?.label || ''}</label>
+                <input
+                    type="tel"
+                    placeholder={config?.contact?.placeholder || ''}
+                    value={data.number}
+                    onChange={(e) => onChange('number', e.target.value)}
+                    maxLength={10}
+                    className="input-field"
+                />
+            </div>
+            <div className="modal-actions full-width-center">
+                <button onClick={onNext} disabled={data.number.length !== 10} className="primary-button">{config?.contact?.button || ''}</button>
+            </div>
         </div>
-        <div className="modal-actions full-width-center">
-            <button onClick={onNext} disabled={data.number.length !== 10} className="primary-button">Continue</button>
-        </div>
-    </div>
-);
+    );
+};
 
 const initialFormData = {
-    number: '', alternate_phone: '', listing_person_number: '', dtcp: '', latitude: '', longitude: '', address: '', liveImage: '',
-    transactionType: 'rent', propertyType: 'Residential', bhk: '', rentAmount: '', advanceAmount: '',
-    premium_requested: false, extent_area: '', extent_unit: '', saleType: '', price: '',
-    survey_number: '', area_size: '', street_name_or_road_name: '',
-    boundary_north: '', boundary_south: '', boundary_east: '', boundary_west: '',
-    total_units_count: '', booked_units: '', open_units: '',
-    allDocuments: [], drawings: [], brochure: [],
-    district: '', taluk: '', village: '', mediaFiles: [],
+    number: '', latitude: '', longitude: '', address: '', liveImage: '',
+    transactionType: 'rent', rentType: '', extent_area: '', rentAmount: '', advanceAmount: '', floorNo: '',
+    saleType: '', area_value: '', area_unit: '', rate_sqft: '', rate_cent: '',
 };
 
 const PostPropertyFlow = ({ onClose, initialTransactionType = 'rent', onSuccessfulPost }) => {
+    const { locale } = useAppContext();
     const [currentStep, setCurrentStep] = useState(1);
     const [loading, setLoading] = useState(false);
     const [loadingMessage, setLoadingMessage] = useState('');
     const [ownerNotice, setOwnerNotice] = useState(null);
-    const [saleError, setSaleError] = useState('');
     const [formData, setFormData] = useState(() => ({
         ...initialFormData,
         property_id: null,
         transactionType: initialTransactionType.toLowerCase() === 'sale' ? 'sale' : 'rent',
     }));
+    const [postFlowConfig, setPostFlowConfig] = useState(null);
 
-    const progressPercent = calculateProgress(formData);
+    useEffect(() => {
+        endpoints.getSiteContent(formData.transactionType, locale)
+            .then(res => {
+                const { headings = {}, flowOptions = {} } = res.data;
+                const prefix = formData.transactionType;
+                setPostFlowConfig({
+                    header: headings[`${prefix}_postflow_header`],
+                    button: headings[`${prefix}_postflow_button`],
+                    options: {
+                        property_type: flowOptions.property_type,
+                        area_unit: flowOptions.area_unit,
+                        room_type: flowOptions.room_type,
+                    },
+                    contact: {
+                        intro: headings[`${prefix}_postflow_contact_intro`],
+                        label: headings[`${prefix}_postflow_contact_label`],
+                        placeholder: headings[`${prefix}_postflow_contact_placeholder`],
+                        button: headings[`${prefix}_postflow_contact_button`],
+                    },
+                    location: {
+                        header: headings[`${prefix}_postflow_location_header`],
+                        intro: headings[`${prefix}_postflow_location_intro`],
+                        captureLabel: headings[`${prefix}_postflow_location_capture_label`],
+                        captureLabel2: headings[`${prefix}_postflow_location_capture_label2`],
+                        button: headings[`${prefix}_postflow_location_button`],
+                    },
+                    fields: {
+                        typeLabel: headings[`${prefix}_postflow_type_label`],
+                        areaLabel: headings[`${prefix}_postflow_area_label`],
+                        areaPlaceholder: headings[`${prefix}_postflow_area_placeholder`],
+                        rateLabel: headings.sale_postflow_rate_label,
+                        ratePlaceholder: headings.sale_postflow_rate_placeholder,
+                        rentLabel: headings.rent_postflow_rent_label,
+                        rentPlaceholder: headings.rent_postflow_rent_placeholder,
+                        advanceLabel: headings.rent_postflow_advance_label,
+                        advancePlaceholder: headings.rent_postflow_advance_placeholder,
+                        floorLabel: headings[`${prefix}_postflow_floor_label`],
+                        floorPlaceholder: headings[`${prefix}_postflow_floor_placeholder`],
+                    },
+                });
+            })
+            .catch(() => setPostFlowConfig(null));
+    }, [formData.transactionType, locale]);
 
     const handleDataChange = useCallback((key, value) => {
         setFormData((prev) => {
@@ -134,7 +135,6 @@ const PostPropertyFlow = ({ onClose, initialTransactionType = 'rent', onSuccessf
             return newState;
         });
         if (key === 'number') setOwnerNotice(null);
-        if (key === 'dtcp') setSaleError('');
     }, []);
 
     const resolveAddressFromCoordinates = useCallback(async (latitude, longitude) => {
@@ -222,75 +222,47 @@ const PostPropertyFlow = ({ onClose, initialTransactionType = 'rent', onSuccessf
         }, 250);
     }, [currentStep, formData, handleDataChange, resolveAddressFromCoordinates]);
 
-    const submitProperty = async ({ advanceToAdditional = false } = {}) => {
+    const submitProperty = async () => {
         setLoading(true);
-        setLoadingMessage(advanceToAdditional ? 'Posting your property...' : 'Updating property details...');
+        setLoadingMessage('Posting your property...');
 
         try {
             let payload = {
                 contact_phone: formData.number || null,
-                district_id: formData.district_id,
-                taluk_id: formData.taluk_id,
-                village_id: formData.village_id,
-                street_name_or_road_name: formData.street_name_or_road_name,
-                premium_requested: formData.premium_requested === true,
-                alternate_contact_phone: formData.transactionType === 'rent'
-                    ? (formData.listing_person_number || formData.alternate_phone || null)
-                    : (formData.alternate_phone || null),
-                listing_person_phone: formData.listing_person_number || null,
-                dtcp: formData.dtcp || null,
                 latitude: formData.latitude || null,
                 longitude: formData.longitude || null,
                 address: formData.address || null,
-                live_image: formData.liveImage || null,
             };
 
             if (formData.transactionType === 'rent') {
+                const isCommercial = formData.rentType === 'commercial';
                 payload = {
                     ...payload,
-                    property_use: formData.propertyType,
-                    bhk: formData.propertyType === 'Residential' ? formData.bhk : null,
+                    property_use: isCommercial ? 'Commercial' : 'Residential',
+                    bhk: isCommercial ? null : formData.rentType,
+                    floor_no: formData.floorNo || null,
                     rent_amount: formData.rentAmount,
                     advance_amount: formData.advanceAmount,
                     extent_area: formData.extent_area || null,
-                    extent_unit: formData.extent_unit || null,
+                    extent_unit: 'sqft',
                 };
             } else {
-                if ((formData.saleType === 'plot' || formData.saleType === 'flat') && !String(formData.dtcp || '').trim()) {
-                    alert('DTCP number is required for plot/flat sale listings.');
-                    return;
-                }
+                // Sqft rate wins when both sqft and cent rates are entered
+                const rateUnit = formData.rate_sqft ? 'sqft' : 'cent';
+                const price = formData.rate_sqft || formData.rate_cent;
                 payload = {
                     ...payload,
                     sale_type: formData.saleType,
-                    price: formData.price,
-                    rate_unit: formData.rate_unit || null,
-                    survey_number: formData.survey_number,
-                    area_size: formData.area_size || null,
-                    extension: formData.extension || null,
-                    boundary_north: formData.boundary_north,
-                    boundary_south: formData.boundary_south,
-                    boundary_east: formData.boundary_east,
-                    boundary_west: formData.boundary_west,
-                    total_units_count: formData.total_units_count,
-                    booked_units: formData.booked_units,
-                    open_units: formData.open_units,
+                    floor_no: formData.saleType === 'flat' ? (formData.floorNo || null) : null,
+                    price,
+                    rate_unit: rateUnit,
+                    area_size: `${formData.area_value} ${formData.area_unit}`,
                 };
             }
 
             await endpoints.updateProperty(formData.transactionType, formData.property_id, payload);
-
-            if (advanceToAdditional) {
-                alert('Property info saved.\n\nYou can now add any additional details and update the listing.');
-                setCurrentStep(4);
-            } else {
-                onSuccessfulPost(formData.number);
-            }
+            onSuccessfulPost(formData.number);
         } catch (err) {
-            if (err?.response?.data?.code === 'DTCP_EXISTS') {
-                setSaleError('This DTCP number already exists for another property. Please enter a different number or close this form.');
-                return;
-            }
             alert('Failed to post property details. Please check your connection.');
         } finally {
             setLoading(false);
@@ -301,24 +273,15 @@ const PostPropertyFlow = ({ onClose, initialTransactionType = 'rent', onSuccessf
     let stepComponent;
     switch (currentStep) {
         case 1:
-            stepComponent = <NumberCaptureModal data={formData} onChange={handleDataChange} onNext={handleNext} />;
+            stepComponent = <NumberCaptureModal data={formData} onChange={handleDataChange} onNext={handleNext} config={postFlowConfig} />;
             break;
         case 2:
-            stepComponent = <LiveLocationModal data={formData} onChange={handleDataChange} onNext={handleNext} />;
+            stepComponent = <LiveLocationModal data={formData} onChange={handleDataChange} onNext={handleNext} config={postFlowConfig} />;
             break;
         case 3:
-            stepComponent = formData.transactionType === 'rent' ? (
-                <RentPropertyForm data={formData} onChange={handleDataChange} onNext={() => submitProperty({ advanceToAdditional: true })} onSubmit={() => submitProperty({ advanceToAdditional: false })} mode="details" />
-            ) : (
-                <SalePropertyForm data={formData} onChange={handleDataChange} onNext={() => submitProperty({ advanceToAdditional: true })} onSubmit={() => submitProperty({ advanceToAdditional: false })} mode="details" validationError={saleError} />
-            );
-            break;
-        case 4:
-            stepComponent = formData.transactionType === 'rent' ? (
-                <RentPropertyForm data={formData} onChange={handleDataChange} onSubmit={() => submitProperty({ advanceToAdditional: false })} mode="additional" />
-            ) : (
-                <SalePropertyForm data={formData} onChange={handleDataChange} onSubmit={() => submitProperty({ advanceToAdditional: false })} mode="additional" validationError={saleError} />
-            );
+            stepComponent = formData.transactionType === 'rent'
+                ? <RentPropertyForm data={formData} onChange={handleDataChange} onSubmit={submitProperty} config={postFlowConfig} />
+                : <SalePropertyForm data={formData} onChange={handleDataChange} onSubmit={submitProperty} config={postFlowConfig} />;
             break;
         default:
             stepComponent = null;
@@ -326,10 +289,7 @@ const PostPropertyFlow = ({ onClose, initialTransactionType = 'rent', onSuccessf
 
     return (
         <div className="modal-overlay">
-            <div
-                className={`post-property-modal post-property-shell ${loading ? 'is-loading' : ''}`}
-                data-progress={progressPercent}
-            >
+            <div className={`post-property-modal post-property-shell ${loading ? 'is-loading' : ''}`}>
                 {loading && (
                     <div className="modal-loading-overlay">
                         <div className="modal-loading-card">
