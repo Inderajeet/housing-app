@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { endpoints } from '../api/api';
+import { useAppContext } from '../app/AppContext';
 import '../styles/UnitSelector.css';
 
 const layoutCache = new Map();
@@ -32,6 +33,7 @@ export async function checkUnitLayoutHasUnits(propertyId, saleType) {
 }
 
 const UnitSelector = ({ propertyId, onSelectUnit, saleType, onNoPlots, onContactOwner, onFreeVisit, refreshKey = 0 }) => {
+    const { siteHeadings, locale } = useAppContext();
     const [dims, setDims] = useState({ rows: 40, cols: 60 });
     const [gridData, setGridData] = useState({});
     const [svgItems, setSvgItems] = useState([]); // shapes when SVG mode was saved
@@ -318,13 +320,13 @@ const UnitSelector = ({ propertyId, onSelectUnit, saleType, onNoPlots, onContact
     const colsArray = useMemo(() => Array.from({ length: dims.cols }), [dims.cols]);
 
     const renderHeaderBar = (centerText) => (
-        <div className="unit-selector-header-bar">
+        <div className={`unit-selector-header-bar${locale === 'ta' ? ' header-bar-stacked' : ''}`}>
             <button type="button" className="unit-selector-side-btn contact-owner-btn" onClick={() => onContactOwner?.()}>
-                Contact Owner
+                {siteHeadings.sale_booking_contact_owner_btn || 'Contact Owner'}
             </button>
             <p className="unit-selector-subtitle unit-selector-header-center">{centerText}</p>
             <button type="button" className="unit-selector-side-btn free-visit-btn" onClick={() => onFreeVisit?.()}>
-                Free Visit
+                {siteHeadings.sale_booking_free_visit_btn || 'Free Visit'}
             </button>
         </div>
     );

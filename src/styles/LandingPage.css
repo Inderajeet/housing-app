@@ -247,9 +247,19 @@
     font-weight: inherit;
 }
 
+.box-item-group {
+    container-type: inline-size;
+}
+
+.box-group-heading-en {
+    text-transform: uppercase;
+}
+
+/* Shrinks to fit the cell width so long labels never get cut off */
 .box-group-links {
-    font-size: inherit;
+    font-size: min(1em, 14cqw);
     font-weight: inherit;
+    white-space: nowrap;
 }
 
 /* Bottom Button Styling */
@@ -541,6 +551,32 @@
     .bottom-post-actions .post-btn {
         padding: 14px 16px;
         font-size: 17px;
+    }
+
+    .center-text.center-text-en {
+        font-size: 23px;
+    }
+
+    /* Language toggle sits in the free bottom-left space, out of the layout flow */
+    .map-sketch-area {
+        gap: 0;
+    }
+
+    .map-sketch-area .language-toggle {
+        position: absolute;
+        top: 117%;
+        left: 0;
+        margin-top: 6px;
+        margin-left: 13px;
+        padding: 4px 10px;
+        font-size: 14px;
+        gap: 6px;
+        z-index: 7;
+    }
+
+    .buy-box,
+    .rent-box {
+        margin-bottom: 0;
     }
 }
 

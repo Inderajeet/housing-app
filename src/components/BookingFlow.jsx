@@ -322,6 +322,32 @@ const BookingFlow = ({
     }
   };
 
+  const phoneModal = choiceModal && (
+        <div className="modal-overlay" onClick={() => !choiceSubmitting && setChoiceModal(null)}>
+          <div className="rent-phone-modal" onClick={e => e.stopPropagation()}>
+            <p className="rent-phone-modal-title">Your Phone Number</p>
+            <div className="phone-input-group large-input">
+              <span className="prefix">+91</span>
+              <input
+                type="tel"
+                value={choicePhone}
+                maxLength="10"
+                placeholder="Enter your number"
+                onChange={e => setChoicePhone(e.target.value)}
+                autoFocus
+              />
+            </div>
+            <button
+              className="primary-btn saffron-btn"
+              disabled={choicePhone.length !== 10 || choiceSubmitting}
+              onClick={submitChoicePhone}
+            >
+              {choiceSubmitting ? 'Please wait...' : 'OK'}
+            </button>
+          </div>
+        </div>
+  );
+
   const handleNext = async (tokenPaidTo = null) => {
     const unitId = selectedUnit
       ? selectedUnit.plot_unit_id || selectedUnit.flat_unit_id
@@ -483,6 +509,8 @@ const BookingFlow = ({
         </div>
       )}
       {isSalePlotOrFlat && !selectedUnit && !skipUnitSelection ? (
+        <>
+        {phoneModal}
         <UnitSelector
           key={refreshLayoutKey}
           propertyId={propertyId}
@@ -490,9 +518,10 @@ const BookingFlow = ({
           refreshKey={refreshLayoutKey}
           onSelectUnit={(unit) => setSelectedUnit(unit)}
           onNoPlots={() => { setNoPlotsAvailable(true); setSkipUnitSelection(true); }}
-          onContactOwner={() => { setNoUnitMode(true); setSkipUnitSelection(true); }}
-          onFreeVisit={() => { setNoUnitMode(true); setSkipUnitSelection(true); }}
+          onContactOwner={() => openChoiceModal('A')}
+          onFreeVisit={() => openChoiceModal('A')}
         />
+        </>
       ) : (
         <>
           {!isSubmitted && selectedUnit && (
@@ -522,31 +551,7 @@ const BookingFlow = ({
 
           {!isSubmitted && (transactionType === 'rent' || transactionType === 'sale') ? (
             <div className="general-overview rent-choice-panel">
-              {choiceModal && (
-                <div className="modal-overlay" onClick={() => !choiceSubmitting && setChoiceModal(null)}>
-                  <div className="rent-phone-modal" onClick={e => e.stopPropagation()}>
-                    <p className="rent-phone-modal-title">Your Phone Number</p>
-                    <div className="phone-input-group large-input">
-                      <span className="prefix">+91</span>
-                      <input
-                        type="tel"
-                        value={choicePhone}
-                        maxLength="10"
-                        placeholder="Enter 10-digit phone number"
-                        onChange={e => setChoicePhone(e.target.value)}
-                        autoFocus
-                      />
-                    </div>
-                    <button
-                      className="primary-btn saffron-btn"
-                      disabled={choicePhone.length !== 10 || choiceSubmitting}
-                      onClick={submitChoicePhone}
-                    >
-                      {choiceSubmitting ? 'Please wait...' : 'OK'}
-                    </button>
-                  </div>
-                </div>
-              )}
+              {phoneModal}
 
               {isFinalized ? (
                 <div className="rent-finalized-banner">
@@ -662,7 +667,7 @@ const BookingFlow = ({
                         type="tel"
                         value={phone}
                         maxLength="10"
-                        placeholder="Enter 10-digit phone number"
+                        placeholder="Enter your number"
                         onChange={e => setPhone(e.target.value)}
                       />
                     </div>

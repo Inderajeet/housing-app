@@ -131,7 +131,7 @@ export default function LandingPageClient() {
             <div className="map-sketch-area">
               <div className="interactive-box buy-box">
                 {/* BUY */}
-                <span className="center-text">{saleBox.center || ''}</span>
+                <span className={`center-text${locale === 'en' ? ' center-text-en' : ''}`}>{saleBox.center || ''}</span>
                 {/* FLAT */}
                 <Link className="box-item" href={getSearchHref('sale', 'flat')}>{saleBox.flat || ''}</Link>
                 {/* HOUSE */}
@@ -140,7 +140,7 @@ export default function LandingPageClient() {
                 <Link className="box-item" href={getSearchHref('sale', 'plot')}>{saleBox.plot || ''}</Link>
                 {/* LAND */}
                 <Link className="box-item box-item-group" href={getSearchHref('sale', 'land')}>
-                  <span className="box-group-heading">{saleBox.land_group || (locale === 'en' ? 'Individual' : 'தனி')}</span>
+                  <span className={`box-group-heading${locale === 'en' ? ' box-group-heading-en' : ''}`}>{saleBox.land_group || (locale === 'en' ? 'Individual' : 'தனி')}</span>
                   <span className="box-group-links">{saleBox.land || ''}</span>
                 </Link>
               </div>
@@ -162,7 +162,7 @@ export default function LandingPageClient() {
             <div className="map-sketch-area">
               <div className="interactive-box rent-box">
                 {/* RENT */}
-                <span className="center-text">{rentBox.center || ''}</span>
+                <span className={`center-text${locale === 'en' ? ' center-text-en' : ''}`}>{rentBox.center || ''}</span>
                 {/* 1 BHK */}
                 <Link className="box-item" href={getSearchHref('rent', '1')}>{rentBox['1'] || ''}</Link>
                 {/* 2 BHK */}

@@ -7,10 +7,12 @@ import {
   InfoWindow,
   useJsApiLoader,
 } from '@react-google-maps/api';
+import { useAppContext } from '../app/AppContext';
 import '../styles/GalleryMap.css';
 import '../styles/UnifiedMap.css';
 
 const GalleryMap = ({ location, status, title, propertyData = null }) => {
+  const { siteHeadings } = useAppContext();
   const { isLoaded, loadError } = useJsApiLoader({
     googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API || '',
   });
@@ -131,27 +133,27 @@ const GalleryMap = ({ location, status, title, propertyData = null }) => {
         {!isRent && (
           <>
             <div className="popup-rating-item popup-rating-item-legal">
-              <span className="popup-rating-label">Legal</span>
-              <span className="popup-rating-sublabel">grade</span>
+              <span className="popup-rating-label">{siteHeadings.property_card_legal_label || ''}</span>
+              <span className="popup-rating-sublabel">{siteHeadings.property_card_legal_sublabel || ''}</span>
               <span className="popup-rating-value">{popupData?.legal_value ?? '—'}</span>
             </div>
             <div className="popup-rating-item popup-rating-item-speed">
-              <span className="popup-rating-label">Area Sales</span>
-              <span className="popup-rating-sublabel">speed</span>
+              <span className="popup-rating-label">{siteHeadings.property_card_areasales_label || ''}</span>
+              <span className="popup-rating-sublabel">{siteHeadings.property_card_areasales_sublabel || ''}</span>
               <span className="popup-rating-value">{areaSalesSpeed}</span>
             </div>
           </>
         )}
         <div className="popup-rating-item popup-rating-item-amenities">
-          <span className="popup-rating-label">Amenities</span>
-          <span className="popup-rating-sublabel">rating</span>
+          <span className="popup-rating-label">{siteHeadings.property_card_amenities_label || ''}</span>
+          <span className="popup-rating-sublabel">{siteHeadings.property_card_amenities_sublabel || ''}</span>
           <span className="popup-rating-value">
             {popupData?.amenities_rating != null ? `${Number(popupData.amenities_rating).toFixed(1)}/10` : '—'}
           </span>
         </div>
         <div className="popup-rating-item popup-rating-item-location">
-          <span className="popup-rating-label">Location</span>
-          <span className="popup-rating-sublabel">score</span>
+          <span className="popup-rating-label">{siteHeadings.property_card_location_label || ''}</span>
+          <span className="popup-rating-sublabel">{siteHeadings.property_card_location_sublabel || ''}</span>
           <span className="popup-rating-value">
             {popupData?.utilities_rating != null ? `${Number(popupData.utilities_rating).toFixed(1)}/10` : '—'}
           </span>

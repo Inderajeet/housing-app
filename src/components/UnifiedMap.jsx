@@ -4,12 +4,15 @@ import React, { useMemo, useState, useRef, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation';
 import { GoogleMap, useJsApiLoader, Marker, InfoWindow } from '@react-google-maps/api';
 import { getPropertyHref } from '../utils/propertyRouting';
+import { useAppContext } from '../app/AppContext';
+import { pickLocalized } from '../lib/translate';
 import '../styles/UnifiedMap.css';
 
 const containerStyle = { width: '100%', height: '100%' };
 
 const UnifiedMap = ({ properties = [], mapCenter, mapZoom }) => {
   const router = useRouter();
+  const { siteHeadings, locale } = useAppContext();
   const [hoveredProperty, setHoveredProperty] = useState(null);
   const [mapLoaded, setMapLoaded] = useState(false);
   const mapRef = useRef(null);
@@ -97,8 +100,9 @@ const UnifiedMap = ({ properties = [], mapCenter, mapZoom }) => {
   const renderPopupContent = (property) => {
     const isRent = !!property.rent_amount;
     const saleType = (property.sale_type || '').toLowerCase();
-    const landmark = property.street_name_or_road_name || property.landmark || property.street_name || '';
-    const layoutName = property.title || property.layout_name || '';
+    const rawLandmark = property.street_name_or_road_name || property.landmark || property.street_name || '';
+    const landmark = pickLocalized(rawLandmark, property.street_name_or_road_name_translated || property.landmark_translated || '', locale);
+    const layoutName = property.title || pickLocalized(property.layout_name, property.layout_name_translated, locale) || '';
     const layoutOrLandmark = layoutName || landmark || '';
 
     const locationStr = layoutName
@@ -152,27 +156,27 @@ const UnifiedMap = ({ properties = [], mapCenter, mapZoom }) => {
           {!isRent && (
             <>
               <div className="popup-rating-item popup-rating-item-legal">
-                <span className="popup-rating-label">Legal</span>
-                <span className="popup-rating-sublabel">grade</span>
+                <span className="popup-rating-label">{siteHeadings.property_card_legal_label || ''}</span>
+                <span className="popup-rating-sublabel">{siteHeadings.property_card_legal_sublabel || ''}</span>
                 <span className="popup-rating-value">{property.legal_value ?? '—'}</span>
               </div>
               <div className="popup-rating-item popup-rating-item-speed">
-                <span className="popup-rating-label">Area Sales</span>
-                <span className="popup-rating-sublabel">speed</span>
+                <span className="popup-rating-label">{siteHeadings.property_card_areasales_label || ''}</span>
+                <span className="popup-rating-sublabel">{siteHeadings.property_card_areasales_sublabel || ''}</span>
                 <span className="popup-rating-value">{areaSalesSpeed}</span>
               </div>
             </>
           )}
           <div className="popup-rating-item popup-rating-item-amenities">
-            <span className="popup-rating-label">Amenities</span>
-            <span className="popup-rating-sublabel">rating</span>
+            <span className="popup-rating-label">{siteHeadings.property_card_amenities_label || ''}</span>
+            <span className="popup-rating-sublabel">{siteHeadings.property_card_amenities_sublabel || ''}</span>
             <span className="popup-rating-value">
               {property.amenities_rating != null ? `${Number(property.amenities_rating).toFixed(1)}/10` : '—'}
             </span>
           </div>
           <div className="popup-rating-item popup-rating-item-location">
-            <span className="popup-rating-label">Location</span>
-            <span className="popup-rating-sublabel">score</span>
+            <span className="popup-rating-label">{siteHeadings.property_card_location_label || ''}</span>
+            <span className="popup-rating-sublabel">{siteHeadings.property_card_location_sublabel || ''}</span>
             <span className="popup-rating-value">
               {property.utilities_rating != null ? `${Number(property.utilities_rating).toFixed(1)}/10` : '—'}
             </span>

@@ -168,6 +168,12 @@ function BookingTab({ flowType, locale, headings, onSaveHeading, choiceOrder, sh
           onSave={onSaveHeading}
           multiline
         />
+        {flowType === 'sale' && (
+          <>
+            <HeadingField contentKey="sale_booking_contact_owner_btn" label="Contact Owner Button" headings={headings} onSave={onSaveHeading} />
+            <HeadingField contentKey="sale_booking_free_visit_btn" label="Free Visit Button" headings={headings} onSave={onSaveHeading} />
+          </>
+        )}
         {choiceOrder.map(({ key, hint }) => {
           const option = byGroupAndKey('choice', key);
           if (!option) return null;

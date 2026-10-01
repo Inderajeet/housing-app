@@ -57,6 +57,20 @@
         text-overflow: ellipsis;
         white-space: nowrap;
     }
+
+    /* Tamil: buttons on top, the select-plot line drops below them */
+    .unit-selector-header-bar.header-bar-stacked {
+        flex-wrap: wrap;
+    }
+
+    .header-bar-stacked .unit-selector-header-center {
+        order: 3;
+        flex: 1 1 100%;
+        white-space: normal;
+        overflow: visible;
+        text-overflow: clip;
+        margin-top: 4px;
+    }
 }
 
 .unit-selector-side-btn {

@@ -147,7 +147,31 @@ export const updateFlowOptionLabel = async (id, label) => {
   return rows[0];
 };
 
+const DEFAULT_HEADINGS = {
+  ta: {
+    sale_booking_contact_owner_btn: 'உரிமையாளரை தொடர்பு கொள்ள',
+    sale_booking_free_visit_btn: 'இலவச பார்வை',
+  },
+  en: {
+    sale_booking_contact_owner_btn: 'Contact Owner',
+    sale_booking_free_visit_btn: 'Free Visit',
+  },
+};
+
+// Creates any newly added heading rows so they show up in admin and on the site
+const ensureDefaultHeadings = async (locale) => {
+  const defaults = DEFAULT_HEADINGS[locale] || DEFAULT_HEADINGS.en;
+  for (const [key, value] of Object.entries(defaults)) {
+    await prisma.$queryRawUnsafe(
+      `INSERT INTO site_content (content_key, content_value, locale, updated_at)
+       VALUES ($1, $2, $3, NOW()) ON CONFLICT (content_key, locale) DO NOTHING`,
+      key, value, locale
+    );
+  }
+};
+
 export const getAllHeadings = async (locale = 'ta') => {
+  await ensureDefaultHeadings(locale);
   const rows = await prisma.$queryRawUnsafe(
     `SELECT content_key, content_value FROM site_content WHERE locale = $1 ORDER BY content_key ASC`,
     locale
