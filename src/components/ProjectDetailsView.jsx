@@ -464,7 +464,7 @@ export default function ProjectDetailsView({ routeIdentifier = '', routeMode = n
               }}
             >
               {showMoreDetails ? <Info size={18} strokeWidth={2.5} className="fb-like-icon" /> : <CalendarCheck size={18} />}
-              <span>{showMoreDetails ? (siteHeadings.property_more_details_label || 'More Details') : 'Booking Status'}</span>
+              <span>{showMoreDetails ? (siteHeadings.property_more_details_label || 'More Details') : (siteHeadings.property_booking_status_label || (locale === 'en' ? 'Booking Status' : 'புக்கிங் நிலவரம்'))}</span>
             </button>
 
             {showBoundaryPanel && (

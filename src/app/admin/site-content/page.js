@@ -245,6 +245,7 @@ function HomePageTab({ locale, headings, onSaveHeading, showToast }) {
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
         <h3 className="text-sm font-bold text-gray-700">Property Details &amp; Phone Submit</h3>
         {heading('property_more_details_label', 'More Details Tab Label')}
+        {heading('property_booking_status_label', 'Booking Status Tab Label')}
       </div>
 
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
