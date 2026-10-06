@@ -345,6 +345,8 @@ export default function HomePage() {
   const isRent = filters.lookingTo === 'rent';
   const showVillageSelect = !isRent || normalizeUrlName(filters.district || '') === 'chennai';
   const villageLabel = isRent ? 'Town' : 'Village';
+  // Rent outside Chennai has no town level, so the second dropdown is called Township
+  const talukLabel = isRent && !showVillageSelect ? 'Township' : 'Taluk';
 
   const filterPanelClass = `floating-filter-panel ${showFilterPanel ? 'expanded' : 'minimized'} ${filters.showAdvanced ? 'advanced-active' : 'basic-active'}`;
   const transactionLabel = getTransactionLabel(filters.lookingTo);
@@ -388,7 +390,7 @@ export default function HomePage() {
                   </select>
 
                   <select
-                    aria-label="Select Taluk"
+                    aria-label={`Select ${talukLabel}`}
                     value={filters.taluk_id}
                     onChange={(e) => {
                       const selected = taluksList.find(t => String(t.taluk_id) === e.target.value);
@@ -396,7 +398,7 @@ export default function HomePage() {
                     }}
                     disabled={!filters.district_id}
                   >
-                    <option value="">Select Taluk</option>
+                    <option value="">Select {talukLabel}</option>
                     {taluksList.map(t => (
                       <option key={t.taluk_id} value={t.taluk_id}>{t.taluk_name}</option>
                     ))}

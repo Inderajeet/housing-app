@@ -50,14 +50,12 @@ export function AppProvider({ children }) {
     setShowPostModal(true);
   };
 
-  const handlePostPropertySuccess = () => {
+  // Holds the admin-set success text while the post success popup is open
+  const [postSuccessMsg, setPostSuccessMsg] = useState(null);
+
+  const handlePostPropertySuccess = (_phone, _transactionType, message) => {
     setShowPostModal(false);
-    alert(
-      '✅ Property Submitted Successfully!\n\n' +
-      'Our backend team will review your property details.\n' +
-      'Approval usually takes up to 24 hours.\n\n' +
-      'Thank you for listing with us!'
-    );
+    setPostSuccessMsg(message || (locale === 'en' ? 'Property Posted Successfully!!!' : 'சொத்து வெற்றிகரமாக பதிவு செய்யப்பட்டது!!!'));
   };
 
   return (
@@ -69,6 +67,8 @@ export function AppProvider({ children }) {
         showPostModal,
         postModalTransactionType,
         handlePostPropertySuccess,
+        postSuccessMsg,
+        setPostSuccessMsg,
         setShowPostModal,
         locale,
         toggleLocale,

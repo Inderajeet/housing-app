@@ -25,6 +25,8 @@ const MenuBar = ({ menuPremiumProperties = [] }) => {
   }, [locale]);
 
   const isHomePage = pathname === "/search";
+  // With no sponsored properties the slots fall back to the sale/rent map buttons
+  const showPremiumSlots = isHomePage && menuPremiumProperties.length > 0;
   const propertyPathParts = pathname.split("/").filter(Boolean);
   const propertyMode = propertyPathParts[0] === "property" ? propertyPathParts[1] : null;
   const currentLookingTo = isHomePage
@@ -34,7 +36,7 @@ const MenuBar = ({ menuPremiumProperties = [] }) => {
   return (
     <div className={`menu-bar-container ${currentLookingTo === "rent" ? "menu-bar-rent" : "menu-bar-sale"}`}>
       <div className="menu-content">
-        {isHomePage ? (
+        {showPremiumSlots ? (
           <div className="menu-premium-slot menu-premium-left">
             <PremiumProperties
               properties={menuPremiumProperties}
@@ -59,7 +61,7 @@ const MenuBar = ({ menuPremiumProperties = [] }) => {
           <Image src={logo} alt="Logo" className="logo-image" width={139} height={135} priority />
         </Link>
 
-        {isHomePage ? (
+        {showPremiumSlots ? (
           <div className="menu-premium-slot menu-premium-right">
             <PremiumProperties
               properties={menuPremiumProperties}

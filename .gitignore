@@ -60,3 +60,8 @@ AGENTS.*.md
 CLAUDE.*.md
 *.claude.md
 *.agents.md
+
+# whatsapp gateway
+/whatsapp-gateway/node_modules
+/whatsapp-gateway/.wwebjs_auth
+/whatsapp-gateway/.wwebjs_cache

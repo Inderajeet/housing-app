@@ -3,23 +3,29 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { CheckCircle2, Info, X, ChevronLeft as ChevLeft, ChevronRight } from 'lucide-react';
 import { ChevronLeft } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import '../styles/BookingFlow.css';
 import '../styles/OurServices.css';
 import { endpoints } from '../api/api';
 import UnitSelector from './UnitSelector';
+import SuccessPopup from './SuccessPopup';
+import { getSearchHref } from '../utils/propertyRouting';
 import { useAppContext } from '../app/AppContext';
 
 const BookingFlow = ({
   propertyId,
   transactionType,
   saleType,
+  searchCategory,
   bookedPeopleCount: bookedPeopleCountProp,
   onStatusChange,
-  onBack,
   onUnitsAvailabilityChange,
   knownNoUnits = false,
+  enquiryMode: enquiryModeProp,
+  onEnquiryModeChange,
 }) => {
   const { locale } = useAppContext();
+  const router = useRouter();
   const [serviceRows, setServiceRows] = useState([]);
   const [offerPoints, setOfferPoints] = useState([]);
   const [headings, setHeadings] = useState({});
@@ -54,6 +60,17 @@ const BookingFlow = ({
   const [contactCount, setContactCount] = useState(0);
   const [agreementCount, setAgreementCount] = useState(0);
   const [enquiryCount, setEnquiryCount] = useState(0);
+  const [enquiryBCount, setEnquiryBCount] = useState(0);
+  const [enquiryCCount, setEnquiryCCount] = useState(0);
+  // Contact Owner opens the option screen without a unit; every pick is logged as an enquiry only
+  // Parent can drive it (details tab button); falls back to local state when not controlled
+  const [enquiryModeState, setEnquiryModeState] = useState(false);
+  const enquiryMode = enquiryModeProp ?? enquiryModeState;
+  const setEnquiryMode = (value) => {
+    setEnquiryModeState(value);
+    onEnquiryModeChange?.(value);
+  };
+  const [showSuccess, setShowSuccess] = useState(false);
 
   const onStatusChangeRef = useRef(onStatusChange);
   useEffect(() => { onStatusChangeRef.current = onStatusChange; });
@@ -103,6 +120,8 @@ const BookingFlow = ({
     setContactCount(data?.contactCount ?? 0);
     setAgreementCount(data?.agreementCount ?? 0);
     setEnquiryCount(data?.enquiryCount ?? 0);
+    setEnquiryBCount(data?.enquiryBCount ?? 0);
+    setEnquiryCCount(data?.enquiryCCount ?? 0);
 
     if (onStatusChangeRef.current) {
       const isRent = transactionType === 'rent';
@@ -162,15 +181,16 @@ const BookingFlow = ({
     setNoUnitMode(false);
     setContactSubmitted(false);
     setNoPlotsAvailable(knownNoUnits);
+    setEnquiryMode(false);
   }, [propertyId, saleType, transactionType, knownNoUnits]);
 
   useEffect(() => {
     if (!isSalePlotOrFlat || !onUnitsAvailabilityChange) return;
     onUnitsAvailabilityChange({
       hasUnitsMap: !noPlotsAvailable,
-      insideChoicePanel: Boolean(selectedUnit) || noUnitMode,
+      insideChoicePanel: Boolean(selectedUnit) || noUnitMode || enquiryMode,
     });
-  }, [isSalePlotOrFlat, noPlotsAvailable, selectedUnit, noUnitMode, onUnitsAvailabilityChange]);
+  }, [isSalePlotOrFlat, noPlotsAvailable, selectedUnit, noUnitMode, enquiryMode, onUnitsAvailabilityChange]);
 
   // Reset reminder modal when user picks a new unit so it doesn't flash on unit selection
   useEffect(() => {
@@ -182,7 +202,8 @@ const BookingFlow = ({
 
   useEffect(() => {
     const loadGeneralFlow = async () => {
-      if (isSalePlotOrFlat && !selectedUnit) return;
+      // Skip only while the unit picker is showing; a plot/flat with no units goes straight to the panel
+      if (isSalePlotOrFlat && !selectedUnit && !enquiryMode && !skipUnitSelection) return;
       try {
         const unitId = selectedUnit
           ? selectedUnit.plot_unit_id || selectedUnit.flat_unit_id
@@ -193,7 +214,7 @@ const BookingFlow = ({
       }
     };
     loadGeneralFlow();
-  }, [propertyId, selectedUnit, resolvedUnitType, transactionType, generalRefreshKey]);
+  }, [propertyId, selectedUnit, resolvedUnitType, transactionType, generalRefreshKey, enquiryMode, skipUnitSelection]);
 
   const checkStageByPhone = async () => {
     if (phone.length !== 10) return;
@@ -277,8 +298,11 @@ const BookingFlow = ({
 
   const submitChoicePhone = async () => {
     if (choicePhone.length !== 10) return;
-    const cfg = (transactionType === 'rent' ? rentChoiceOptions : saleChoiceOptions)[choiceModal];
-    if (!cfg) return;
+    const baseCfg = (transactionType === 'rent' ? rentChoiceOptions : saleChoiceOptions)[choiceModal];
+    if (!baseCfg) return;
+    // Enquiry mode: any option is logged as an enquiry, no stage or status change
+    const cfg = enquiryMode ? { stage: null, status: null } : baseCfg;
+    let succeeded = false;
     setChoiceSubmitting(true);
     try {
       if (cfg.stage) {
@@ -295,8 +319,10 @@ const BookingFlow = ({
           phone: choicePhone,
           unitType: resolvedUnitType,
           unitId: currentUnitId,
+          choice: enquiryMode ? choiceModal : null,
         });
       }
+      succeeded = true;
       if (onStatusChange && cfg.status) onStatusChange(cfg.status);
       // Bump the பதிவு (registration) count immediately so the user sees their
       // submission reflected right away, instead of waiting on the next data reload.
@@ -305,8 +331,8 @@ const BookingFlow = ({
         else if (choiceModal === 'AGREEMENT') setAgreementCount(c => c + 1);
       } else {
         if (choiceModal === 'A') setEnquiryCount(c => c + 1);
-        else if (choiceModal === 'B') setContactCount(c => c + 1);
-        else if (choiceModal === 'C') setAgreementCount(c => c + 1);
+        else if (choiceModal === 'B') (enquiryMode ? setEnquiryBCount : setContactCount)(c => c + 1);
+        else if (choiceModal === 'C') (enquiryMode ? setEnquiryCCount : setAgreementCount)(c => c + 1);
       }
       setGeneralRefreshKey(prev => prev + 1);
     } catch (err) {
@@ -319,7 +345,14 @@ const BookingFlow = ({
     } finally {
       setChoiceSubmitting(false);
       setChoiceModal(null);
+      if (succeeded) setShowSuccess(true);
     }
+  };
+
+  // Back to the map page for this property's mode and type
+  const goHome = () => {
+    const skipCategory = !searchCategory || ['residential', 'property'].includes(searchCategory);
+    router.push(getSearchHref(transactionType, skipCategory ? null : searchCategory));
   };
 
   const phoneModal = choiceModal && (
@@ -508,7 +541,13 @@ const BookingFlow = ({
           </div>
         </div>
       )}
-      {isSalePlotOrFlat && !selectedUnit && !skipUnitSelection ? (
+      {showSuccess && (
+        <SuccessPopup
+          message={headings[`${transactionType === 'rent' ? 'rent' : 'sale'}_booking_success_msg`] || (locale === 'en' ? 'Thank you! We will call you soon.' : 'நன்றி! விரைவில் தொடர்பு கொள்வோம்.')}
+          onOk={goHome}
+        />
+      )}
+      {isSalePlotOrFlat && !selectedUnit && !skipUnitSelection && !enquiryMode ? (
         <>
         {phoneModal}
         <UnitSelector
@@ -518,7 +557,7 @@ const BookingFlow = ({
           refreshKey={refreshLayoutKey}
           onSelectUnit={(unit) => setSelectedUnit(unit)}
           onNoPlots={() => { setNoPlotsAvailable(true); setSkipUnitSelection(true); }}
-          onContactOwner={() => openChoiceModal('A')}
+          onContactOwner={() => setEnquiryMode(true)}
           onFreeVisit={() => openChoiceModal('A')}
         />
         </>
@@ -530,11 +569,19 @@ const BookingFlow = ({
                 onClick={() => { setSelectedUnit(null); setRefreshLayoutKey(prev => prev + 1); }}
                 className="back-btn"
               >
-                <ChevronLeft size={14} /> Back to Units
+                <ChevronLeft size={14} /> Back to {normalizedSaleType === 'flat' ? 'Flats' : 'Plots'}
               </button>
               <div className="badge">
                 {selectedUnitLabel}: {selectedUnitName}
               </div>
+            </div>
+          )}
+
+          {!isSubmitted && isSalePlotOrFlat && enquiryMode && !selectedUnit && (
+            <div className="selected-unit-header">
+              <button onClick={() => setEnquiryMode(false)} className="back-btn">
+                <ChevronLeft size={14} /> Back to {normalizedSaleType === 'flat' ? 'Flats' : 'Plots'}
+              </button>
             </div>
           )}
 
@@ -594,7 +641,7 @@ const BookingFlow = ({
                       <span className="rent-choice-count">பதிவு<br />({agreementCount})</span>
                     </button>
 
-                    <button type="button" className="rent-choice-row rent-choice-back" onClick={() => onBack && onBack()}>
+                    <button type="button" className="rent-choice-row rent-choice-back" onClick={goHome}>
                       <ChevronLeft size={18} />
                       {/* NO / BACK */}
                       <span className="rent-choice-text">{choiceOptions.BACK || ''}</span>
@@ -630,7 +677,7 @@ const BookingFlow = ({
                       <span className="rent-choice-letter">B</span>
                       {/* டாக்குமெண்ட்ஸ் /லீகல் ஒப்பீனியன் /ஏரியா ரேட் விவரம் */}
                       <span className="rent-choice-text">{choiceOptions.B || ''}</span>
-                      <span className="rent-choice-count">பதிவு<br />({contactCount})</span>
+                      <span className="rent-choice-count">பதிவு<br />({contactCount + enquiryBCount})</span>
                     </button>
 
                     <button
@@ -642,10 +689,10 @@ const BookingFlow = ({
                       <span className="rent-choice-letter">C</span>
                       {/* அளந்து நடுதல் /ரிஜிஸ்ட்ரேஷன் /ஃபென்சிங் ஏற்பாடு */}
                       <span className="rent-choice-text">{choiceOptions.C || ''}</span>
-                      <span className="rent-choice-count">பதிவு<br />({agreementCount})</span>
+                      <span className="rent-choice-count">பதிவு<br />({agreementCount + enquiryCCount})</span>
                     </button>
 
-                    <button type="button" className="rent-choice-row rent-choice-back" onClick={() => onBack && onBack()}>
+                    <button type="button" className="rent-choice-row rent-choice-back" onClick={goHome}>
                       <ChevronLeft size={18} />
                       {/* NO / BACK */}
                       <span className="rent-choice-text">{choiceOptions.BACK || ''}</span>

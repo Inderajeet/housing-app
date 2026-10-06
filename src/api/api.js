@@ -58,7 +58,7 @@ export const endpoints = {
     throw new Error('Property not found');
   },
 
-  submitContactRequest: ({ propertyId, phone, unitType, unitId }) => apiClient.post('/contact-request', { propertyId, phone, unitType, unitId }),
+  submitContactRequest: ({ propertyId, phone, unitType, unitId, choice }) => apiClient.post('/contact-request', { propertyId, phone, unitType, unitId, choice }),
 
   createProperty: (mode, data) => apiClient.post(`/${mode.toLowerCase()}`, data),
   updateProperty: (mode, id, data) => apiClient.put(`/${mode.toLowerCase()}/${id}`, data),

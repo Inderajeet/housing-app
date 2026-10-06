@@ -62,16 +62,27 @@ export async function getFlowByPhone({ propertyId, unitType, unitId, phone }) {
 export async function getGeneralFlow({ propertyId, unitType, unitId }) {
   const enquiryRes = await prisma.$queryRawUnsafe(
     `SELECT COUNT(DISTINCT buyer_id)::int AS cnt FROM enquiries
-     WHERE property_id=$1 AND unit_type IS NOT DISTINCT FROM $2 AND unit_id IS NOT DISTINCT FROM $3 AND booking_status IS NULL`,
+     WHERE property_id=$1 AND unit_type IS NOT DISTINCT FROM $2 AND unit_id IS NOT DISTINCT FROM $3 AND (booking_status IS NULL OR booking_status = 'enquired')
+     AND (message IS NULL OR message = 'Enquiry - Option A')`,
     propertyId, unitType || null, unitId || null
   );
   const enquiryCount = enquiryRes[0]?.cnt || 0;
+
+  // Option B/C picks made in enquiry mode - counted separately so they never change status or lock the choices
+  const optionRes = await prisma.$queryRawUnsafe(
+    `SELECT message, COUNT(DISTINCT buyer_id)::int AS cnt FROM enquiries
+     WHERE property_id=$1 AND unit_type IS NOT DISTINCT FROM $2 AND unit_id IS NOT DISTINCT FROM $3 AND message IN ('Enquiry - Option B', 'Enquiry - Option C')
+     GROUP BY message`,
+    propertyId, unitType || null, unitId || null
+  );
+  const enquiryBCount = optionRes.find(r => r.message === 'Enquiry - Option B')?.cnt || 0;
+  const enquiryCCount = optionRes.find(r => r.message === 'Enquiry - Option C')?.cnt || 0;
 
   const res = await prisma.$queryRawUnsafe(
     `SELECT status, buyer_id FROM bookings WHERE property_id=$1 AND unit_type=$2 AND unit_id=$3`,
     propertyId, unitType, unitId
   );
-  if (!res.length) return { overallStageIndex: -1, overallStatus: null, contactCount: 0, agreementCount: 0, enquiryCount };
+  if (!res.length) return { overallStageIndex: -1, overallStatus: null, contactCount: 0, agreementCount: 0, enquiryCount, enquiryBCount, enquiryCCount };
 
   let maxIndex = -1, finalStatus = null;
   const contactBuyers = new Set();
@@ -83,17 +94,28 @@ export async function getGeneralFlow({ propertyId, unitType, unitId }) {
     if (index >= 0) contactBuyers.add(row.buyer_id);
     if (index >= 1) agreementBuyers.add(row.buyer_id);
   });
-  return { overallStageIndex: maxIndex, overallStatus: finalStatus, contactCount: contactBuyers.size, agreementCount: agreementBuyers.size, enquiryCount };
+  return { overallStageIndex: maxIndex, overallStatus: finalStatus, contactCount: contactBuyers.size, agreementCount: agreementBuyers.size, enquiryCount, enquiryBCount, enquiryCCount };
 }
 
-// TODO: integrate real WhatsApp sending (Business API / Twilio) here
+// Sends via the whatsapp-gateway service (fixed sender number) to the number the user entered
 async function notifyWhatsApp(phone, message) {
-  console.log(`[whatsapp stub] to ${phone}: ${message}`);
+  const url = process.env.WHATSAPP_GATEWAY_URL;
+  if (!url) {
+    console.log(`[whatsapp not configured] to ${phone}: ${message}`);
+    return;
+  }
+
+  const res = await fetch(`${url}/send`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-gateway-secret': process.env.GATEWAY_SECRET || '' },
+    body: JSON.stringify({ to: phone, message }),
+  });
+  if (!res.ok) console.error('whatsapp send failed', res.status, await res.text());
 }
 
 // Contact Owner / Free Visit path (and the sale MCQ's "no status change" option) -
 // no booking stage involved, so only an enquiry is logged and no bookings row is created.
-export async function submitContactRequest({ propertyId, phone, unitType = null, unitId = null }) {
+export async function submitContactRequest({ propertyId, phone, unitType = null, unitId = null, choice = null }) {
   let buyerRes = await prisma.$queryRawUnsafe('SELECT buyer_id FROM buyers WHERE phone_number=$1', phone);
   let buyerId;
   if (!buyerRes.length) {
@@ -103,15 +125,18 @@ export async function submitContactRequest({ propertyId, phone, unitType = null,
     buyerId = buyerRes[0].buyer_id;
   }
 
+  // Enquiry-mode option (A/B/C) is kept in message so each option can show its own count
+  const message = ['A', 'B', 'C'].includes(choice) ? `Enquiry - Option ${choice}` : null;
   const existing = await prisma.$queryRawUnsafe(
-    `SELECT enquiry_id FROM enquiries WHERE property_id=$1 AND buyer_id=$2 AND unit_type IS NOT DISTINCT FROM $3 AND unit_id IS NOT DISTINCT FROM $4 LIMIT 1`,
-    propertyId, buyerId, unitType, unitId
+    `SELECT enquiry_id FROM enquiries WHERE property_id=$1 AND buyer_id=$2 AND unit_type IS NOT DISTINCT FROM $3 AND unit_id IS NOT DISTINCT FROM $4
+     AND message IS NOT DISTINCT FROM $5 LIMIT 1`,
+    propertyId, buyerId, unitType, unitId, message
   );
   if (!existing.length) {
     await prisma.$executeRawUnsafe(
-      `INSERT INTO enquiries (property_id, buyer_id, enquiry_type, contacted, unit_type, unit_id)
-       VALUES ($1, $2, 'buyer', false, $3, $4)`,
-      propertyId, buyerId, unitType, unitId
+      `INSERT INTO enquiries (property_id, buyer_id, enquiry_type, contacted, unit_type, unit_id, message)
+       VALUES ($1, $2, 'buyer', false, $3, $4, $5)`,
+      propertyId, buyerId, unitType, unitId, message
     );
   }
 

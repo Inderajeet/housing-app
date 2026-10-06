@@ -1,10 +1,10 @@
 'use client';
 
 import { Suspense } from 'react';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import MenuBar from '../components/MenuBar';
 import PostPropertyFlow from '../components/PostPropertyFlow';
-import AnalyticsTracker from '../components/AnalyticsTracker';
+import SuccessPopup from '../components/SuccessPopup';import AnalyticsTracker from '../components/AnalyticsTracker';
 import { useAppContext } from './AppContext';
 
 function MenuBarFallback() {
@@ -13,6 +13,7 @@ function MenuBarFallback() {
 
 export default function AppShell({ children }) {
   const pathname = usePathname();
+  const router = useRouter();
   const isAdmin = pathname?.startsWith('/admin');
 
   const {
@@ -20,8 +21,15 @@ export default function AppShell({ children }) {
     showPostModal,
     postModalTransactionType,
     handlePostPropertySuccess,
+    postSuccessMsg,
+    setPostSuccessMsg,
     setShowPostModal,
   } = useAppContext();
+
+  const closePostSuccess = () => {
+    setPostSuccessMsg(null);
+    router.push('/');
+  };
 
   return (
     <>
@@ -39,6 +47,12 @@ export default function AppShell({ children }) {
           onClose={() => setShowPostModal(false)}
           initialTransactionType={postModalTransactionType}
           onSuccessfulPost={handlePostPropertySuccess}
+        />
+      )}
+      {!isAdmin && postSuccessMsg && (
+        <SuccessPopup
+          message={postSuccessMsg}
+          onOk={closePostSuccess}
         />
       )}
     </>

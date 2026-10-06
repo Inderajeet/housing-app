@@ -151,10 +151,20 @@ const DEFAULT_HEADINGS = {
   ta: {
     sale_booking_contact_owner_btn: 'உரிமையாளரை தொடர்பு கொள்ள',
     sale_booking_free_visit_btn: 'இலவச பார்வை',
+    property_more_details_label: 'மேலும் விவரங்கள்',
+    sale_booking_success_msg: 'நன்றி! விரைவில் தொடர்பு கொள்வோம்.',
+    rent_booking_success_msg: 'நன்றி! விரைவில் தொடர்பு கொள்வோம்.',
+    sale_postflow_success_msg: 'சொத்து வெற்றிகரமாக பதிவு செய்யப்பட்டது!!!',
+    rent_postflow_success_msg: 'சொத்து வெற்றிகரமாக பதிவு செய்யப்பட்டது!!!',
   },
   en: {
     sale_booking_contact_owner_btn: 'Contact Owner',
     sale_booking_free_visit_btn: 'Free Visit',
+    property_more_details_label: 'More Details',
+    sale_booking_success_msg: 'Thank you! We will call you soon.',
+    rent_booking_success_msg: 'Thank you! We will call you soon.',
+    sale_postflow_success_msg: 'Property Posted Successfully!!!',
+    rent_postflow_success_msg: 'Property Posted Successfully!!!',
   },
 };
 

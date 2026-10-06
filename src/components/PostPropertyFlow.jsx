@@ -90,6 +90,7 @@ const PostPropertyFlow = ({ onClose, initialTransactionType = 'rent', onSuccessf
                 const prefix = formData.transactionType;
                 setPostFlowConfig({
                     header: headings[`${prefix}_postflow_header`],
+                    successMsg: headings[`${prefix}_postflow_success_msg`],
                     button: headings[`${prefix}_postflow_button`],
                     options: {
                         property_type: flowOptions.property_type,
@@ -261,7 +262,7 @@ const PostPropertyFlow = ({ onClose, initialTransactionType = 'rent', onSuccessf
             }
 
             await endpoints.updateProperty(formData.transactionType, formData.property_id, payload);
-            onSuccessfulPost(formData.number);
+            onSuccessfulPost(formData.number, formData.transactionType, postFlowConfig?.successMsg);
         } catch (err) {
             alert('Failed to post property details. Please check your connection.');
         } finally {

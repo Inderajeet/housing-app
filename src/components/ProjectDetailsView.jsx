@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Map as MapIcon, CalendarCheck, Image as ImageIcon, ThumbsUp } from 'lucide-react';
+import { Map as MapIcon, CalendarCheck, Image as ImageIcon, Info } from 'lucide-react';
+import { getPropertyCategory } from '../utils/propertyRouting';
 import { endpoints } from '../api/api';
 import dynamic from 'next/dynamic';
 const GalleryMap = dynamic(() => import('./GalleryMap'), { ssr: false, loading: () => <div style={{ height: 300 }} /> });
@@ -27,6 +28,12 @@ export default function ProjectDetailsView({ routeIdentifier = '', routeMode = n
   const [propertyStatus, setPropertyStatus] = useState(null);
   const [showImageDetails, setShowImageDetails] = useState(false);
   const [hasUnitsMap, setHasUnitsMap] = useState(null);
+  const [enquiryMode, setEnquiryMode] = useState(false);
+  const [insideChoicePanel, setInsideChoicePanel] = useState(false);
+
+  useEffect(() => {
+    if (activePanel !== 'booking') { setEnquiryMode(false); setInsideChoicePanel(false); }
+  }, [activePanel]);
 
   useEffect(() => {
     const fetchProperty = async () => {
@@ -85,6 +92,8 @@ export default function ProjectDetailsView({ routeIdentifier = '', routeMode = n
   const isSalePlotOrFlat = !isRent && isPlotOrFlat;
   // Plot/flat with units drawn in the editor shows "Booking Status", everything else shows "Like"
   const showLikeThumb = !(isSalePlotOrFlat && hasUnitsMap === true);
+  // On the unit map the tab offers More Details; inside the enquiry screen it flips back to Booking Status
+  const showMoreDetails = showLikeThumb || (activePanel === 'booking' && !enquiryMode && !insideChoicePanel);
   const showBoundaryPanel = !isRent && ['land', 'house'].includes((project?.sale_type || '').toLowerCase()) && (
     project?.boundary_north || project?.boundary_south || project?.boundary_east || project?.boundary_west
   );
@@ -306,6 +315,7 @@ export default function ProjectDetailsView({ routeIdentifier = '', routeMode = n
                     projectType={project.property_type?.toLowerCase()}
                     transactionType={isRent ? 'rent' : 'sale'}
                     saleType={project.sale_type}
+                    searchCategory={getPropertyCategory(project)}
                     bookedPeopleCount={project.booked_people_count}
                     generalStatus={generalStatus}
                     isBlocked={isBlocked || project.rent_status === 'RENTED' || project.sale_status === 'SOLD'}
@@ -313,7 +323,12 @@ export default function ProjectDetailsView({ routeIdentifier = '', routeMode = n
                     onStatusChange={handleStatusChange}
                     onBack={() => setActivePanel('map')}
                     knownNoUnits={isSalePlotOrFlat && hasUnitsMap === false}
-                    onUnitsAvailabilityChange={({ hasUnitsMap: hasMap }) => { if (!hasMap) setHasUnitsMap(false); }}
+                    enquiryMode={enquiryMode}
+                    onEnquiryModeChange={setEnquiryMode}
+                    onUnitsAvailabilityChange={({ hasUnitsMap: hasMap, insideChoicePanel: inside }) => {
+                      if (!hasMap) setHasUnitsMap(false);
+                      setInsideChoicePanel(Boolean(inside));
+                    }}
                   />
                 </div>
               )}
@@ -438,10 +453,18 @@ export default function ProjectDetailsView({ routeIdentifier = '', routeMode = n
             <button
               type="button"
               className={`panel-thumb booking-thumb ${showLikeThumb ? 'like-mode' : ''} ${activePanel === 'booking' ? 'active' : ''}`}
-              onClick={() => setActivePanel('booking')}
+              onClick={() => {
+                if (!showLikeThumb && activePanel === 'booking') {
+                  // Toggle between the unit map and the enquiry screen
+                  if (enquiryMode) setEnquiryMode(false);
+                  else if (!insideChoicePanel) setEnquiryMode(true);
+                  return;
+                }
+                setActivePanel('booking');
+              }}
             >
-              {showLikeThumb ? <ThumbsUp size={18} className="fb-like-icon" /> : <CalendarCheck size={18} />}
-              <span>{showLikeThumb ? 'Like' : 'Booking Status'}</span>
+              {showMoreDetails ? <Info size={18} strokeWidth={2.5} className="fb-like-icon" /> : <CalendarCheck size={18} />}
+              <span>{showMoreDetails ? (siteHeadings.property_more_details_label || 'More Details') : 'Booking Status'}</span>
             </button>
 
             {showBoundaryPanel && (

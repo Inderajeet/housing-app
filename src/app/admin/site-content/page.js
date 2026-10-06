@@ -180,6 +180,16 @@ function BookingTab({ flowType, locale, headings, onSaveHeading, choiceOrder, sh
           return <FlowOptionField key={option.id} option={option} hint={hint} onSave={handleSaveOption} />;
         })}
       </div>
+
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
+        <h3 className="text-sm font-bold text-gray-700">Success Message</h3>
+        <HeadingField
+          contentKey={`${flowType}_booking_success_msg`}
+          label="Popup text (after phone number entered)"
+          headings={headings}
+          onSave={onSaveHeading}
+        />
+      </div>
     </div>
   );
 }
@@ -230,6 +240,11 @@ function HomePageTab({ locale, headings, onSaveHeading, showToast }) {
         <h3 className="text-sm font-bold text-gray-700">Menu Bar</h3>
         {heading('home_salemap_label', 'Sale Map Label')}
         {heading('home_rentmap_label', 'Rent Map Label')}
+      </div>
+
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
+        <h3 className="text-sm font-bold text-gray-700">Property Details &amp; Phone Submit</h3>
+        {heading('property_more_details_label', 'More Details Tab Label')}
       </div>
 
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
@@ -372,6 +387,11 @@ function PostFlowTab({ flowType, locale, headings, onSaveHeading, postflowGroups
             </div>
           </div>
         ))}
+      </div>
+
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
+        <h3 className="text-sm font-bold text-gray-700">Success Message</h3>
+        {heading(`${flowType}_postflow_success_msg`, 'Popup text (after property is posted)')}
       </div>
     </div>
   );
