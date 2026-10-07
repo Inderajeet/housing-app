@@ -30,6 +30,7 @@ export default function PropertyAssetsTabs({ propertyId, assets, setAssets, isRe
   const [blurEditAsset, setBlurEditAsset] = useState(null);
   const [videoUrlDraft, setVideoUrlDraft] = useState(videoUrl || '');
   const [savingVideo, setSavingVideo] = useState(false);
+  const [uploadingVideo, setUploadingVideo] = useState(false);
 
   useEffect(() => { setVideoUrlDraft(videoUrl || ''); }, [videoUrl]);
 
@@ -38,6 +39,32 @@ export default function PropertyAssetsTabs({ propertyId, assets, setAssets, isRe
     setSavingVideo(true);
     try { await onVideoUrlSave(videoUrlDraft.trim()); } catch {}
     setSavingVideo(false);
+  };
+
+  const handleVideoFileUpload = async (file) => {
+    if (!file || !propertyId || !onVideoUrlSave) return;
+    if (!file.type.startsWith('video/')) { alert('Please choose a video file'); return; }
+    setUploadingVideo(true);
+    try {
+      const oldVideoAssets = assets.filter(a => a.asset_type === 'video');
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('asset_type', 'video');
+      const res = await adminApi.post(`/property-assets/${propertyId}`, fd);
+      const uploadedUrl = res.data?.file_url;
+      if (!uploadedUrl) throw new Error('No URL returned');
+      await onVideoUrlSave(uploadedUrl);
+      setVideoUrlDraft(uploadedUrl);
+      // Remove replaced videos from R2 and the assets table
+      for (const old of oldVideoAssets) {
+        try { await adminApi.delete(`/property-assets/${old.asset_id}`); } catch {}
+      }
+      await refreshAssets();
+    } catch (err) {
+      alert(uploadErrorMessage(err, file.name));
+    } finally {
+      setUploadingVideo(false);
+    }
   };
 
   const tabClass = (tab) => `py-3 text-[10px] font-bold uppercase tracking-widest transition-all ${activeTab === tab ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-400 hover:text-gray-600'}`;
@@ -114,6 +141,21 @@ export default function PropertyAssetsTabs({ propertyId, assets, setAssets, isRe
     }
   };
 
+  const fileVideoUrl = /\.(mp4|webm|mov)(\?.*)?$/i.test((videoUrl || '').trim()) ? videoUrl.trim() : '';
+
+  const handleVideoDelete = async () => {
+    if (!confirm('Delete this video? It will be removed permanently.')) return;
+    try {
+      const matches = assets.filter(a => a.asset_type === 'video' && (a.file_url || a.url) === fileVideoUrl);
+      for (const a of matches) await adminApi.delete(`/property-assets/${a.asset_id}`);
+      if (onVideoUrlSave) await onVideoUrlSave('');
+      setVideoUrlDraft('');
+      await refreshAssets();
+    } catch (err) {
+      alert(`Failed to delete video: ${err?.response?.data?.error || err?.message || 'Unknown error'}`);
+    }
+  };
+
   const deleteAssets = async (ids) => {
     for (const id of ids) {
       try { await adminApi.delete(`/property-assets/${id}`); } catch {}
@@ -144,10 +186,20 @@ export default function PropertyAssetsTabs({ propertyId, assets, setAssets, isRe
           )}
         </div>
       )}
-      {items.length === 0 ? (
+      {items.length === 0 && !(type === 'image' && fileVideoUrl) ? (
         <div className="text-center py-12 text-gray-300 text-sm font-bold uppercase tracking-widest">No {type}s uploaded</div>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+          {type === 'image' && fileVideoUrl && (
+            <div className="relative group rounded-xl overflow-hidden border border-gray-100 bg-black">
+              <video src={fileVideoUrl} controls playsInline preload="metadata" className="w-full h-32 object-cover" />
+              {!isReadOnly && (
+                <div className="absolute top-2 right-2 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button onClick={handleVideoDelete} className="w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center text-xs" title="Delete video">✕</button>
+                </div>
+              )}
+            </div>
+          )}
           {items.map(a => (
             <div key={a.asset_id} className="relative group rounded-xl overflow-hidden border border-gray-100 bg-gray-50">
               {type === 'image' ? (
@@ -166,7 +218,7 @@ export default function PropertyAssetsTabs({ propertyId, assets, setAssets, isRe
                       title="Edit / blur"
                     >✎</button>
                   )}
-                  <button onClick={() => deleteAssets([a.asset_id])} className="w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center text-xs">✕</button>
+                  <button onClick={() => { if (confirm(`Delete this ${type}? It will be removed permanently.`)) deleteAssets([a.asset_id]); }} className="w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center text-xs">✕</button>
                 </div>
               )}
             </div>
@@ -288,6 +340,15 @@ export default function PropertyAssetsTabs({ propertyId, assets, setAssets, isRe
                   >{savingVideo ? 'Saving…' : 'Save'}</button>
                 )}
               </div>
+              {!isReadOnly && (
+                <div className="mt-3 flex items-center gap-3">
+                  <label className={`flex items-center gap-2 px-4 py-2 font-bold text-xs uppercase rounded-xl border w-fit ${uploadingVideo ? 'bg-gray-100 text-gray-400 border-gray-200 opacity-60 cursor-not-allowed' : 'bg-blue-50 hover:bg-blue-100 text-blue-600 border-blue-200 cursor-pointer'}`}>
+                    {uploadingVideo ? <><Spinner /> Uploading video…</> : 'Upload Video File'}
+                    <input type="file" accept="video/mp4,video/webm,video/quicktime" className="hidden" disabled={uploadingVideo} onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f && !uploadingVideo) handleVideoFileUpload(f); }} />
+                  </label>
+                  <span className="text-[11px] text-gray-500">MP4, 1080p, 24-30fps, ~1 min (about 20 MB). Replaces the link above.</span>
+                </div>
+              )}
             </div>
           )}
           {renderGrid(imageAssets, 'image')}

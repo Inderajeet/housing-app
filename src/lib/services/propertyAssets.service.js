@@ -1,5 +1,5 @@
 import prisma from '../prisma.js';
-import { uploadToCloudflare } from '../uploadToCloudflare';
+import { uploadToCloudflare, deleteFromCloudflare } from '../uploadToCloudflare';
 
 export async function uploadAsset(propertyId, assetType, file) {
   if (!file) throw new Error('No file received');
@@ -29,6 +29,9 @@ export async function deleteAsset(assetId) {
     assetId
   );
   const deleted = rows[0] || null;
+
+  // Remove the file from R2 too
+  if (deleted?.file_url) await deleteFromCloudflare(deleted.file_url);
 
   // When a drawing is deleted, clear drawing_image on the owning property
   if (deleted?.asset_type === 'drawing' && deleted?.property_id) {

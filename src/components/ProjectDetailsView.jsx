@@ -129,8 +129,10 @@ export default function ProjectDetailsView({ routeIdentifier = '', routeMode = n
   const videoUrl = project?.video_url || '';
 
   /* Build the proxied FB thumbnail URL for the strip */
+  const isFileVideo = /\.(mp4|webm|mov)(\?.*)?$/i.test(videoUrl.trim());
+
   const fbThumbSrc = useMemo(() => {
-    if (!videoUrl) return null;
+    if (!videoUrl || isFileVideo) return null;
     const srcMatch = videoUrl.match(/\bsrc=["']([^"']+)["']/i);
     let canonical = videoUrl;
     if (srcMatch) {
@@ -138,7 +140,7 @@ export default function ProjectDetailsView({ routeIdentifier = '', routeMode = n
       canonical = hrefMatch ? decodeURIComponent(hrefMatch[1]) : videoUrl;
     }
     return `/api/frontend/fb-thumbnail?url=${encodeURIComponent(canonical)}`;
-  }, [videoUrl]);
+  }, [videoUrl, isFileVideo]);
 
   const getFbEmbedAttrs = (raw) => {
     if (!raw) return { src: '', width: null, height: null };
@@ -371,7 +373,15 @@ export default function ProjectDetailsView({ routeIdentifier = '', routeMode = n
                 </div>
               )}
 
-              {activePanel === 'media:video' && videoUrl && (() => {
+              {activePanel === 'media:video' && videoUrl && isFileVideo && (
+                <div className="panel-content video-panel-content">
+                  <div className="video-panel-frame">
+                    <video src={videoUrl.trim()} controls playsInline preload="metadata" style={{ width: '100%', maxHeight: '70vh', borderRadius: 12, background: '#000' }} />
+                  </div>
+                </div>
+              )}
+
+              {activePanel === 'media:video' && videoUrl && !isFileVideo && (() => {
                 const { src: fbSrc, width: fbW, height: fbH } = getFbEmbedAttrs(videoUrl);
                 return (
                   <div className="panel-content video-panel-content">
@@ -514,7 +524,9 @@ export default function ProjectDetailsView({ routeIdentifier = '', routeMode = n
                     onClick={() => setActivePanel('media:video')}
                   >
                     <div className="panel-thumb-media video-thumb-media">
-                      {fbThumbSrc ? (
+                      {isFileVideo ? (
+                        <video src={`${videoUrl.trim()}#t=0.1`} muted playsInline preload="metadata" />
+                      ) : fbThumbSrc ? (
                         <img src={fbThumbSrc} alt="Video" onError={e => { e.currentTarget.style.display = 'none'; }} />
                       ) : displayImages[0]?.src ? (
                         <img src={displayImages[0].src} alt="Video" />
