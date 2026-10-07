@@ -44,13 +44,15 @@ export default function PropertyAssetsTabs({ propertyId, assets, setAssets, isRe
   const handleVideoFileUpload = async (file) => {
     if (!file || !propertyId || !onVideoUrlSave) return;
     if (!file.type.startsWith('video/')) { alert('Please choose a video file'); return; }
+    if (file.size > 150 * 1024 * 1024) { alert('Video is over 150 MB. Please trim or shrink it first.'); return; }
     setUploadingVideo(true);
     try {
       const oldVideoAssets = assets.filter(a => a.asset_type === 'video');
       const fd = new FormData();
       fd.append('file', file);
       fd.append('asset_type', 'video');
-      const res = await adminApi.post(`/property-assets/${propertyId}`, fd);
+      // Server compresses the video, so allow up to 10 min
+      const res = await adminApi.post(`/property-assets/${propertyId}`, fd, { timeout: 600000 });
       const uploadedUrl = res.data?.file_url;
       if (!uploadedUrl) throw new Error('No URL returned');
       await onVideoUrlSave(uploadedUrl);
@@ -343,10 +345,10 @@ export default function PropertyAssetsTabs({ propertyId, assets, setAssets, isRe
               {!isReadOnly && (
                 <div className="mt-3 flex items-center gap-3">
                   <label className={`flex items-center gap-2 px-4 py-2 font-bold text-xs uppercase rounded-xl border w-fit ${uploadingVideo ? 'bg-gray-100 text-gray-400 border-gray-200 opacity-60 cursor-not-allowed' : 'bg-blue-50 hover:bg-blue-100 text-blue-600 border-blue-200 cursor-pointer'}`}>
-                    {uploadingVideo ? <><Spinner /> Uploading video…</> : 'Upload Video File'}
+                    {uploadingVideo ? <><Spinner /> Uploading &amp; compressing…</> : 'Upload Video File'}
                     <input type="file" accept="video/mp4,video/webm,video/quicktime" className="hidden" disabled={uploadingVideo} onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f && !uploadingVideo) handleVideoFileUpload(f); }} />
                   </label>
-                  <span className="text-[11px] text-gray-500">MP4, 1080p, 24-30fps, ~1 min (about 20 MB). Replaces the link above.</span>
+                  <span className="text-[11px] text-gray-500">Auto-compressed to 1080p / 24fps (up to 150 MB, ~1 min videos work best). Can take a minute or two. Replaces the link above.</span>
                 </div>
               )}
             </div>
