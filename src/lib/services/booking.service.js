@@ -1,4 +1,5 @@
 import prisma from '../prisma.js';
+import { sendWhatsApp } from '../whatsapp.js';
 
 const stageToBookingStatus = {
   VISIT_NEGOTIATE:  'on_booking',
@@ -97,21 +98,8 @@ export async function getGeneralFlow({ propertyId, unitType, unitId }) {
   return { overallStageIndex: maxIndex, overallStatus: finalStatus, contactCount: contactBuyers.size, agreementCount: agreementBuyers.size, enquiryCount, enquiryBCount, enquiryCCount };
 }
 
-// Sends via the whatsapp-gateway service (fixed sender number) to the number the user entered
-async function notifyWhatsApp(phone, message) {
-  const url = process.env.WHATSAPP_GATEWAY_URL;
-  if (!url) {
-    console.log(`[whatsapp not configured] to ${phone}: ${message}`);
-    return;
-  }
-
-  const res = await fetch(`${url}/send`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-gateway-secret': process.env.GATEWAY_SECRET || '' },
-    body: JSON.stringify({ to: phone, message }),
-  });
-  if (!res.ok) console.error('whatsapp send failed', res.status, await res.text());
-}
+// Sends via WhatsApp Cloud API (or the old gateway) to the number the user entered
+const notifyWhatsApp = sendWhatsApp;
 
 // Contact Owner / Free Visit path (and the sale MCQ's "no status change" option) -
 // no booking stage involved, so only an enquiry is logged and no bookings row is created.
