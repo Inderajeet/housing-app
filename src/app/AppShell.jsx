@@ -3,7 +3,8 @@
 import { Suspense } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import MenuBar from '../components/MenuBar';
-import PostPropertyFlow from '../components/PostPropertyFlow';
+import Footer from '../components/Footer';
+import PostPropertyFlow from'../components/PostPropertyFlow';
 import SuccessPopup from '../components/SuccessPopup';import AnalyticsTracker from '../components/AnalyticsTracker';
 import { useAppContext } from './AppContext';
 
@@ -42,6 +43,7 @@ export default function AppShell({ children }) {
         </Suspense>
       )}
       {children}
+      {!isAdmin && <Footer />}
       {!isAdmin && showPostModal && (
         <PostPropertyFlow
           onClose={() => setShowPostModal(false)}

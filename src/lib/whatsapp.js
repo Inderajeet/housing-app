@@ -22,7 +22,7 @@ async function sendViaCloudApi(phone, message) {
         template: {
           name: template,
           language: { code: lang },
-          components: template === 'hello_world'
+          components: process.env.WHATSAPP_TEMPLATE_VARS === '0'
             ? []
             : [{ type: 'body', parameters: [{ type: 'text', text: message.replace(/\s*\n+\s*/g, ' ') }] }],
         },

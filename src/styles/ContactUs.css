@@ -1,0 +1,49 @@
+/* Contact us page */
+.cu-sub {
+  color: #64748b;
+  margin: 0 0 28px;
+}
+
+.cu-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+}
+
+.cu-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 22px;
+}
+
+.cu-card h2 {
+  font-size: 1.05rem;
+  margin: 12px 0 6px;
+  color: #0f172a;
+}
+
+.cu-card p {
+  margin: 0;
+  color: #475569;
+}
+
+.cu-card a {
+  color: #2563eb;
+  text-decoration: none;
+}
+
+.cu-card a:hover {
+  text-decoration: underline;
+}
+
+.cu-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  background: #e0e7ff;
+  color: #3730a3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
